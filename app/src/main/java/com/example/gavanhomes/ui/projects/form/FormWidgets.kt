@@ -78,12 +78,13 @@ fun SubHeading(text: String) {
 @Composable
 fun Input(
     label: String, value: String, onChange: (String) -> Unit, error: String? = null,
-    singleLine: Boolean = true, keyboard: KeyboardType = KeyboardType.Text, readOnly: Boolean = false,
+    singleLine: Boolean = true, keyboard: KeyboardType = KeyboardType.Text, readOnly: Boolean = false, password: Boolean = false,
 ) {
     OutlinedTextField(
         value = value, onValueChange = onChange, label = { Text(label) }, singleLine = singleLine, minLines = if (singleLine) 1 else 3, readOnly = readOnly,
         isError = error != null, supportingText = error?.let { { Text(it) } }, shape = RoundedCornerShape(14.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+        visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = if (password) KeyboardType.Password else keyboard),
         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk, focusedLabelColor = KitMuted, unfocusedLabelColor = KitMuted),
         modifier = Modifier.fillMaxWidth(),
     )

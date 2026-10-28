@@ -8,6 +8,8 @@ import com.example.gavanhomes.ui.dashboard.DashboardScreen
 import com.example.gavanhomes.ui.projects.ProjectDetailScreen
 import com.example.gavanhomes.ui.projects.ProjectFormScreen
 import com.example.gavanhomes.ui.projects.ProjectsScreen
+import com.example.gavanhomes.ui.users.UserDetailScreen
+import com.example.gavanhomes.ui.users.UserFormScreen
 import com.example.gavanhomes.ui.users.UsersScreen
 import com.example.gavanhomes.ui.account.AccountScreen
 
@@ -140,6 +142,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var projectsVersion by remember { mutableIntStateOf(0) }   // bumped after a project is saved so the list reloads
     var formUuid by remember { mutableStateOf<String?>(null) } // project being edited (null = new)
     var detailUuid by remember { mutableStateOf<String?>(null) } // project whose details are open
+    var usersVersion by remember { mutableIntStateOf(0) }      // bumped after a user is saved / deleted so the list reloads
+    var userId by remember { mutableStateOf<Int?>(null) }      // user whose details are open, or being edited (null on the form = new)
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
 
@@ -240,6 +244,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "web" && w != null && w.canGoBack() -> w.goBack()
             screen == "web" -> { opening = false; screen = returnTo }
             screen == "projectForm" || screen == "projectDetail" -> screen = "projects"
+            screen == "userForm" || screen == "userDetail" -> screen = "users"
             screen != "dashboard" -> goHome()
             else -> activity?.finish()
         }
@@ -280,7 +285,25 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         api, branding, uuid = formUuid, onBack = { screen = "projects" },
                         onSaved = { projectsVersion++; screen = "projects" },
                     )
-                    "users" -> UsersScreen(api, branding, onBack = ::goHome, onOpenWeb = ::openWeb)
+                    "users" -> androidx.compose.runtime.key(usersVersion) {
+                        UsersScreen(
+                            api, branding, onBack = ::goHome,
+                            onOpenUser = { id -> userId = id; screen = "userDetail" },
+                            onAdd = { userId = null; screen = "userForm" },
+                            onEditUser = { id -> userId = id; screen = "userForm" },
+                        )
+                    }
+                    "userDetail" -> androidx.compose.runtime.key(usersVersion) {
+                        UserDetailScreen(
+                            api, branding, id = userId ?: 0, onBack = { screen = "users" },
+                            onEdit = { id -> userId = id; screen = "userForm" },
+                            onDeleted = { usersVersion++; screen = "users" },
+                        )
+                    }
+                    "userForm" -> UserFormScreen(
+                        api, branding, id = userId, onBack = { screen = "users" },
+                        onSaved = { usersVersion++; screen = "users" },
+                    )
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(
@@ -290,7 +313,9 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            if (screen != "projectForm") ModuleBar(modules, if (screen == "projectDetail") "projects" else screen, onSelect = ::openModule)   // the form has its own Save bar
+            if (screen != "projectForm" && screen != "userForm") {   // the forms have their own Save bar
+                ModuleBar(modules, when (screen) { "projectDetail" -> "projects"; "userDetail" -> "users"; else -> screen }, onSelect = ::openModule)
+            }
         }
     }
 }

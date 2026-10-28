@@ -76,6 +76,11 @@ class ApiClient(private val tokenProvider: () -> String?) {
 
     fun detail(path: String): JSONObject = request("GET", path).getJSONObject("data")
 
+    /** A GET that returns the whole response (`data` plus extras such as `can`). */
+    fun get(path: String): JSONObject = request("GET", path)
+
+    fun delete(path: String): JSONObject = request("DELETE", path)
+
     /** Any write: POST / PUT with a JSON body; returns the response JSON. */
     fun send(method: String, path: String, body: JSONObject): JSONObject = request(method, path, body)
 
