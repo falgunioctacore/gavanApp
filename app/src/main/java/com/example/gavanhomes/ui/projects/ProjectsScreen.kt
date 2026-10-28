@@ -1,9 +1,10 @@
 package com.example.gavanhomes.ui.projects
 
-import com.example.gavanhomes.ui.common.*
-
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,15 +14,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,10 +41,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +57,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.str
+import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.HeroBar
+import com.example.gavanhomes.ui.common.HeroButton
+import com.example.gavanhomes.ui.common.KitDanger
+import com.example.gavanhomes.ui.common.KitGood
+import com.example.gavanhomes.ui.common.KitInk
+import com.example.gavanhomes.ui.common.KitMuted
+import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.Pill
+import com.example.gavanhomes.ui.common.SearchBox
+import com.example.gavanhomes.ui.common.listAllMeta
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -53,6 +76,8 @@ private val Banners = listOf(
     Color(0xFF5B9BFF) to Color(0xFF2F6FE4), Color(0xFF1BAF7A) to Color(0xFF0E8A7E), Color(0xFFF59E0B) to Color(0xFFC2410C),
     Color(0xFF8B5CF6) to Color(0xFF4A3AA7), Color(0xFFEC4899) to Color(0xFF9D174D), Color(0xFF475569) to Color(0xFF1E293B),
 )
+private val Amber = Color(0xFFC47A1A)
+private val Blue = Color(0xFF2F6FE4)
 
 private fun statusKind(name: String?): String = when {
     name == null -> "info"
@@ -63,27 +88,67 @@ private fun statusKind(name: String?): String = when {
     else -> "info"
 }
 
+private fun statusColor(name: String?): Color = when (statusKind(name)) { "warn" -> Amber; "done" -> KitGood; "crit" -> KitDanger; else -> Blue }
 private fun date(s: String?): LocalDate? = runCatching { LocalDate.parse(s!!.take(10)) }.getOrNull()
+private val Pretty = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy")
+private fun LocalDate?.pretty(): String = this?.format(Pretty) ?: "—"
+
+/** One project with its derived timeline numbers. */
+private class P(val json: JSONObject) {
+    val id = json.optInt("id")
+    val name = json.str("name") ?: "Project"
+    val code = json.str("code")
+    val status = json.str("status")
+    val active = json.optBoolean("active")
+    val types = json.optJSONArray("type")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+    val start = date(json.str("start_date"))
+    val end = date(json.str("end_date"))
+    val left: Int? = end?.let { ChronoUnit.DAYS.between(LocalDate.now(), it).toInt() }
+    val progress: Float? = if (start != null && end != null && end.isAfter(start))
+        (ChronoUnit.DAYS.between(start, LocalDate.now()).toFloat() / ChronoUnit.DAYS.between(start, end)).coerceIn(0f, 1f) else null
+    val tasks = json.optInt("tasks_count")
+    val members = json.optInt("members_count")
+    val phone = json.str("phone")
+    val email = json.str("email")
+    val detailsPath = json.str("details_path")
+    val editPath = json.str("edit_path")
+    val uuid = json.str("uuid")
+    val banner = Banners[(id % Banners.size + Banners.size) % Banners.size]
+    fun matches(q: String) = q.isEmpty() || listOfNotNull(name, code, status).any { it.lowercase().contains(q) } || types.any { it.lowercase().contains(q) }
+}
+
+private val SortNames = listOf("Newest", "Name A–Z", "Ending soon")
 
 /**
- * Native copy of the website's Projects page (admin_mobile/projects): hero with counts, status tabs, search,
- * project cards with a timeline bar. Data: GET /api/mobile/admin/projects. Tapping a card opens its website page.
+ * Projects — GET /api/mobile/admin/projects. Hero with live counts, search, status chips, sort and a cards / compact
+ * layout switch. A project opens its native details page; ⋯ opens actions (open, edit, call, email).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenWeb: (String) -> Unit) {
-    var projects by remember { mutableStateOf<List<JSONObject>?>(null) }
+fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetails: (String) -> Unit, onOpenForm: (String?) -> Unit) {
+    val context = LocalContext.current
+    var projects by remember { mutableStateOf<List<P>?>(null) }
+    var canCreate by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
-    var tab by remember { mutableIntStateOf(0) }
     var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf<String?>(null) }     // a status name, or "~inactive"
+    var sort by remember { mutableIntStateOf(0) }
+    var compact by remember { mutableStateOf(false) }
+    var sortOpen by remember { mutableStateOf(false) }
+    var sheet by remember { mutableStateOf<P?>(null) }
 
     LaunchedEffect(reload) {
         error = null
-        try { projects = api.listAll("projects") } catch (e: Exception) { error = e.message ?: "Could not load projects" }
+        try {
+            val (items, meta) = api.listAllMeta("projects")
+            projects = items.map(::P)
+            canCreate = meta.optJSONObject("can")?.optBoolean("create") == true
+        } catch (e: Exception) { error = e.message ?: "Could not load projects" }
     }
 
+    val all = projects
     Column(Modifier.fillMaxSize().background(KitPage)) {
-        val all = projects
         if (all == null) {
             HeroBar(b, "Projects", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -96,118 +161,249 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenWeb: (
             return@Column
         }
 
-        val statuses = all.mapNotNull { it.str("status") }.distinct().sorted()
-        val tabs = listOf("All ${all.size}") + statuses.map { s -> "$s ${all.count { it.str("status") == s }}" } +
-            listOf("Inactive ${all.count { !it.optBoolean("active") }}")
-        if (tab >= tabs.size) tab = 0
-        val shown = all.filter { p ->
-            val okTab = when {
-                tab == 0 -> true
-                tab == tabs.lastIndex -> !p.optBoolean("active")
-                else -> p.str("status") == statuses[tab - 1]
+        val statuses = all.mapNotNull { it.status }.distinct().sorted()
+        val shown = all
+            .filter { p -> (filter == null || (filter == "~inactive" && !p.active) || p.status == filter) && p.matches(query.trim().lowercase()) }
+            .let { list ->
+                when (sort) {
+                    1 -> list.sortedBy { it.name.lowercase() }
+                    2 -> list.sortedBy { it.end?.toEpochDay() ?: Long.MAX_VALUE }
+                    else -> list.sortedByDescending { it.id }
+                }
             }
-            val q = query.trim().lowercase()
-            okTab && (q.isEmpty() || listOfNotNull(p.str("name"), p.str("code"), p.str("status")).any { it.lowercase().contains(q) } ||
-                (p.optJSONArray("type")?.let { a -> (0 until a.length()).any { a.getString(it).lowercase().contains(q) } } ?: false))
-        }
+        val inProgress = all.count { statusKind(it.status) == "info" }
+        val pending = all.count { statusKind(it.status) == "warn" }
+        val done = all.count { statusKind(it.status) == "done" }
 
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            // ── header: title, add / refresh, and live counters ──
             item {
-                HeroBar(b, "Projects", onBack) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { HeroNumber(all.size.toString(), "projects · ${all.count { it.optBoolean("active") }} active") }
+                HeroBar(
+                    b, "Projects", onBack,
+                    actions = {
+                        HeroButton("⟳") { reload++ }
+                        if (canCreate) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onOpenForm(null) } }
+                    },
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Counter(all.size.toString(), "Projects", Modifier.weight(1.2f), big = true)
+                        Counter(inProgress.toString(), "In progress", Modifier.weight(1f))
+                        Counter(pending.toString(), "Pending", Modifier.weight(1f))
+                        Counter(done.toString(), "Done", Modifier.weight(1f))
                     }
-                    Spacer(Modifier.height(14.dp))
-                    HeroChips(
-                        "${all.count { statusKind(it.str("status")) == "info" }} in progress",
-                        "${all.count { statusKind(it.str("status")) == "warn" }} pending",
-                        "${all.count { statusKind(it.str("status")) == "done" }} done",
+                }
+            }
+
+            item { Spacer(Modifier.height(14.dp)) }
+            item { SearchBox(query, { query = it }, "Search projects…") }
+
+            // ── status chips ──
+            item {
+                Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip("All", all.size, null, filter == null) { filter = null }
+                    statuses.forEach { s -> FilterChip(s, all.count { it.status == s }, statusColor(s), filter == s) { filter = if (filter == s) null else s } }
+                    FilterChip("Inactive", all.count { !it.active }, KitMuted, filter == "~inactive") { filter = if (filter == "~inactive") null else "~inactive" }
+                }
+            }
+
+            // ── sort + layout ──
+            item {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${shown.size} project${if (shown.size == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Box {
+                        Text(
+                            "↕ ${SortNames[sort]}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { sortOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                            SortNames.forEachIndexed { i, n -> DropdownMenuItem(text = { Text(n) }, onClick = { sort = i; sortOpen = false }) }
+                        }
+                    }
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        if (compact) "▦" else "☰", fontSize = 15.sp, color = KitInk,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { compact = !compact }.padding(horizontal = 14.dp, vertical = 7.dp),
                     )
                 }
             }
-            item { SegTabs(tabs, tab) { tab = it } }
-            item { SearchBox(query, { query = it }, "Search name, code, type…") }
-            item {
-                Text(
-                    "${shown.size} projects", color = KitMuted, fontSize = 12.sp,
-                    modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 6.dp),
-                )
-            }
+            item { Spacer(Modifier.height(8.dp)) }
+
             if (shown.isEmpty()) item {
-                Text("No projects match", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(40.dp))
+                Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("No projects match", fontWeight = FontWeight.Bold, color = KitInk)
+                    Text("Try another search or clear the filter.", color = KitMuted, fontSize = 13.sp)
+                }
             }
-            items(shown) { p -> ProjectCard(p, b) { onOpenWeb("/admin/project/${p.optString("uuid")}") } }
+            items(shown, key = { it.id }) { p ->
+                if (compact) CompactRow(p, onClick = { p.uuid?.let(onOpenDetails) }, onMore = { sheet = p })
+                else ProjectCard(p, b, onClick = { p.uuid?.let(onOpenDetails) }, onMore = { sheet = p },
+                    onCall = { p.phone?.let { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$it"))) } },
+                    onMail = { p.email?.let { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$it"))) } })
+            }
+        }
+    }
+
+    // ── ⋯ actions ──
+    sheet?.let { p ->
+        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+            Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+                Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text(p.code ?: "No code", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+                SheetAction("◉", "Open details") { sheet = null; p.uuid?.let(onOpenDetails) }
+                if (p.editPath != null && p.uuid != null) SheetAction("✎", "Edit project") { sheet = null; onOpenForm(p.uuid) }
+                p.phone?.let { n -> SheetAction("✆", "Call $n") { sheet = null; context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n"))) } }
+                p.email?.let { m -> SheetAction("✉", m) { sheet = null; context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$m"))) } }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────── pieces ───────────────────────────────
+
+@Composable
+private fun Counter(value: String, label: String, modifier: Modifier, big: Boolean = false) {
+    Column(
+        modifier.clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = if (big) .26f else .18f)).padding(vertical = 12.dp, horizontal = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, color = Color.White, fontSize = if (big) 28.sp else 22.sp, fontWeight = FontWeight.ExtraBold)
+        Text(label, color = Color.White.copy(alpha = .85f), fontSize = 11.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun FilterChip(label: String, count: Int, dot: Color?, on: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White)
+            .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (dot != null) { Box(Modifier.size(8.dp).clip(CircleShape).background(dot)); Spacer(Modifier.size(7.dp)) }
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1)
+        Text(" $count", fontSize = 13.sp, color = if (on) Color.White.copy(alpha = .7f) else KitMuted)
+    }
+}
+
+/** Ring showing how far through its timeline a project is, with the days left in the middle. */
+@Composable
+private fun TimelineRing(p: P, tint: Color) {
+    val left = p.left
+    val late = left != null && left < 0
+    val color = if (late) KitDanger else tint
+    Box(
+        Modifier.size(52.dp).drawBehind {
+            val stroke = 5.dp.toPx(); val inset = stroke / 2
+            val arc = Size(size.width - stroke, size.height - stroke)
+            drawArc(color.copy(alpha = .16f), 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(stroke))
+            drawArc(color, -90f, 360f * (p.progress ?: 0f), false, Offset(inset, inset), arc, style = Stroke(stroke, cap = StrokeCap.Round))
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (left == null) "—" else kotlin.math.abs(left).toString(), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = color)
+            Text(if (left == null) "" else if (late) "late" else "days", fontSize = 8.sp, color = KitMuted)
         }
     }
 }
 
 @Composable
-private fun ProjectCard(p: JSONObject, b: Branding, onClick: () -> Unit) {
-    val (c1, c2) = Banners[(p.optInt("id") % Banners.size + Banners.size) % Banners.size]
-    val name = p.str("name") ?: "Project"
-    val status = p.str("status")
-    val kind = statusKind(status)
-    val types = p.optJSONArray("type")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
-    val start = date(p.str("start_date")); val end = date(p.str("end_date"))
-    val today = LocalDate.now()
-    val left = end?.let { ChronoUnit.DAYS.between(today, it).toInt() }
-    val pct = if (start != null && end != null && end.isAfter(start))
-        (ChronoUnit.DAYS.between(start, today).toFloat() / ChronoUnit.DAYS.between(start, end)).coerceIn(0f, 1f) else null
-
+private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Unit, onCall: () -> Unit, onMail: () -> Unit) {
+    val (c1, c2) = p.banner
+    val kind = statusColor(p.status)
     Column(
         Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(26.dp))
-            .clip(RoundedCornerShape(26.dp)).background(Color.White).clickable { onClick() }.padding(8.dp),
+            .clip(RoundedCornerShape(26.dp)).background(Color.White).clickable { onClick() },
     ) {
+        // banner
         Box(
-            Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(20.dp))
-                .background(Brush.linearGradient(listOf(c1, c2), start = Offset.Zero, end = Offset(800f, 600f))),
+            Modifier.fillMaxWidth().height(60.dp).background(Brush.linearGradient(listOf(c1, c2), start = Offset.Zero, end = Offset(800f, 500f))),
         ) {
             Text(
-                name.take(1).uppercase(), color = Color.White.copy(alpha = .16f), fontSize = 140.sp, fontWeight = FontWeight.Black,
-                modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-24).dp),
+                p.name.take(1).uppercase(), color = Color.White.copy(alpha = .16f), fontSize = 80.sp, fontWeight = FontWeight.Black,
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-14).dp),
             )
-            Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (status != null) Pill(
-                    status, Color.White.copy(alpha = .94f),
-                    when (kind) { "warn" -> Color(0xFFB7791F); "done" -> KitGood; "crit" -> KitDanger; else -> Color(0xFF1A5FA8) },
-                )
-                Pill(if (p.optBoolean("active")) "Active" else "Inactive", Color.White.copy(alpha = .94f), if (p.optBoolean("active")) KitGood else Color(0xFF5F6B76))
+            Row(Modifier.align(Alignment.CenterStart).padding(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (p.status != null) Pill(p.status, Color.White.copy(alpha = .95f), kind)
+                Pill(if (p.active) "Active" else "Inactive", Color.White.copy(alpha = .95f), if (p.active) KitGood else Color(0xFF5F6B76))
             }
-            Row(
-                Modifier.align(Alignment.BottomCenter).padding(10.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color.White).padding(start = 16.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(p.str("code") ?: "No code", fontSize = 11.sp, color = KitMuted)
-                }
-                Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF0F172A)), contentAlignment = Alignment.Center) { Text("↗", color = Color.White, fontSize = 18.sp) }
-            }
+            Box(
+                Modifier.align(Alignment.CenterEnd).padding(end = 12.dp).size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = .95f)).clickable { onMore() },
+                contentAlignment = Alignment.Center,
+            ) { Text("⋯", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
         }
 
-        Column(Modifier.padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp)) {
-            if (types.isNotEmpty()) {
-                Row(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    types.take(3).forEach { Pill(it, b.base.copy(alpha = .16f), b.dark) }
-                    if (types.size > 3) Pill("+${types.size - 3}", b.base.copy(alpha = .16f), b.dark)
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(p.code ?: "No code", fontSize = 12.sp, color = KitMuted)
+                }
+                if (p.progress != null) TimelineRing(p, b.base)
+            }
+            if (p.types.isNotEmpty()) {
+                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    p.types.take(3).forEach { Pill(it, b.base.copy(alpha = .16f), b.dark) }
+                    if (p.types.size > 3) Pill("+${p.types.size - 3}", b.base.copy(alpha = .16f), b.dark)
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${start ?: "—"} → ${end ?: "—"}", fontSize = 12.sp, color = KitMuted)
-                if (left != null) Text(
-                    if (left < 0) "${-left}d overdue" else if (left == 0) "Ends today" else "${left}d left",
-                    fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (left < 0) KitDanger else b.dark,
-                )
+            if (p.start != null || p.end != null) {
+                Text("${p.start.pretty()}  →  ${p.end.pretty()}", fontSize = 12.sp, color = KitMuted, modifier = Modifier.padding(top = 10.dp))
             }
-            if (pct != null) {
-                Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(7.dp).clip(CircleShape).background(b.base.copy(alpha = .15f))) {
-                    Box(Modifier.fillMaxWidth(pct).height(7.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(b.base, b.dark))))
-                }
-            }
-            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("${p.optInt("tasks_count")} tasks", fontSize = 12.sp, color = KitInk)
-                Text("${p.optInt("members_count")} members", fontSize = 12.sp, color = KitInk)
+            Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(1.dp).background(Color(0xFFF0EEEA)))
+            Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Stat("${p.tasks}", "tasks")
+                Spacer(Modifier.size(18.dp))
+                Stat("${p.members}", "members")
+                Spacer(Modifier.weight(1f))
+                if (p.phone != null) RoundAction("✆", b.base, onCall)
+                if (p.email != null) { Spacer(Modifier.size(8.dp)); RoundAction("✉", b.base, onMail) }
             }
         }
+    }
+}
+
+@Composable
+private fun CompactRow(p: P, onClick: () -> Unit, onMore: () -> Unit) {
+    val (c1, c2) = p.banner
+    Row(
+        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+            .background(Color.White).clickable { onClick() }.padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(c1, c2))), contentAlignment = Alignment.Center) {
+            Text(p.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(p.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                listOfNotNull(p.code, p.left?.let { if (it < 0) "${-it}d late" else "${it}d left" }, "${p.tasks} tasks").joinToString(" · "),
+                fontSize = 12.sp, color = if ((p.left ?: 0) < 0) KitDanger else KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (p.status != null) Pill(p.status, statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
+        Text("⋯", fontSize = 22.sp, color = KitMuted, modifier = Modifier.clip(CircleShape).clickable { onMore() }.padding(horizontal = 10.dp))
+    }
+}
+
+@Composable
+private fun Stat(value: String, label: String) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = KitInk)
+        Text(" $label", fontSize = 12.sp, color = KitMuted)
+    }
+}
+
+@Composable
+private fun RoundAction(glyph: String, tint: Color, onClick: () -> Unit) {
+    Box(Modifier.size(38.dp).clip(CircleShape).background(tint.copy(alpha = .15f)).clickable { onClick() }, contentAlignment = Alignment.Center) {
+        Text(glyph, color = tint, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun SheetAction(glyph: String, label: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { onClick() }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) { Text(glyph, fontSize = 17.sp, color = KitInk) }
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = KitInk, modifier = Modifier.padding(start = 14.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

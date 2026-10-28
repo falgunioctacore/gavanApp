@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -62,14 +63,15 @@ internal suspend fun ApiClient.listAll(resource: String, maxPages: Int = 8): Lis
 
 /** Brand-gradient header with a back button and title; [content] sits under the title row. */
 @Composable
-internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, content: @Composable () -> Unit = {}) {
+internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, content: @Composable () -> Unit = {}) {
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-            .background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(900f, 1100f))),
+            .background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(900f, 1100f)))
+            // decorative circle, drawn (not a child) so it never makes the header taller
+            .drawBehind { drawCircle(Color.White.copy(alpha = .08f), radius = 100.dp.toPx(), center = Offset(size.width - 30.dp.toPx(), 30.dp.toPx())) },
     ) {
-        Box(Modifier.size(200.dp).offset(x = 230.dp, y = (-70).dp).clip(CircleShape).background(Color.White.copy(alpha = .08f)))
-        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp)) {
+        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = if (compact) 16.dp else 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onBack() },
@@ -79,9 +81,12 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, content: @C
                     title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
+                actions()
             }
-            Spacer(Modifier.height(18.dp))
-            content()
+            if (!compact) {
+                Spacer(Modifier.height(18.dp))
+                content()
+            }
         }
     }
 }
@@ -158,4 +163,27 @@ internal fun SearchBox(value: String, onChange: (String) -> Unit, placeholder: S
         ),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).shadow(3.dp, RoundedCornerShape(16.dp)),
     )
+}
+
+@Composable
+internal fun HeroButton(glyph: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { Text(glyph, color = Color.White, fontSize = 20.sp) }
+}
+
+/** Like [listAll] but also returns the first page's raw JSON, for routes that add extra fields (e.g. `can`). */
+internal suspend fun ApiClient.listAllMeta(resource: String, maxPages: Int = 8): Pair<List<JSONObject>, JSONObject> = withContext(Dispatchers.IO) {
+    val out = mutableListOf<JSONObject>()
+    var meta = JSONObject()
+    var page = 1
+    while (page <= maxPages) {
+        val p = list(resource, page)
+        if (page == 1) meta = p.raw
+        out += p.items
+        if (page >= p.lastPage) break
+        page++
+    }
+    out to meta
 }

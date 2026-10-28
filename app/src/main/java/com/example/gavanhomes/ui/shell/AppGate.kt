@@ -5,6 +5,8 @@ import com.example.gavanhomes.ui.common.Branding
 import com.example.gavanhomes.ui.common.SwalConfirm
 import com.example.gavanhomes.ui.common.loadBranding
 import com.example.gavanhomes.ui.dashboard.DashboardScreen
+import com.example.gavanhomes.ui.projects.ProjectDetailScreen
+import com.example.gavanhomes.ui.projects.ProjectFormScreen
 import com.example.gavanhomes.ui.projects.ProjectsScreen
 import com.example.gavanhomes.ui.users.UsersScreen
 import com.example.gavanhomes.ui.account.AccountScreen
@@ -135,6 +137,9 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var screen by remember { mutableStateOf("dashboard") }     // a module key, or "web" for a website page
     var returnTo by remember { mutableStateOf("dashboard") }   // where Back from a website page goes
     var homeVersion by remember { mutableIntStateOf(0) }       // bumped so the dashboard reloads when you return to it
+    var projectsVersion by remember { mutableIntStateOf(0) }   // bumped after a project is saved so the list reloads
+    var formUuid by remember { mutableStateOf<String?>(null) } // project being edited (null = new)
+    var detailUuid by remember { mutableStateOf<String?>(null) } // project whose details are open
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
 
@@ -234,6 +239,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         when {
             screen == "web" && w != null && w.canGoBack() -> w.goBack()
             screen == "web" -> { opening = false; screen = returnTo }
+            screen == "projectForm" || screen == "projectDetail" -> screen = "projects"
             screen != "dashboard" -> goHome()
             else -> activity?.finish()
         }
@@ -259,7 +265,21 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (screen) {
-                    "projects" -> ProjectsScreen(api, branding, onBack = ::goHome, onOpenWeb = ::openWeb)
+                    "projects" -> androidx.compose.runtime.key(projectsVersion) {
+                        ProjectsScreen(
+                            api, branding, onBack = ::goHome,
+                            onOpenDetails = { uuid -> detailUuid = uuid; screen = "projectDetail" },
+                            onOpenForm = { uuid -> formUuid = uuid; screen = "projectForm" },
+                        )
+                    }
+                    "projectDetail" -> ProjectDetailScreen(
+                        api, branding, uuid = detailUuid.orEmpty(), onBack = { screen = "projects" },
+                        onEdit = { uuid -> formUuid = uuid; screen = "projectForm" },
+                    )
+                    "projectForm" -> ProjectFormScreen(
+                        api, branding, uuid = formUuid, onBack = { screen = "projects" },
+                        onSaved = { projectsVersion++; screen = "projects" },
+                    )
                     "users" -> UsersScreen(api, branding, onBack = ::goHome, onOpenWeb = ::openWeb)
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
                     else -> androidx.compose.runtime.key(homeVersion) {
@@ -270,7 +290,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            ModuleBar(modules, screen, onSelect = ::openModule)
+            if (screen != "projectForm") ModuleBar(modules, if (screen == "projectDetail") "projects" else screen, onSelect = ::openModule)   // the form has its own Save bar
         }
     }
 }

@@ -13,7 +13,8 @@ object ApiConfig {
     const val PREFIX = "/api/mobile/admin"
 }
 
-class ApiException(val code: Int, message: String) : IOException(message)
+/** [errors] holds Laravel's per-field validation messages (field name → first message) on a 422. */
+class ApiException(val code: Int, message: String, val errors: Map<String, String> = emptyMap()) : IOException(message)
 
 data class User(
     val id: Long,
@@ -27,7 +28,7 @@ data class User(
 }
 
 /** One page of a list endpoint (`data`, `current_page`, `last_page` — see routes/api.php). */
-data class Page(val items: List<JSONObject>, val page: Int, val lastPage: Int, val total: Int)
+data class Page(val items: List<JSONObject>, val page: Int, val lastPage: Int, val total: Int, val raw: JSONObject = JSONObject())
 
 /** Client for every route in routes/api.php (Bearer-token auth). Call from a background thread. */
 class ApiClient(private val tokenProvider: () -> String?) {
@@ -70,10 +71,16 @@ class ApiClient(private val tokenProvider: () -> String?) {
         val j = request("GET", q.toString())
         val arr: JSONArray = j.optJSONArray("data") ?: JSONArray()
         val items = (0 until arr.length()).map { arr.getJSONObject(it) }
-        return Page(items, j.optInt("current_page", page), j.optInt("last_page", 1), j.optInt("total", items.size))
+        return Page(items, j.optInt("current_page", page), j.optInt("last_page", 1), j.optInt("total", items.size), j)
     }
 
     fun detail(path: String): JSONObject = request("GET", path).getJSONObject("data")
+
+    /** Any write: POST / PUT with a JSON body; returns the response JSON. */
+    fun send(method: String, path: String, body: JSONObject): JSONObject = request(method, path, body)
+
+    /** Pickers for the project form: statuses, project types, people. */
+    fun projectOptions(): JSONObject = request("GET", "/projects/options").getJSONObject("data")
 
     /** Modules the signed-in user may open (GET /catalog) — the More menu is built from this. */
     fun catalog(): List<JSONObject> {
@@ -105,32 +112,61 @@ class ApiClient(private val tokenProvider: () -> String?) {
         )
     }
 
-    private fun request(method: String, path: String, body: JSONObject? = null, auth: Boolean = true): JSONObject {
+    private fun request(method: String, path: String, body: JSONObject? = null, auth: Boolean = true): JSONObject =
+        execute(method, path, auth, if (body != null) "application/json" else null, body?.let { b -> { out -> out.write(b.toString().toByteArray()) } })
+
+    /** POST multipart/form-data (the website's own field names; files as parts). Used for forms that upload documents. */
+    fun sendForm(path: String, parts: List<FormPart>): JSONObject {
+        val boundary = "----gavan" + System.currentTimeMillis()
+        val buffer = java.io.ByteArrayOutputStream()
+        fun w(s: String) = buffer.write(s.toByteArray(Charsets.UTF_8))
+        fun q(s: String) = s.replace("\"", "%22").replace("\r", "").replace("\n", "")
+        for (p in parts) {
+            w("--$boundary\r\n")
+            if (p.bytes != null) {
+                w("Content-Disposition: form-data; name=\"${q(p.name)}\"; filename=\"${q(p.fileName ?: "file")}\"\r\nContent-Type: ${p.mime ?: "application/octet-stream"}\r\n\r\n")
+                buffer.write(p.bytes)
+            } else {
+                w("Content-Disposition: form-data; name=\"${q(p.name)}\"\r\n\r\n")
+                w(p.value.orEmpty())
+            }
+            w("\r\n")
+        }
+        w("--$boundary--\r\n")
+        val bytes = buffer.toByteArray()
+        return execute("POST", path, true, "multipart/form-data; boundary=$boundary", { out -> out.write(bytes) }, readTimeoutMs = 120_000)
+    }
+
+    private fun execute(
+        method: String, path: String, auth: Boolean = true, contentType: String? = null,
+        write: ((java.io.OutputStream) -> Unit)? = null, readTimeoutMs: Int = 20_000,
+    ): JSONObject {
         val conn = URL(ApiConfig.BASE_URL + ApiConfig.PREFIX + path).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method
             conn.connectTimeout = 10_000
-            conn.readTimeout = 20_000
+            conn.readTimeout = readTimeoutMs
             conn.setRequestProperty("Accept", "application/json")
             if (auth) tokenProvider()?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
-            if (body != null) {
+            if (write != null) {
                 conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                if (contentType != null) conn.setRequestProperty("Content-Type", contentType)
+                conn.outputStream.use { write(it) }
             }
             val code = conn.responseCode
             val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
             val json = runCatching { JSONObject(text) }.getOrDefault(JSONObject())
             if (code !in 200..299) {
-                val message = json.optString("message").ifEmpty { json.optJSONObject("errors")?.let { firstError(it) } ?: "Request failed ($code)" }
-                throw ApiException(code, message)
+                val errs = json.optJSONObject("errors")
+                val message = json.optString("message").ifEmpty { errs?.let { firstError(it) } ?: "Request failed ($code)" }
+                val fields = errs?.keys()?.asSequence()?.associateWith { k -> errs.optJSONArray(k)?.optString(0).orEmpty() } ?: emptyMap()
+                throw ApiException(code, message, fields)
             }
             return json
         } finally {
             conn.disconnect()
         }
     }
-
     private fun firstError(errors: JSONObject): String? {
         val key = errors.keys().asSequence().firstOrNull() ?: return null
         return errors.optJSONArray(key)?.optString(0)
@@ -143,3 +179,6 @@ fun JSONObject.str(key: String): String? = optString(key).takeIf { it.isNotEmpty
 fun User.toJson(): JSONObject = JSONObject()
     .put("id", id).put("name", name).put("email", email).put("phone_number", phone ?: JSONObject.NULL)
     .put("roles", JSONArray(roles)).put("permissions", JSONArray(permissions))
+
+/** One part of a multipart form: a text field, or a file when [bytes] is set. */
+class FormPart(val name: String, val value: String? = null, val fileName: String? = null, val mime: String? = null, val bytes: ByteArray? = null)
