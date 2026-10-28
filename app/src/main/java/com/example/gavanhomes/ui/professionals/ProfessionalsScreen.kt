@@ -77,6 +77,9 @@ import com.example.gavanhomes.ui.common.KitGood
 import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.CardAction
+import com.example.gavanhomes.ui.common.CardStat
+import com.example.gavanhomes.ui.common.EntityCard
 import com.example.gavanhomes.ui.common.Pill
 import com.example.gavanhomes.ui.common.FilterBar
 import com.example.gavanhomes.ui.common.FilterGroup
@@ -464,46 +467,21 @@ private fun LazyListScope.dashboard(d: JSONObject, b: Branding, onOpenPro: (Stri
 
 @Composable
 private fun ProCard(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit, onCall: () -> Unit, onMail: () -> Unit) {
-    val (c1, c2) = p.banner
     val licence = licenceTone(p.expiry)
-    Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(26.dp))
-            .clip(RoundedCornerShape(26.dp)).background(Color.White).clickable { onClick() },
-    ) {
-        Box(Modifier.fillMaxWidth().height(60.dp).background(Brush.linearGradient(listOf(c1, c2), start = Offset.Zero, end = Offset(800f, 500f)))) {
-            Text(
-                p.name.take(1).uppercase(), color = Color.White.copy(alpha = .16f), fontSize = 80.sp, fontWeight = FontWeight.Black,
-                modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-14).dp),
-            )
-            Row(Modifier.align(Alignment.CenterStart).padding(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(statusLabel(p.status), Color.White.copy(alpha = .95f), statusColor(p.status))
-                if (p.type != null) Pill(p.type, Color.White.copy(alpha = .95f), ProBlue)
-            }
-            Box(
-                Modifier.align(Alignment.CenterEnd).padding(end = 12.dp).size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = .95f)).clickable { onMore() },
-                contentAlignment = Alignment.Center,
-            ) { Text("⋯", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
-        }
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Initials(p.name, 52.dp, statusColor(p.status))
-                Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                    Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(listOfNotNull(p.code, p.company).joinToString(" · ").ifEmpty { "No code" }, fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            if (p.city != null || licence != null) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                p.city?.let { Pill(it, b.base.copy(alpha = .16f), b.dark) }
-                licence?.let { (t, c) -> Pill(t, c.copy(alpha = .14f), c) }
-            }
-            Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(1.dp).background(Color(0xFFF0EEEA)))
-            Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(p.phone ?: p.email ?: "No contact", fontSize = 13.sp, color = KitMuted, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (p.phone != null) ProRoundAction("✆", b.base, onCall)
-                if (p.email != null) { Spacer(Modifier.size(8.dp)); ProRoundAction("✉", b.base, onMail) }
-            }
-        }
-    }
+    EntityCard(
+        title = p.name, subtitle = listOfNotNull(p.code, p.company).joinToString(" · ").ifEmpty { "No code" }, accent = p.banner, onClick = onClick, onMore = onMore,
+        chips = {
+            Pill(statusLabel(p.status), statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
+            p.type?.let { Pill(it, ProBlue.copy(alpha = .14f), ProBlue) }
+            p.city?.let { Pill(it, b.base.copy(alpha = .16f), b.dark) }
+            licence?.let { (t, c) -> Pill(t, c.copy(alpha = .14f), c) }
+        },
+        footerLeft = { Text(p.phone ?: p.email ?: "No contact", fontSize = 13.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        footerRight = {
+            if (p.phone != null) CardAction("✆", b.base, onCall)
+            if (p.email != null) CardAction("✉", b.base, onMail)
+        },
+    )
 }
 
 @Composable

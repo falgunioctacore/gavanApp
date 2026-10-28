@@ -66,6 +66,9 @@ import com.example.gavanhomes.ui.common.KitGood
 import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.CardAction
+import com.example.gavanhomes.ui.common.CardStat
+import com.example.gavanhomes.ui.common.EntityCard
 import com.example.gavanhomes.ui.common.Pill
 import com.example.gavanhomes.ui.common.FilterBar
 import com.example.gavanhomes.ui.common.FilterGroup
@@ -302,58 +305,22 @@ private fun TimelineRing(p: P, tint: Color) {
 
 @Composable
 private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Unit, onCall: () -> Unit, onMail: () -> Unit) {
-    val (c1, c2) = p.banner
-    val kind = statusColor(p.status)
-    Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(26.dp))
-            .clip(RoundedCornerShape(26.dp)).background(Color.White).clickable { onClick() },
-    ) {
-        // banner
-        Box(
-            Modifier.fillMaxWidth().height(60.dp).background(Brush.linearGradient(listOf(c1, c2), start = Offset.Zero, end = Offset(800f, 500f))),
-        ) {
-            Text(
-                p.name.take(1).uppercase(), color = Color.White.copy(alpha = .16f), fontSize = 80.sp, fontWeight = FontWeight.Black,
-                modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-14).dp),
-            )
-            Row(Modifier.align(Alignment.CenterStart).padding(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (p.status != null) Pill(p.status, Color.White.copy(alpha = .95f), kind)
-                Pill(if (p.active) "Active" else "Inactive", Color.White.copy(alpha = .95f), if (p.active) KitGood else Color(0xFF5F6B76))
-            }
-            Box(
-                Modifier.align(Alignment.CenterEnd).padding(end = 12.dp).size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = .95f)).clickable { onMore() },
-                contentAlignment = Alignment.Center,
-            ) { Text("⋯", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
-        }
-
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(p.code ?: "No code", fontSize = 12.sp, color = KitMuted)
-                }
-                if (p.progress != null) TimelineRing(p, b.base)
-            }
-            if (p.types.isNotEmpty()) {
-                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    p.types.take(3).forEach { Pill(it, b.base.copy(alpha = .16f), b.dark) }
-                    if (p.types.size > 3) Pill("+${p.types.size - 3}", b.base.copy(alpha = .16f), b.dark)
-                }
-            }
-            if (p.start != null || p.end != null) {
-                Text("${p.start.pretty()}  →  ${p.end.pretty()}", fontSize = 12.sp, color = KitMuted, modifier = Modifier.padding(top = 10.dp))
-            }
-            Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(1.dp).background(Color(0xFFF0EEEA)))
-            Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Stat("${p.tasks}", "tasks")
-                Spacer(Modifier.size(18.dp))
-                Stat("${p.members}", "members")
-                Spacer(Modifier.weight(1f))
-                if (p.phone != null) RoundAction("✆", b.base, onCall)
-                if (p.email != null) { Spacer(Modifier.size(8.dp)); RoundAction("✉", b.base, onMail) }
-            }
-        }
-    }
+    EntityCard(
+        title = p.name, subtitle = p.code ?: "No code", accent = p.banner, onClick = onClick, onMore = onMore,
+        trailing = { if (p.progress != null) TimelineRing(p, b.base) },
+        chips = {
+            if (p.status != null) Pill(p.status, statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
+            Pill(if (p.active) "Active" else "Inactive", (if (p.active) KitGood else Color(0xFF5F6B76)).copy(alpha = .14f), if (p.active) KitGood else Color(0xFF5F6B76))
+            p.types.take(3).forEach { Pill(it, b.base.copy(alpha = .16f), b.dark) }
+            if (p.types.size > 3) Pill("+${p.types.size - 3}", b.base.copy(alpha = .16f), b.dark)
+        },
+        meta = if (p.start != null || p.end != null) "${p.start.pretty()}  →  ${p.end.pretty()}" else null,
+        footerLeft = { CardStat("${p.tasks}", if (p.tasks == 1) "task" else "tasks"); CardStat("${p.members}", if (p.members == 1) "member" else "members") },
+        footerRight = {
+            if (p.phone != null) CardAction("✆", b.base, onCall)
+            if (p.email != null) CardAction("✉", b.base, onMail)
+        },
+    )
 }
 
 @Composable
