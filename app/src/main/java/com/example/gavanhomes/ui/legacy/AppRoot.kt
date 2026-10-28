@@ -1,4 +1,4 @@
-package com.example.gavanhomes.ui
+package com.example.gavanhomes.ui.legacy
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background

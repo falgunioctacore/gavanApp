@@ -1,4 +1,6 @@
-package com.example.gavanhomes.ui
+package com.example.gavanhomes.ui.auth
+
+import com.example.gavanhomes.ui.common.*
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -60,34 +62,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
 import java.util.Calendar
-
-/** Colours + name from GET /app-info, so the app follows the website's theme. Falls back to the gold defaults. */
-class Branding(
-    val name: String = "GavanHomes",
-    val base: Color = Color(0xFFCFA251),
-    val deep: Color = Color(0xFF5D4924),
-    val dark: Color = Color(0xFF785E2F),
-    val logo: ImageBitmap? = null,
-)
-
-private fun parseHex(hex: String?, fallback: Color) = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(fallback)
-
-private suspend fun loadBranding(api: ApiClient): Branding = withContext(Dispatchers.IO) {
-    runCatching {
-        val info = api.appInfo()
-        val theme = info.optJSONObject("theme")
-        val logo = runCatching {
-            URL(ApiConfig.BASE_URL + "/" + info.optString("logo_path")).openStream().use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-        }.getOrNull()
-        Branding(
-            name = info.optString("name").ifBlank { "GavanHomes" },
-            base = parseHex(theme?.optString("base"), Color(0xFFCFA251)),
-            deep = parseHex(theme?.optString("darker"), Color(0xFF5D4924)),
-            dark = parseHex(theme?.optString("dark"), Color(0xFF785E2F)),
-            logo = logo,
-        )
-    }.getOrDefault(Branding())
-}
 
 /**
  * Native copy of the website's mobile login (resources/views/content/admin_mobile/auth/login.blade.php):
@@ -238,6 +212,7 @@ private fun IconField(
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, cursorColor = brand,
+                focusedTextColor = Color(0xFF1F2A44), unfocusedTextColor = Color(0xFF1F2A44),
             ),
             modifier = Modifier.weight(1f),
         )

@@ -3,7 +3,7 @@ package com.example.gavanhomes
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.example.gavanhomes.ui.AppGate
+import com.example.gavanhomes.ui.shell.AppGate
 import com.example.gavanhomes.ui.theme.GavanHomesTheme
 
 /**

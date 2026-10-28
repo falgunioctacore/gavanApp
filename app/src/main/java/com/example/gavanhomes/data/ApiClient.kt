@@ -90,6 +90,9 @@ class ApiClient(private val tokenProvider: () -> String?) {
     }
 
     // ---- plumbing ----------------------------------------------------------------------------
+    /** A user saved by [User.toJson], or null if it can't be read. */
+    fun cachedUser(json: String): User? = runCatching { parseUser(JSONObject(json)) }.getOrNull()
+
     private fun parseUser(u: JSONObject): User {
         fun list(key: String) = u.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
         return User(
@@ -136,3 +139,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
 
 /** `optString` returns "null" for JSON null — treat that (and blanks) as missing. */
 fun JSONObject.str(key: String): String? = optString(key).takeIf { it.isNotEmpty() && it != "null" }
+
+fun User.toJson(): JSONObject = JSONObject()
+    .put("id", id).put("name", name).put("email", email).put("phone_number", phone ?: JSONObject.NULL)
+    .put("roles", JSONArray(roles)).put("permissions", JSONArray(permissions))

@@ -1,4 +1,4 @@
-package com.example.gavanhomes.ui
+package com.example.gavanhomes.ui.legacy
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
