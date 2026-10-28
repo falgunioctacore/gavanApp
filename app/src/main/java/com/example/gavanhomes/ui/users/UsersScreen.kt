@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,6 +120,9 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
     var compact by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<U?>(null) }
+    var refreshing by remember { mutableStateOf(false) }                      // pull-down refresh in progress
+    LaunchedEffect(users) { refreshing = false }                         // fresh data arrived
+    LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
 
     LaunchedEffect(reload) {
         error = null
@@ -159,7 +163,8 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
             }
         val maxPerms = (roles.maxOfOrNull { it.optInt("permissions_count") } ?: 1).coerceAtLeast(1)
 
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             // ── header: title, add / refresh, and live counters ──
             item {
                 HeroBar(
@@ -243,6 +248,7 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                     }
                 }
             }
+        }
         }
     }
 

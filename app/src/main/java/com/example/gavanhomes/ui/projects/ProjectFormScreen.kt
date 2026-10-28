@@ -53,6 +53,7 @@ import com.example.gavanhomes.ui.common.KitDanger
 import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.leaveGuard
 import com.example.gavanhomes.ui.common.SegTabs
 import com.example.gavanhomes.ui.projects.form.BasicInfoStep
 import com.example.gavanhomes.ui.projects.form.Choice
@@ -67,6 +68,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+
+/** Everything the user can change in the form, as one comparable value. */
+private fun snapshot(f: ProjectForm): List<Any> = listOf(
+    f.text.toMap(), f.active, f.reraRegistered, f.developerPartner, f.types, f.memberIds, f.partners.size, f.unitCount,
+    f.files.values.count { it.picked != null },
+)
 
 /**
  * Create / edit a project (uuid == null → create) — the website's whole form, in its two steps:
@@ -94,6 +101,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
     var saving by remember { mutableStateOf(false) }
     var banner by remember { mutableStateOf<List<String>>(emptyList()) }
     var picker by remember { mutableStateOf<String?>(null) }   // "status" | "types" | "leader" | "members"
+    var initial by remember { mutableStateOf<List<Any>?>(null) }   // the values as loaded, to tell whether anything was changed
 
     // ── document picker: one launcher; each button says which slot it fills ──
     var target by remember { mutableStateOf<FileSlot?>(null) }
@@ -132,6 +140,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
                 form.set("status_id", (statuses.firstOrNull { it.label.equals("Pending", true) } ?: statuses.firstOrNull())?.id?.toString().orEmpty())
             }
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
+        initial = snapshot(form)
         loading = false
     }
 
@@ -155,9 +164,10 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
         }
     }
 
+    val back = leaveGuard(initial != null && snapshot(form) != initial, onBack)
     Column(Modifier.fillMaxSize().background(KitPage)) {
         // compact: the form is long, so the header stays slim (the project's name is in the first field)
-        HeroBar(b, if (editing) "Edit project" else "New project", onBack, compact = true)
+        HeroBar(b, if (editing) "Edit project" else "New project", back, compact = true)
 
         when {
             loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }

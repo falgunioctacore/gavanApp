@@ -53,6 +53,7 @@ import com.example.gavanhomes.ui.common.KitDanger
 import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.leaveGuard
 import com.example.gavanhomes.ui.common.Pill
 import com.example.gavanhomes.ui.common.SegTabs
 import com.example.gavanhomes.ui.projects.form.Choice
@@ -118,6 +119,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
     var banner by remember { mutableStateOf<List<String>>(emptyList()) }
     var picker by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
+    var initial by remember { mutableStateOf<List<Any>?>(null) }   // the values as loaded, to tell whether anything was changed
 
     LaunchedEffect(attempt) {
         loading = true; loadError = null
@@ -152,6 +154,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                 form.weekend = companyWeekend.toSet()
             }
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
+        initial = listOf(form.text.toMap(), form.sites, form.perms, form.weekend, form.customWeekend)
         loading = false
     }
 
@@ -205,8 +208,9 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
         }
     }
 
+    val back = leaveGuard(initial != null && listOf(form.text.toMap(), form.sites, form.perms, form.weekend, form.customWeekend) != initial, onBack)
     Column(Modifier.fillMaxSize().background(KitPage)) {
-        HeroBar(b, if (editing) "Edit user" else "New user", onBack, compact = true)
+        HeroBar(b, if (editing) "Edit user" else "New user", back, compact = true)
 
         when {
             loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }

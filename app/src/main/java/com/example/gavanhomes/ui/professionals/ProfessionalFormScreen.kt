@@ -58,6 +58,7 @@ import com.example.gavanhomes.ui.common.HeroBar
 import com.example.gavanhomes.ui.common.KitDanger
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
+import com.example.gavanhomes.ui.common.leaveGuard
 import com.example.gavanhomes.ui.projects.form.Choice
 import com.example.gavanhomes.ui.projects.form.ChoiceSheet
 import com.example.gavanhomes.ui.projects.form.FileField
@@ -101,6 +102,7 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
     var attempt by remember { mutableIntStateOf(0) }
     var saving by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<String?>(null) }
+    var initial by remember { mutableStateOf<String?>(null) }   // the values as loaded, to tell whether anything was changed
 
     // the form types another person's password — keep the phone's password manager from offering to save it
     val host = LocalView.current
@@ -137,6 +139,7 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
                 photo.existing = d.str("photo"); certification.existing = d.str("certification")
             } else if (text["status"].isNullOrBlank()) text["status"] = "active"
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
+        initial = text.toMap().toString() + typeId
         loading = false
     }
 
@@ -176,8 +179,9 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
     @Composable fun f(key: String, label: String, kb: KeyboardType = KeyboardType.Text, singleLine: Boolean = true, password: Boolean = false) =
         Input(label, field(key), { text[key] = it }, errors[key], singleLine = singleLine, keyboard = kb, password = password)
 
+    val back = leaveGuard(initial != null && (text.toMap().toString() + typeId != initial || photo.picked != null || certification.picked != null), onBack)
     Column(Modifier.fillMaxSize().background(KitPage)) {
-        HeroBar(b, if (editing) "Edit professional" else "New professional", onBack, compact = true)
+        HeroBar(b, if (editing) "Edit professional" else "New professional", back, compact = true)
 
         when {
             loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }

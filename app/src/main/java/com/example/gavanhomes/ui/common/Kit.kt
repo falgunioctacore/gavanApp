@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,22 +113,31 @@ internal fun HeroChips(vararg chips: String) {
     }
 }
 
-/** The white pill of tabs; the selected one is dark. Scrolls sideways when there are many. */
+/**
+ * A flat tab strip: bold dark label with a thick underline for the open tab, muted labels for the rest, a hairline underneath.
+ * A few tabs share the width evenly; many scroll sideways.
+ */
 @Composable
 internal fun SegTabs(tabs: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 14.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp))
-            .clip(RoundedCornerShape(20.dp)).background(Color.White).horizontalScroll(rememberScrollState()).padding(5.dp),
-    ) {
-        tabs.forEachIndexed { i, t ->
-            val on = i == selected
+    val ink = Color(0xFF0F172A)
+    @Composable
+    fun Tab(i: Int, t: String, modifier: Modifier) {
+        val on = i == selected
+        Column(
+            modifier.clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { onSelect(i) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
-                t, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-                color = if (on) Color.White else KitMuted,
-                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) Color(0xFF0F172A) else Color.Transparent)
-                    .clickable { onSelect(i) }.padding(horizontal = 16.dp, vertical = 11.dp),
+                t, fontSize = 14.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, maxLines = 1,
+                color = if (on) ink else KitMuted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
             )
+            Box(Modifier.height(3.dp).width(if (on) 34.dp else 0.dp).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(ink))
         }
+    }
+    Column(Modifier.padding(top = 6.dp, bottom = 12.dp).fillMaxWidth()) {
+        if (tabs.size <= 3) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { tabs.forEachIndexed { i, t -> Tab(i, t, Modifier.weight(1f)) } }
+        else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp)) { tabs.forEachIndexed { i, t -> Tab(i, t, Modifier) } }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE4E1DB)))
     }
 }
 

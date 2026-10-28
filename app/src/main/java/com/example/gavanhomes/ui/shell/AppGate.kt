@@ -4,12 +4,16 @@ import com.example.gavanhomes.ui.auth.GavanLoginScreen
 import com.example.gavanhomes.ui.common.Branding
 import com.example.gavanhomes.ui.common.SwalConfirm
 import com.example.gavanhomes.ui.common.loadBranding
+import com.example.gavanhomes.ui.common.swipeBack
 import com.example.gavanhomes.ui.dashboard.DashboardScreen
 import com.example.gavanhomes.ui.projects.ProjectDetailScreen
 import com.example.gavanhomes.ui.projects.ProjectFormScreen
 import com.example.gavanhomes.ui.projects.ProjectsScreen
 import com.example.gavanhomes.ui.users.UserDetailScreen
 import com.example.gavanhomes.ui.users.UserFormScreen
+import com.example.gavanhomes.ui.hr.HrFormScreen
+import com.example.gavanhomes.ui.hr.HrRecordScreen
+import com.example.gavanhomes.ui.hr.HrScreen
 import com.example.gavanhomes.ui.professionals.ProfessionalDetailScreen
 import com.example.gavanhomes.ui.professionals.ProfessionalFormScreen
 import com.example.gavanhomes.ui.professionals.ProfessionalsScreen
@@ -28,6 +32,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -148,10 +154,15 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var detailUuid by remember { mutableStateOf<String?>(null) } // project whose details are open
     var usersVersion by remember { mutableIntStateOf(0) }      // bumped after a user is saved / deleted so the list reloads
     var userId by remember { mutableStateOf<Int?>(null) }      // user whose details are open, or being edited (null on the form = new)
+    var lastBack by remember { mutableStateOf(0L) }            // when Back was last pressed on the home dashboard (double-back to exit)
     var proSection by remember { mutableIntStateOf(0) }        // the Professionals sidebar section that is open
     var proVersion by remember { mutableIntStateOf(0) }        // bumped after a professional / review changes so the module reloads
     var proUuid by remember { mutableStateOf<String?>(null) }  // professional whose details are open, or being edited (null on the form = new)
     var reviewId by remember { mutableStateOf<Int?>(null) }    // submission being reviewed
+    var hrSection by remember { mutableIntStateOf(0) }         // the HR & Admin sidebar section that is open
+    var hrVersion by remember { mutableIntStateOf(0) }         // bumped after an HR record changes so the module reloads
+    var hrSlug by remember { mutableStateOf("employees") }     // the HR module whose record is open / being edited
+    var hrId by remember { mutableStateOf<Int?>(null) }        // that record (null on the form = new)
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
 
@@ -254,9 +265,22 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "projectForm" || screen == "projectDetail" -> screen = "projects"
             screen == "userForm" || screen == "userDetail" -> screen = "users"
             screen == "professionalForm" || screen == "professionalDetail" || screen == "reviewDetail" -> screen = "professionals"
+            screen == "hrForm" || screen == "hrRecord" -> screen = "hr"
+            screen == "professionals" && proSection != 0 -> proSection = 0    // back from a section → that module's dashboard first
+            screen == "hr" && hrSection != 0 -> hrSection = 0
             screen != "dashboard" -> goHome()
-            else -> activity?.finish()
+            System.currentTimeMillis() - lastBack < 2000 -> activity?.finish()
+            else -> { lastBack = System.currentTimeMillis(); Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show() }
         }
+    }
+
+    // the list / module a details or form screen belongs to
+    val base = when (screen) {
+        "projectDetail", "projectForm" -> "projects"
+        "userDetail", "userForm" -> "users"
+        "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"
+        "hrRecord", "hrForm" -> "hr"
+        else -> screen
     }
 
     if (screen == "web") {
@@ -276,9 +300,11 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             }
         }
     } else {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().swipeBack(enabled = screen != "dashboard" && (screen != base || (base != "hr" && base != "professionals")))) {   // the two sidebar modules keep left-to-right for their drawer
             Box(Modifier.weight(1f)) {
-                when (screen) {
+                // the list under a details / form screen stays composed (the overlay hides it), so Back returns to exactly
+                // where you were: scroll position, filters, search and loaded data
+                when (base) {
                     "projects" -> androidx.compose.runtime.key(projectsVersion) {
                         ProjectsScreen(
                             api, branding, onBack = ::goHome,
@@ -286,14 +312,6 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onOpenForm = { uuid -> formUuid = uuid; screen = "projectForm" },
                         )
                     }
-                    "projectDetail" -> ProjectDetailScreen(
-                        api, branding, uuid = detailUuid.orEmpty(), onBack = { screen = "projects" },
-                        onEdit = { uuid -> formUuid = uuid; screen = "projectForm" },
-                    )
-                    "projectForm" -> ProjectFormScreen(
-                        api, branding, uuid = formUuid, onBack = { screen = "projects" },
-                        onSaved = { projectsVersion++; screen = "projects" },
-                    )
                     "users" -> androidx.compose.runtime.key(usersVersion) {
                         UsersScreen(
                             api, branding, onBack = ::goHome,
@@ -302,17 +320,6 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onEditUser = { id -> userId = id; screen = "userForm" },
                         )
                     }
-                    "userDetail" -> androidx.compose.runtime.key(usersVersion) {
-                        UserDetailScreen(
-                            api, branding, id = userId ?: 0, onBack = { screen = "users" },
-                            onEdit = { id -> userId = id; screen = "userForm" },
-                            onDeleted = { usersVersion++; screen = "users" },
-                        )
-                    }
-                    "userForm" -> UserFormScreen(
-                        api, branding, id = userId, onBack = { screen = "users" },
-                        onSaved = { usersVersion++; screen = "users" },
-                    )
                     "professionals" -> androidx.compose.runtime.key(proVersion) {
                         ProfessionalsScreen(
                             api, branding, section = proSection, onSection = { proSection = it }, onBack = ::goHome,
@@ -322,19 +329,14 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onOpenReview = { id -> reviewId = id; screen = "reviewDetail" },
                         )
                     }
-                    "professionalDetail" -> ProfessionalDetailScreen(
-                        api, branding, uuid = proUuid.orEmpty(), onBack = { screen = "professionals" },
-                        onEdit = { uuid -> proUuid = uuid; screen = "professionalForm" },
-                        onDeleted = { proVersion++; screen = "professionals" },
-                    )
-                    "professionalForm" -> ProfessionalFormScreen(
-                        api, branding, uuid = proUuid, onBack = { screen = "professionals" },
-                        onSaved = { proVersion++; proSection = 1; screen = "professionals" },
-                    )
-                    "reviewDetail" -> ReviewDetailScreen(
-                        api, branding, id = reviewId ?: 0, onBack = { screen = "professionals" },
-                        onDone = { proVersion++; screen = "professionals" },
-                    )
+                    "hr" -> androidx.compose.runtime.key(hrVersion) {
+                        HrScreen(
+                            api, branding, section = hrSection, onSection = { hrSection = it }, onBack = ::goHome,
+                            onOpen = { slug, id -> hrSlug = slug; hrId = id; screen = "hrRecord" },
+                            onAdd = { slug -> hrSlug = slug; hrId = null; screen = "hrForm" },
+                            onEdit = { slug, id -> hrSlug = slug; hrId = id; screen = "hrForm" },
+                        )
+                    }
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(
@@ -343,9 +345,58 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         )
                     }
                 }
+
+                // details / form screens sit on top of their list
+                if (screen != base) Box(
+                    Modifier.fillMaxSize().background(Color(0xFFF3F2F0)).pointerInput(Unit) { detectTapGestures { } },   // taps never reach the list below
+                ) {
+                    when (screen) {
+                        "projectDetail" -> ProjectDetailScreen(
+                            api, branding, uuid = detailUuid.orEmpty(), onBack = { screen = "projects" },
+                            onEdit = { uuid -> formUuid = uuid; screen = "projectForm" },
+                        )
+                        "projectForm" -> ProjectFormScreen(
+                            api, branding, uuid = formUuid, onBack = { screen = "projects" },
+                            onSaved = { projectsVersion++; screen = "projects" },
+                        )
+                        "userDetail" -> androidx.compose.runtime.key(usersVersion) {
+                            UserDetailScreen(
+                                api, branding, id = userId ?: 0, onBack = { screen = "users" },
+                                onEdit = { id -> userId = id; screen = "userForm" },
+                                onDeleted = { usersVersion++; screen = "users" },
+                            )
+                        }
+                        "userForm" -> UserFormScreen(
+                            api, branding, id = userId, onBack = { screen = "users" },
+                            onSaved = { usersVersion++; screen = "users" },
+                        )
+                        "professionalDetail" -> ProfessionalDetailScreen(
+                            api, branding, uuid = proUuid.orEmpty(), onBack = { screen = "professionals" },
+                            onEdit = { uuid -> proUuid = uuid; screen = "professionalForm" },
+                            onDeleted = { proVersion++; screen = "professionals" },
+                        )
+                        "professionalForm" -> ProfessionalFormScreen(
+                            api, branding, uuid = proUuid, onBack = { screen = "professionals" },
+                            onSaved = { proVersion++; proSection = 1; screen = "professionals" },
+                        )
+                        "reviewDetail" -> ReviewDetailScreen(
+                            api, branding, id = reviewId ?: 0, onBack = { screen = "professionals" },
+                            onDone = { proVersion++; screen = "professionals" },
+                        )
+                        "hrRecord" -> HrRecordScreen(
+                            api, branding, slug = hrSlug, id = hrId ?: 0, onBack = { screen = "hr" },
+                            onEdit = { slug, id -> hrSlug = slug; hrId = id; screen = "hrForm" },
+                            onChanged = { hrVersion++ },
+                        )
+                        "hrForm" -> HrFormScreen(
+                            api, branding, slug = hrSlug, id = hrId, onBack = { screen = "hr" },
+                            onSaved = { hrVersion++; screen = "hr" },
+                        )
+                    }
+                }
             }
-            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm") {   // the forms have their own Save bar
-                ModuleBar(modules, when (screen) { "projectDetail" -> "projects"; "userDetail" -> "users"; "professionalDetail", "reviewDetail" -> "professionals"; else -> screen }, onSelect = ::openModule)
+            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm") {   // the forms have their own Save bar
+                ModuleBar(modules, base, onSelect = ::openModule)
             }
         }
     }

@@ -271,10 +271,10 @@ private fun LazyListScope.overview(w: JSONObject, b: Branding, onOpenPath: (Stri
         w.optJSONObject("acctStats")?.let { add(Kpi("GROSS SALES", it.moneyOf("grossSales"), "${money(it.optDouble("receivable"))} receivable", "₹", Green)) }
         w.optJSONObject("labourStats")?.let { add(Kpi("WORKFORCE", num(it.optInt("workers")), "${money(it.optDouble("wagesMonth"))} wages / month", "✚", Amber)) }
     }
-    items(kpis.chunked(2)) { pair ->
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 5.dp).height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    items(kpis.chunked(3)) { pair ->
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 3.dp).height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             pair.forEach { k -> KpiCard(k, Modifier.weight(1f).fillMaxHeight()) { k.path?.let(onOpenPath) } }
-            if (pair.size == 1) Spacer(Modifier.weight(1f))
+            repeat(3 - pair.size) { Spacer(Modifier.weight(1f)) }
         }
     }
     // latest notifications
@@ -506,23 +506,22 @@ private fun LazyListScope.listCard(title: String, rows: List<Row3>, b: Branding,
 @Composable
 private fun KpiCard(k: Kpi, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.shadow(4.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White)
-            .then(if (k.path != null) Modifier.clickable { onClick() } else Modifier).padding(14.dp),
+        modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(Color.White)
+            .then(if (k.path != null) Modifier.clickable { onClick() } else Modifier).padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(k.accent.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
-                Text(k.glyph, color = k.accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(k.label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.2.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+            Text(k.value, color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, modifier = Modifier.weight(1f))
+            Box(Modifier.size(18.dp).clip(RoundedCornerShape(6.dp)).background(k.accent.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+                Text(k.glyph, color = k.accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
-            Text(k.label, color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, modifier = Modifier.padding(start = 8.dp), maxLines = 1)
         }
-        Spacer(Modifier.height(10.dp))
-        Text(k.value, color = Ink, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
         if (k.progress != null) {
-            Box(Modifier.padding(top = 6.dp, bottom = 4.dp).fillMaxWidth().height(6.dp).clip(CircleShape).background(k.accent.copy(alpha = .14f))) {
-                Box(Modifier.fillMaxWidth(k.progress.coerceIn(0f, 1f)).height(6.dp).clip(CircleShape).background(k.accent))
+            Box(Modifier.padding(top = 3.dp).fillMaxWidth().height(3.dp).clip(CircleShape).background(k.accent.copy(alpha = .14f))) {
+                Box(Modifier.fillMaxWidth(k.progress.coerceIn(0f, 1f)).height(3.dp).clip(CircleShape).background(k.accent))
             }
         }
-        Text(k.sub, color = Muted, fontSize = 11.sp, maxLines = 2)
+        Text(k.sub, color = Muted, fontSize = 9.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
     }
 }
 @Composable

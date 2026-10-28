@@ -40,6 +40,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -137,6 +138,9 @@ fun ProfessionalsScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     val loadedAt = remember { mutableStateMapOf<Int, Int>() }
+    var refreshing by remember { mutableStateOf(false) }                      // pull-down refresh in progress
+    LaunchedEffect(loadedAt[section]) { refreshing = false }                         // fresh data arrived
+    LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
 
     // directory controls
     var query by remember { mutableStateOf("") }
@@ -178,7 +182,7 @@ fun ProfessionalsScreen(
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White) {
+            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
@@ -232,7 +236,8 @@ fun ProfessionalsScreen(
                 return@Column
             }
 
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; loadedAt.clear(); reload++ }, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, title, onBack,
@@ -310,6 +315,7 @@ fun ProfessionalsScreen(
                     else -> performance(perf!!, b, onOpenPro)
                 }
             }
+            }
         }
     }
 
@@ -359,7 +365,7 @@ private fun HeroCounters(section: Int, dash: JSONObject?, pros: List<Pro>?, type
     val stats = dash?.optJSONObject("stats")
     val items: List<Pair<String, String>> = when (section) {
         0 -> listOf((stats?.optInt("total") ?: 0).toString() to "Professionals", (stats?.optInt("active") ?: 0).toString() to "Active",
-            (stats?.optInt("submitted") ?: 0).toString() to "To review", ((stats?.optInt("expiring") ?: 0) + (stats?.optInt("expired") ?: 0)).toString() to "Licence alerts")
+            (stats?.optInt("submitted") ?: 0).toString() to "To review", ((stats?.optInt("expiring") ?: 0) + (stats?.optInt("expired") ?: 0)).toString() to "Alerts")
         1 -> { val a = pros.orEmpty(); listOf(a.size.toString() to "Total", a.count { it.status == "active" }.toString() to "Active", a.count { it.status == "onhold" }.toString() to "On hold",
             a.count { it.status == "inactive" || it.status == "blacklisted" }.toString() to "Inactive") }
         2 -> { val a = types.orEmpty(); listOf(a.size.toString() to "Types", a.count { it.optBoolean("active") }.toString() to "Active", a.count { it.optBoolean("system") }.toString() to "System",
