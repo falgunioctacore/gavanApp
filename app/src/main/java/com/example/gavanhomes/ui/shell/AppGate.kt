@@ -10,6 +10,10 @@ import com.example.gavanhomes.ui.projects.ProjectFormScreen
 import com.example.gavanhomes.ui.projects.ProjectsScreen
 import com.example.gavanhomes.ui.users.UserDetailScreen
 import com.example.gavanhomes.ui.users.UserFormScreen
+import com.example.gavanhomes.ui.professionals.ProfessionalDetailScreen
+import com.example.gavanhomes.ui.professionals.ProfessionalFormScreen
+import com.example.gavanhomes.ui.professionals.ProfessionalsScreen
+import com.example.gavanhomes.ui.professionals.ReviewDetailScreen
 import com.example.gavanhomes.ui.users.UsersScreen
 import com.example.gavanhomes.ui.account.AccountScreen
 
@@ -144,6 +148,10 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var detailUuid by remember { mutableStateOf<String?>(null) } // project whose details are open
     var usersVersion by remember { mutableIntStateOf(0) }      // bumped after a user is saved / deleted so the list reloads
     var userId by remember { mutableStateOf<Int?>(null) }      // user whose details are open, or being edited (null on the form = new)
+    var proSection by remember { mutableIntStateOf(0) }        // the Professionals sidebar section that is open
+    var proVersion by remember { mutableIntStateOf(0) }        // bumped after a professional / review changes so the module reloads
+    var proUuid by remember { mutableStateOf<String?>(null) }  // professional whose details are open, or being edited (null on the form = new)
+    var reviewId by remember { mutableStateOf<Int?>(null) }    // submission being reviewed
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
 
@@ -245,6 +253,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "web" -> { opening = false; screen = returnTo }
             screen == "projectForm" || screen == "projectDetail" -> screen = "projects"
             screen == "userForm" || screen == "userDetail" -> screen = "users"
+            screen == "professionalForm" || screen == "professionalDetail" || screen == "reviewDetail" -> screen = "professionals"
             screen != "dashboard" -> goHome()
             else -> activity?.finish()
         }
@@ -304,6 +313,28 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         api, branding, id = userId, onBack = { screen = "users" },
                         onSaved = { usersVersion++; screen = "users" },
                     )
+                    "professionals" -> androidx.compose.runtime.key(proVersion) {
+                        ProfessionalsScreen(
+                            api, branding, section = proSection, onSection = { proSection = it }, onBack = ::goHome,
+                            onOpenPro = { uuid -> proUuid = uuid; screen = "professionalDetail" },
+                            onAddPro = { proUuid = null; screen = "professionalForm" },
+                            onEditPro = { uuid -> proUuid = uuid; screen = "professionalForm" },
+                            onOpenReview = { id -> reviewId = id; screen = "reviewDetail" },
+                        )
+                    }
+                    "professionalDetail" -> ProfessionalDetailScreen(
+                        api, branding, uuid = proUuid.orEmpty(), onBack = { screen = "professionals" },
+                        onEdit = { uuid -> proUuid = uuid; screen = "professionalForm" },
+                        onDeleted = { proVersion++; screen = "professionals" },
+                    )
+                    "professionalForm" -> ProfessionalFormScreen(
+                        api, branding, uuid = proUuid, onBack = { screen = "professionals" },
+                        onSaved = { proVersion++; proSection = 1; screen = "professionals" },
+                    )
+                    "reviewDetail" -> ReviewDetailScreen(
+                        api, branding, id = reviewId ?: 0, onBack = { screen = "professionals" },
+                        onDone = { proVersion++; screen = "professionals" },
+                    )
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(
@@ -313,8 +344,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            if (screen != "projectForm" && screen != "userForm") {   // the forms have their own Save bar
-                ModuleBar(modules, when (screen) { "projectDetail" -> "projects"; "userDetail" -> "users"; else -> screen }, onSelect = ::openModule)
+            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm") {   // the forms have their own Save bar
+                ModuleBar(modules, when (screen) { "projectDetail" -> "projects"; "userDetail" -> "users"; "professionalDetail", "reviewDetail" -> "professionals"; else -> screen }, onSelect = ::openModule)
             }
         }
     }
