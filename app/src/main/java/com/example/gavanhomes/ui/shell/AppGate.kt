@@ -11,6 +11,8 @@ import com.example.gavanhomes.ui.projects.ProjectFormScreen
 import com.example.gavanhomes.ui.projects.ProjectsScreen
 import com.example.gavanhomes.ui.users.UserDetailScreen
 import com.example.gavanhomes.ui.users.UserFormScreen
+import com.example.gavanhomes.ui.audit.AuditScreen
+import com.example.gavanhomes.ui.hod.HodScreen
 import com.example.gavanhomes.ui.hr.HrFormScreen
 import com.example.gavanhomes.ui.hr.HrRecordScreen
 import com.example.gavanhomes.ui.hr.HrScreen
@@ -159,6 +161,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var proVersion by remember { mutableIntStateOf(0) }        // bumped after a professional / review changes so the module reloads
     var proUuid by remember { mutableStateOf<String?>(null) }  // professional whose details are open, or being edited (null on the form = new)
     var reviewId by remember { mutableStateOf<Int?>(null) }    // submission being reviewed
+    var auditSection by remember { mutableIntStateOf(0) }      // the Audit logs sidebar section that is open
+    var hodSection by remember { mutableIntStateOf(0) }        // the HOD Sales sidebar section that is open
     var hrSection by remember { mutableIntStateOf(0) }         // the HR & Admin sidebar section that is open
     var hrVersion by remember { mutableIntStateOf(0) }         // bumped after an HR record changes so the module reloads
     var hrSlug by remember { mutableStateOf("employees") }     // the HR module whose record is open / being edited
@@ -268,6 +272,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "hrForm" || screen == "hrRecord" -> screen = "hr"
             screen == "professionals" && proSection != 0 -> proSection = 0    // back from a section → that module's dashboard first
             screen == "hr" && hrSection != 0 -> hrSection = 0
+            screen == "hod" && hodSection != 0 -> hodSection = 0
+            screen == "audit" && auditSection != 0 -> auditSection = 0
             screen != "dashboard" -> goHome()
             System.currentTimeMillis() - lastBack < 2000 -> activity?.finish()
             else -> { lastBack = System.currentTimeMillis(); Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show() }
@@ -300,7 +306,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             }
         }
     } else {
-        Column(Modifier.fillMaxSize().swipeBack(enabled = screen != "dashboard" && (screen != base || (base != "hr" && base != "professionals")))) {   // the two sidebar modules keep left-to-right for their drawer
+        Column(Modifier.fillMaxSize().swipeBack(enabled = screen != "dashboard" && (screen != base || (base != "hr" && base != "professionals" && base != "hod" && base != "audit")))) {   // the two sidebar modules keep left-to-right for their drawer
             Box(Modifier.weight(1f)) {
                 // the list under a details / form screen stays composed (the overlay hides it), so Back returns to exactly
                 // where you were: scroll position, filters, search and loaded data
@@ -337,6 +343,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onEdit = { slug, id -> hrSlug = slug; hrId = id; screen = "hrForm" },
                         )
                     }
+                    "audit" -> AuditScreen(api, branding, section = auditSection, onSection = { auditSection = it }, onBack = ::goHome)
+                    "hod" -> HodScreen(api, branding, section = hodSection, onSection = { hodSection = it }, onBack = ::goHome)
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(

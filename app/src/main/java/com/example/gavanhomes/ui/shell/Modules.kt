@@ -38,8 +38,8 @@ fun modulesFor(user: User): List<Module> {
         if (superAdmin || user.can("view users")) add(Module("users", "Users", "◎", "/admin/roles", native = true))
         if (superAdmin) add(Module("professionals", "Professionals", "✦", "/admin/professionals/dashboard", native = true))
         if (admin || user.can("view hr")) add(Module("hr", "HR & Admin", "✚", "/admin/hr", native = true))
-        if (admin || user.can("view hod dashboard")) add(Module("hod", "HOD Sales", "↗", "/admin/hod", native = false))
-        if (superAdmin) add(Module("audit", "Audit Logs", "◈", "/admin/audit-logs", native = false))
+        if (admin || user.can("view hod dashboard")) add(Module("hod", "HOD Sales", "↗", "/admin/hod", native = true))
+        if (superAdmin) add(Module("audit", "Audit Logs", "◈", "/admin/audit-logs", native = true))
         add(Module("account", "Account", "◉", "/admin/pages/account-settings-account", native = true))
     }
 }
