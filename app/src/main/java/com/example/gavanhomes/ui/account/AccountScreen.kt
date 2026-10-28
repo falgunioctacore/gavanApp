@@ -3,6 +3,7 @@ package com.example.gavanhomes.ui.account
 import com.example.gavanhomes.ui.common.*
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,7 +47,7 @@ import kotlinx.coroutines.withContext
  * (PUT /profile/password) and log out. Roles are listed read-only.
  */
 @Composable
-fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Unit, onBack: () -> Unit, onLogout: () -> Unit) {
+fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Unit, onBack: () -> Unit, onLogout: () -> Unit, onAppSettings: (() -> Unit)? = null) {
     val words = user.name.trim().split(Regex("\\s+"))
     var first by remember { mutableStateOf(words.firstOrNull().orEmpty()) }
     var last by remember { mutableStateOf(words.drop(1).joinToString(" ")) }
@@ -108,6 +109,18 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
                         } catch (e: Exception) { passMessage = false to (e.message ?: "Could not update the password") }
                     }
                 }
+            }
+
+            if (onAppSettings != null) Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).clickable { onAppSettings() }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                com.example.gavanhomes.ui.common.BrandMark(b, 44.dp, Modifier.border(1.dp, Color(0xFFE4E1DB), RoundedCornerShape(13.dp)))
+                Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                    Text("App settings", fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp)
+                    Text("Logo, name and theme colour", color = KitMuted, fontSize = 12.sp)
+                }
+                Text("›", color = KitMuted, fontSize = 22.sp)
             }
 
             Text(

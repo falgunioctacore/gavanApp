@@ -67,6 +67,9 @@ import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
 import com.example.gavanhomes.ui.common.Pill
+import com.example.gavanhomes.ui.common.FilterBar
+import com.example.gavanhomes.ui.common.FilterGroup
+import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.SegTabs
 import com.example.gavanhomes.ui.common.listAllMeta
@@ -114,8 +117,7 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
     var reload by remember { mutableIntStateOf(0) }
     var tab by remember { mutableIntStateOf(0) }
     var query by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf<String?>(null) }
-    var role by remember { mutableStateOf<String?>(null) }
+    var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }   // chosen filters: group → values
     var sort by remember { mutableIntStateOf(0) }
     var compact by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
@@ -152,8 +154,9 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
         val active = all.count { it.status == "active" }
         val pending = all.count { it.status == "pending" }
         val inactive = all.size - active - pending
+        val passes = { u: U, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || u.status in s } && m["role"].orEmpty().let { r -> r.isEmpty() || u.role in r } }
         val shown = all
-            .filter { u -> (status == null || u.status == status) && (role == null || u.role == role) && u.matches(query.trim().lowercase()) }
+            .filter { u -> passes(u, sel) && u.matches(query.trim().lowercase()) }
             .let { list ->
                 when (sort) {
                     1 -> list.sortedBy { it.name.lowercase() }
@@ -185,43 +188,22 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
             item { SegTabs(listOf("People ${all.size}", "Roles ${roles.size}"), tab) { tab = it } }
 
             if (tab == 0) {
-                item { SearchBox(query, { query = it }, "Search people…") }
-
-                // ── filters: status, then role ──
                 item {
-                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip("All", all.size, null, status == null) { status = null }
-                        listOf("active", "pending", "inactive").forEach { s ->
-                            FilterChip(s.headline(), all.count { it.status == s }, statusColor(s), status == s) { status = if (status == s) null else s }
-                        }
-                    }
+                    FilterBar(
+                        query, { query = it }, "Search people…",
+                        groups = listOf(
+                            FilterGroup("status", "Status", listOf("active", "pending", "inactive").map { st -> FilterOption(st, st.headline(), all.count { u -> u.status == st }, statusColor(st)) }),
+                            FilterGroup("role", "Role", all.mapNotNull { u -> u.role }.distinct().sorted().map { r -> FilterOption(r, r.headline(), all.count { u -> u.role == r }) }),
+                        ),
+                        selected = sel, onApply = { sel = it },
+                                                countWith = { m -> all.count { u -> passes(u, m) && u.matches(query.trim().lowercase()) } },
+                        sortOptions = SortNames, sortIndex = sort, onSort = { sort = it },
+                    )
                 }
                 item {
-                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        all.mapNotNull { it.role }.distinct().sorted().forEach { r ->
-                            FilterChip(r.headline(), all.count { it.role == r }, null, role == r) { role = if (role == r) null else r }
-                        }
-                    }
-                }
-
-                // ── sort + layout ──
-                item {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${shown.size} ${if (shown.size == 1) "person" else "people"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        Box {
-                            Text(
-                                "↕ ${SortNames[sort]}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { sortOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-                            )
-                            DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                                SortNames.forEachIndexed { i, n -> DropdownMenuItem(text = { Text(n) }, onClick = { sort = i; sortOpen = false }) }
-                            }
-                        }
-                        Spacer(Modifier.size(8.dp))
-                        Text(
-                            if (compact) "▦" else "☰", fontSize = 15.sp, color = KitInk,
-                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { compact = !compact }.padding(horizontal = 14.dp, vertical = 7.dp),
-                        )
+                        com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                     }
                 }
                 item { Spacer(Modifier.height(8.dp)) }

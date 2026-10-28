@@ -78,6 +78,9 @@ import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
 import com.example.gavanhomes.ui.common.Pill
+import com.example.gavanhomes.ui.common.FilterBar
+import com.example.gavanhomes.ui.common.FilterGroup
+import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.SwalConfirm
 import com.example.gavanhomes.ui.professionals.ProBanners
@@ -175,7 +178,7 @@ fun HrScreen(
     LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
 
     var query by remember(section) { mutableStateOf("") }
-    var filter by remember(section) { mutableStateOf<String?>(null) }
+    var sel by remember(section) { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }   // chosen filters: group → values
     var sort by remember(section) { mutableIntStateOf(0) }
     var sortOpen by remember { mutableStateOf(false) }
     var compact by remember { mutableStateOf(false) }
@@ -235,9 +238,12 @@ fun HrScreen(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
                             .statusBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (b.logo != null) { com.example.gavanhomes.ui.common.BrandMark(b, 52.dp); Spacer(Modifier.size(14.dp)) }
                         Column {
                             Text("HR & Admin", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                             Text("People, payroll and company", color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
+                        }
                         }
                     }
                     var lastGroup = ""
@@ -307,30 +313,25 @@ fun HrScreen(
                     section == DASH -> dashboard(d, onSection)
                     schema != null -> {
                         val badges = rows.mapNotNull { it.badge }.distinct()
-                        val shown = rows.filter { (filter == null || it.badge == filter) && it.matches(query.trim().lowercase()) }.let { l ->
+                        val passes = { r: Row_, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || r.badge in s } }
+                        val shown = rows.filter { passes(it, sel) && it.matches(query.trim().lowercase()) }.let { l ->
                             when (sort) { 1 -> l.sortedBy { it.title.lowercase() }; else -> l.sortedByDescending { it.id } }
                         }
                         item { Spacer(Modifier.height(14.dp)) }
-                        item { SearchBox(query, { query = it }, "Search ${sec.label.lowercase()}…") }
-                        if (badges.isNotEmpty()) item {
-                            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ProFilterChip("All", rows.size, null, filter == null) { filter = null }
-                                badges.forEach { s -> ProFilterChip(hrStatusLabel(schema.field(schema.badge)?.let { schema.display(it, s) } ?: s), rows.count { it.badge == s }, hrStatusColor(s), filter == s) { filter = if (filter == s) null else s } }
-                            }
+                        item {
+                            FilterBar(
+                                query, { query = it }, "Search ${sec.label.lowercase()}…",
+                                groups = if (badges.isEmpty()) emptyList() else listOf(FilterGroup("status", schema.field(schema.badge)?.label ?: "Status", badges.map { st ->
+                                    FilterOption(st, schema.field(schema.badge)?.let { f -> schema.display(f, st) } ?: hrStatusLabel(st), rows.count { r -> r.badge == st }, hrStatusColor(st)) })),
+                                selected = sel, onApply = { sel = it },
+                                countWith = { m -> rows.count { r -> passes(r, m) && r.matches(query.trim().lowercase()) } },
+                                sortOptions = listOf("Newest", "A–Z"), sortIndex = sort, onSort = { sort = it },
+                            )
                         }
                         item {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${shown.size} ${if (shown.size == 1) "record" else "records"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                                Box {
-                                    Text("↕ ${if (sort == 0) "Newest" else "A–Z"}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { sortOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
-                                    DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                                        listOf("Newest", "A–Z").forEachIndexed { i, n -> DropdownMenuItem(text = { Text(n) }, onClick = { sort = i; sortOpen = false }) }
-                                    }
-                                }
-                                Spacer(Modifier.size(8.dp))
-                                Text(if (compact) "▦" else "☰", fontSize = 15.sp, color = KitInk,
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { compact = !compact }.padding(horizontal = 14.dp, vertical = 7.dp))
+                                com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                             }
                         }
                         item { Spacer(Modifier.height(8.dp)) }

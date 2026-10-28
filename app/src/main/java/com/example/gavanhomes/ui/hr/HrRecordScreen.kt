@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -117,7 +118,10 @@ fun HrRecordScreen(api: ApiClient, b: Branding, slug: String, id: Int, onBack: (
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize().verticalScroll(rememberScrollState())) {
-            HeroBar(b, schema.singular, onBack, actions = { if (can?.optBoolean("edit") == true) HeroButton("✎") { onEdit(slug, id) } }) {
+            HeroBar(b, schema.singular, onBack, actions = {
+                if (can?.optBoolean("edit") == true) HeroButton("✎") { onEdit(slug, id) }
+                if (can?.optBoolean("delete") == true && !busy) { Spacer(Modifier.size(8.dp)); com.example.gavanhomes.ui.common.DeleteButton { confirm = true } }
+            }) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Initials(title, 60.dp)
@@ -166,10 +170,6 @@ fun HrRecordScreen(api: ApiClient, b: Branding, slug: String, id: Int, onBack: (
                 ProFact("Added", prettyDate(d.str("created_at")))
             }
 
-            if (can?.optBoolean("delete") == true) Text(
-                "Delete ${schema.singular.lowercase()}", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitDanger.copy(alpha = .1f)).clickable(enabled = !busy) { confirm = true }.padding(vertical = 16.dp),
-            )
             Spacer(Modifier.height(20.dp))
         }
     }

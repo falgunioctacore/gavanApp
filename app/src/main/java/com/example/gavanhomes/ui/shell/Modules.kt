@@ -44,25 +44,3 @@ fun modulesFor(user: User): List<Module> {
     }
 }
 
-/** Floating pill of modules, like the website's bottom bar: the active one shows its label on a dark pill. */
-@Composable
-fun ModuleBar(modules: List<Module>, activeKey: String, onSelect: (Module) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)
-            .shadow(12.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)).background(Color.White)
-            .horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        modules.forEach { m ->
-            val on = m.key == activeKey
-            Row(
-                Modifier.clip(RoundedCornerShape(24.dp)).background(if (on) Color(0xFF0F172A) else Color.Transparent)
-                    .clickable { onSelect(m) }.padding(horizontal = if (on) 16.dp else 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(m.glyph, fontSize = 20.sp, color = if (on) Color.White else Color(0xFF8A8F9C))
-                if (on) Text(m.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(start = 8.dp))
-            }
-        }
-    }
-}

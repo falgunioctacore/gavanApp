@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,7 +92,10 @@ fun ProfessionalDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: 
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize().verticalScroll(rememberScrollState())) {
-            HeroBar(b, "Professional", onBack, actions = { HeroButton("✎") { onEdit(uuid) } }) {
+            HeroBar(b, "Professional", onBack, actions = {
+                HeroButton("✎") { onEdit(uuid) }
+                if (!deleting) { Spacer(Modifier.size(8.dp)); com.example.gavanhomes.ui.common.DeleteButton { confirm = true } }
+            }) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Initials(name, 64.dp)
@@ -153,11 +157,6 @@ fun ProfessionalDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: 
                 }
             }
 
-            Text(
-                if (deleting) "Deleting…" else "Delete professional", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(KitDanger.copy(alpha = .1f)).clickable(enabled = !deleting) { confirm = true }.padding(vertical = 16.dp),
-            )
             Spacer(Modifier.height(20.dp))
         }
 

@@ -67,6 +67,9 @@ import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
 import com.example.gavanhomes.ui.common.Pill
+import com.example.gavanhomes.ui.common.FilterBar
+import com.example.gavanhomes.ui.common.FilterGroup
+import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.listAllMeta
 import org.json.JSONObject
@@ -133,7 +136,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf<String?>(null) }     // a status name, or "~inactive"
+    var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }   // chosen filters: group → values
     var sort by remember { mutableIntStateOf(0) }
     var compact by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
@@ -166,8 +169,9 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
         }
 
         val statuses = all.mapNotNull { it.status }.distinct().sorted()
+        val passes = { p: P, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || s.any { v -> (v == "~inactive" && !p.active) || p.status == v } } }
         val shown = all
-            .filter { p -> (filter == null || (filter == "~inactive" && !p.active) || p.status == filter) && p.matches(query.trim().lowercase()) }
+            .filter { p -> passes(p, sel) && p.matches(query.trim().lowercase()) }
             .let { list ->
                 when (sort) {
                     1 -> list.sortedBy { it.name.lowercase() }
@@ -200,35 +204,19 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
             }
 
             item { Spacer(Modifier.height(14.dp)) }
-            item { SearchBox(query, { query = it }, "Search projects…") }
-
-            // ── status chips ──
             item {
-                Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip("All", all.size, null, filter == null) { filter = null }
-                    statuses.forEach { s -> FilterChip(s, all.count { it.status == s }, statusColor(s), filter == s) { filter = if (filter == s) null else s } }
-                    FilterChip("Inactive", all.count { !it.active }, KitMuted, filter == "~inactive") { filter = if (filter == "~inactive") null else "~inactive" }
-                }
+                FilterBar(
+                    query, { query = it }, "Search projects…",
+                    groups = listOf(FilterGroup("status", "Status", statuses.map { st -> FilterOption(st, st, all.count { p -> p.status == st }, statusColor(st)) } + FilterOption("~inactive", "Inactive", all.count { p -> !p.active }, KitMuted))),
+                    selected = sel, onApply = { sel = it },
+                    countWith = { m -> all.count { p -> passes(p, m) && p.matches(query.trim().lowercase()) } },
+                    sortOptions = SortNames, sortIndex = sort, onSort = { sort = it },
+                )
             }
-
-            // ── sort + layout ──
             item {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${shown.size} project${if (shown.size == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                    Box {
-                        Text(
-                            "↕ ${SortNames[sort]}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { sortOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                            SortNames.forEachIndexed { i, n -> DropdownMenuItem(text = { Text(n) }, onClick = { sort = i; sortOpen = false }) }
-                        }
-                    }
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        if (compact) "▦" else "☰", fontSize = 15.sp, color = KitInk,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { compact = !compact }.padding(horizontal = 14.dp, vertical = 7.dp),
-                    )
+                    com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                 }
             }
             item { Spacer(Modifier.height(8.dp)) }

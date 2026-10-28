@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -119,7 +120,10 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize().verticalScroll(rememberScrollState())) {
             HeroBar(
                 b, "User details", onBack,
-                actions = { if (can?.optBoolean("edit") == true) HeroButton("✎") { onEdit(id) } },
+                actions = {
+                    if (can?.optBoolean("edit") == true) HeroButton("✎") { onEdit(id) }
+                    if (can?.optBoolean("delete") == true && !deleting) { Spacer(Modifier.size(8.dp)); com.example.gavanhomes.ui.common.DeleteButton { confirmDelete = true } }
+                },
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -148,13 +152,6 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
                 else -> Access(d, role)
             }
 
-            if (can?.optBoolean("delete") == true) {
-                Text(
-                    if (deleting) "Deleting…" else "Delete user", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(KitDanger.copy(alpha = .1f)).clickable(enabled = !deleting) { confirmDelete = true }.padding(vertical = 16.dp),
-                )
-            }
             Spacer(Modifier.height(20.dp))
         }
 

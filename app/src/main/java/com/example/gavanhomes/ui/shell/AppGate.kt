@@ -13,6 +13,7 @@ import com.example.gavanhomes.ui.users.UserDetailScreen
 import com.example.gavanhomes.ui.users.UserFormScreen
 import com.example.gavanhomes.ui.audit.AuditScreen
 import com.example.gavanhomes.ui.hod.HodScreen
+import com.example.gavanhomes.ui.settings.AppSettingsScreen
 import com.example.gavanhomes.ui.hr.HrFormScreen
 import com.example.gavanhomes.ui.hr.HrRecordScreen
 import com.example.gavanhomes.ui.hr.HrScreen
@@ -135,13 +136,13 @@ fun AppGate() {
                 Button(onClick = { attempt++ }) { Text("Retry") }
             }
         }
-        is Gate.Ready -> Home(api, g, branding, store, onSignedOut = ::signOut)
+        is Gate.Ready -> Home(api, g, branding, store, onSignedOut = ::signOut, onBranding = { branding = it })
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: SessionStore, onSignedOut: () -> Unit) {
+private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: SessionStore, onSignedOut: () -> Unit, onBranding: (Branding) -> Unit) {
     val context = LocalContext.current
     val activity = context as? android.app.Activity
     val scope = rememberCoroutineScope()
@@ -270,6 +271,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "userForm" || screen == "userDetail" -> screen = "users"
             screen == "professionalForm" || screen == "professionalDetail" || screen == "reviewDetail" -> screen = "professionals"
             screen == "hrForm" || screen == "hrRecord" -> screen = "hr"
+            screen == "appSettings" -> screen = "account"
             screen == "professionals" && proSection != 0 -> proSection = 0    // back from a section → that module's dashboard first
             screen == "hr" && hrSection != 0 -> hrSection = 0
             screen == "hod" && hodSection != 0 -> hodSection = 0
@@ -286,6 +288,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         "userDetail", "userForm" -> "users"
         "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"
         "hrRecord", "hrForm" -> "hr"
+        "appSettings" -> "account"
         else -> screen
     }
 
@@ -345,7 +348,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                     "audit" -> AuditScreen(api, branding, section = auditSection, onSection = { auditSection = it }, onBack = ::goHome)
                     "hod" -> HodScreen(api, branding, section = hodSection, onSection = { hodSection = it }, onBack = ::goHome)
-                    "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout)
+                    "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout,
+                        onAppSettings = if (user.roles.any { it.equals("superAdmin", true) }) ({ screen = "appSettings" }) else null)
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(
                             api, user, branding, modules, onOpenModule = ::openModule, onOpenPath = ::openPath, onLogout = logout,
@@ -396,6 +400,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onEdit = { slug, id -> hrSlug = slug; hrId = id; screen = "hrForm" },
                             onChanged = { hrVersion++ },
                         )
+                        "appSettings" -> AppSettingsScreen(api, branding, onBack = { screen = "account" }, onSaved = { onBranding(it); screen = "account" })
                         "hrForm" -> HrFormScreen(
                             api, branding, slug = hrSlug, id = hrId, onBack = { screen = "hr" },
                             onSaved = { hrVersion++; screen = "hr" },
@@ -403,8 +408,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm") {   // the forms have their own Save bar
-                ModuleBar(modules, base, onSelect = ::openModule)
+            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings") {   // the forms have their own Save bar
+                ModuleBar(modules, base, accent = branding.base, onSelect = ::openModule)
             }
         }
     }

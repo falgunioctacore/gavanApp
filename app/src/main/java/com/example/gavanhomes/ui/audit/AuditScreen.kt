@@ -165,9 +165,12 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
                             .statusBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (b.logo != null) { com.example.gavanhomes.ui.common.BrandMark(b, 52.dp); Spacer(Modifier.size(14.dp)) }
                         Column {
                             Text("Audit logs", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                             Text("Everything that happens, on record", color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
+                        }
                         }
                     }
                     Spacer(Modifier.height(8.dp))

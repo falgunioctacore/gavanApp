@@ -198,3 +198,22 @@ internal suspend fun ApiClient.listAllMeta(resource: String, maxPages: Int = 8):
     }
     out to meta
 }
+
+/** The red delete button of a details header: a round red button with a drawn bin (an emoji would come out washed-out). */
+@Composable
+internal fun DeleteButton(onClick: () -> Unit) {
+    Box(
+        Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFE5393F)).clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(width = 7.dp, height = 2.dp).clip(RoundedCornerShape(1.dp)).background(Color.White))        // lid handle
+            Box(Modifier.size(width = 16.dp, height = 2.5.dp).clip(RoundedCornerShape(1.dp)).background(Color.White))      // lid
+            Box(Modifier.padding(top = 1.5.dp).size(width = 12.dp, height = 13.dp).clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 3.dp)).background(Color.White)) {
+                Row(Modifier.fillMaxWidth().height(13.dp).padding(horizontal = 2.5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    repeat(2) { Box(Modifier.padding(vertical = 2.5.dp).size(width = 1.5.dp, height = 8.dp).background(Color(0xFFE5393F))) }
+                }
+            }
+        }
+    }
+}

@@ -78,6 +78,9 @@ import com.example.gavanhomes.ui.common.KitInk
 import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.KitPage
 import com.example.gavanhomes.ui.common.Pill
+import com.example.gavanhomes.ui.common.FilterBar
+import com.example.gavanhomes.ui.common.FilterGroup
+import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.SwalConfirm
 import com.example.gavanhomes.ui.projects.form.Input
@@ -144,8 +147,7 @@ fun ProfessionalsScreen(
 
     // directory controls
     var query by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf<String?>(null) }
-    var typeFilter by remember { mutableStateOf<String?>(null) }
+    var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }   // chosen filters: group → values
     var sort by remember { mutableIntStateOf(0) }
     var compact by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
@@ -188,9 +190,12 @@ fun ProfessionalsScreen(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
                             .statusBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (b.logo != null) { com.example.gavanhomes.ui.common.BrandMark(b, 52.dp); Spacer(Modifier.size(14.dp)) }
                         Column {
                             Text("Professionals", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                             Text("Directory, reviews and performance", color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
+                        }
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -254,8 +259,9 @@ fun ProfessionalsScreen(
                     0 -> dashboard(dash!!, b, onOpenPro, onSection)
                     1 -> {
                         val all = pros.orEmpty()
+                        val passes = { p: Pro, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || p.status in s } && m["type"].orEmpty().let { t -> t.isEmpty() || p.type in t } }
                         val shown = all
-                            .filter { p -> (status == null || p.status == status) && (typeFilter == null || p.type == typeFilter) && p.matches(query.trim().lowercase()) }
+                            .filter { p -> passes(p, sel) && p.matches(query.trim().lowercase()) }
                             .let { l ->
                                 when (sort) {
                                     1 -> l.sortedBy { it.name.lowercase() }
@@ -264,34 +270,25 @@ fun ProfessionalsScreen(
                                 }
                             }
                         item { Spacer(Modifier.height(14.dp)) }
-                        item { SearchBox(query, { query = it }, "Search professionals…") }
                         item {
-                            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ProFilterChip("All", all.size, null, status == null) { status = null }
-                                StatusOrder.forEach { s -> ProFilterChip(statusLabel(s), all.count { it.status == s }, statusColor(s), status == s) { status = if (status == s) null else s } }
-                            }
+                            FilterBar(
+                                query, { query = it }, "Search professionals…",
+                                groups = listOf(
+                                    FilterGroup("status", "Status", StatusOrder.map { st -> FilterOption(st, statusLabel(st), all.count { p -> p.status == st }, statusColor(st)) }),
+                                    FilterGroup("type", "Type", all.mapNotNull { p -> p.type }.distinct().sorted().map { t -> FilterOption(t, t, all.count { p -> p.type == t }) }),
+                                ),
+                                selected = sel, onApply = { sel = it },
+                                                                countWith = { m -> all.count { p -> passes(p, m) && p.matches(query.trim().lowercase()) } },
+                                sortOptions = SortNames, sortIndex = sort, onSort = { sort = it },
+                            )
                         }
                         item {
-                            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                all.mapNotNull { it.type }.distinct().sorted().forEach { t -> ProFilterChip(t, all.count { it.type == t }, null, typeFilter == t) { typeFilter = if (typeFilter == t) null else t } }
-                            }
-                        }
-                        item {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${shown.size} ${if (shown.size == 1) "professional" else "professionals"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                                 Text("⇪ Import", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
                                     modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { importOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
                                 Spacer(Modifier.size(8.dp))
-                                Box {
-                                    Text("↕ ${SortNames[sort]}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { sortOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
-                                    DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                                        SortNames.forEachIndexed { i, n -> DropdownMenuItem(text = { Text(n) }, onClick = { sort = i; sortOpen = false }) }
-                                    }
-                                }
-                                Spacer(Modifier.size(8.dp))
-                                Text(if (compact) "▦" else "☰", fontSize = 15.sp, color = KitInk,
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { compact = !compact }.padding(horizontal = 14.dp, vertical = 7.dp))
+                                com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                             }
                         }
                         item { Spacer(Modifier.height(8.dp)) }
