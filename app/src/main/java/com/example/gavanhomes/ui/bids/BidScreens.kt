@@ -187,7 +187,7 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
                         }
                         x.str("description")?.let { Card("Description") { Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 21.sp) } }
                         x.str("special_requirements")?.let { Card("Special requirements") { Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 21.sp) } }
-                        x.str("terms")?.let { t -> Card("Terms & conditions", t) { x.str("terms_content")?.let { c -> Text(c, color = KitMuted, fontSize = 13.sp, lineHeight = 19.sp) } } }
+                        x.str("terms")?.let { t -> Card("Terms & conditions", t) { (x.str("terms_html") ?: x.str("terms_content"))?.let { c -> com.example.gavanhomes.ui.common.HtmlText(c, color = KitInk, fontSize = 14.sp) } } }
                     }
 
                     1 -> Card("Items", if (items.isEmpty()) "Nothing added" else "${items.size} asked for") {

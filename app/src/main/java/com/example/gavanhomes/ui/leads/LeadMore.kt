@@ -360,6 +360,7 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
     var tab by remember { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<JSONObject?>(null) }
     var deleting by remember { mutableStateOf<JSONObject?>(null) }
+    var openTpl by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(version, attempt) {
         error = null
@@ -377,10 +378,14 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
 
     rows.forEach { r ->
         val core = r.optBoolean("core")
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        val tpl = kind.key == "email-template" || kind.key == "message-template"
+        val open = tpl && openTpl == r.optInt("id")
+        Column(
+            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)
+                .then(if (tpl) Modifier.clickable { openTpl = if (open) 0 else r.optInt("id") } else Modifier).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (kind.colored) Box(Modifier.padding(end = 12.dp).size(14.dp).clip(CircleShape).background(tint(r.str("color"))))
             Column(Modifier.weight(1f)) {
                 Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
@@ -396,6 +401,9 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
                 Chip(if (on) "Active" else "Inactive", if (on) KitGood else KitMuted)
             }
             if (canManage) { Spacer(Modifier.size(8.dp)); IconBtns({ editing = r }, if (core) null else ({ deleting = r })) }
+        }
+        // a template opens to its formatted text (bold, lists, links …) as it looks on the website
+        if (open) com.example.gavanhomes.ui.common.HtmlText(r.optString(if (kind.key == "email-template") "body_html" else "message_html").ifBlank { r.optString(if (kind.key == "email-template") "body" else "message") }, fontSize = 14.sp)
         }
     }
     if (rows.isEmpty()) Text("Nothing here yet.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))

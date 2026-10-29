@@ -209,7 +209,8 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
                 Text(t.optString("title"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
                 Chip(if (active) "Active" else "Inactive", if (active) KitGood else KitMuted)
             }
-            Text(t.optString("content"), color = KitMuted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = if (open) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
+            if (open) com.example.gavanhomes.ui.common.HtmlText(t.optString("html").ifBlank { t.optString("content") }, color = KitInk, fontSize = 14.sp)
+            else Text(t.optString("content"), color = KitMuted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(bidDay(t.str("created_at")) ?: "", color = KitMuted, fontSize = 11.sp, modifier = Modifier.weight(1f))
                 if (canManage) {
