@@ -138,12 +138,15 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     var root by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
+    var settingsFor by remember { mutableStateOf<String?>(null) }       // the module (leads / bids) whose settings page is open
     var section by remember { mutableIntStateOf(0) }                    // which of Sections is open
     var tab by remember { mutableIntStateOf(0) }                        // the tab inside Details
     // Tasks: task pages open over the project, newest on top ("detail" id · "form" id, 0 = a new task)
     val taskStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     val targetStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     var targetsVersion by remember { mutableIntStateOf(0) }
+    val bidStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+    var bidsVersion by remember { mutableIntStateOf(0) }
     val leadStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     var leadsVersion by remember { mutableIntStateOf(0) }
     var tasksVersion by remember { mutableIntStateOf(0) }               // bumped after a change, so lists reload
@@ -176,6 +179,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     val allowed = dash?.optJSONArray("tabs")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
     val sections = Sections + ModuleSections.filter { it.key in allowed }
     val current = sections.getOrElse(section) { sections[0] }
+    androidx.compose.runtime.LaunchedEffect(section) { settingsFor = null }
     androidx.activity.compose.BackHandler(enabled = drawer.isOpen || section != 0) { if (drawer.isOpen) scope.launch { drawer.close() } else section = 0 }
 
     // all the project's pages live in a side drawer (opened with ☰) instead of rows of tabs
@@ -241,6 +245,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 b, current.label, onBack,
                 actions = {
                     if (root?.optBoolean("can_edit") == true) { HeroButton("✎") { onEdit(uuid) }; Spacer(Modifier.size(8.dp)) }
+                    if (current.key == "leads" || current.key == "bids") { HeroButton("⚙") { settingsFor = if (settingsFor == current.key) null else current.key }; Spacer(Modifier.size(8.dp)) }
                     HeroButton("☰") { scope.launch { drawer.open() } }
                 },
             ) {
@@ -254,7 +259,8 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
 
             if (current.key == "tasks") ProjectTasks(api, b, uuid, tasksVersion, onOpen = { taskStack.add("detail" to it) }, onNew = { taskStack.add("form" to 0) },
                 onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) })
-            else if (current.key == "leads") com.example.gavanhomes.ui.leads.ProjectLeads(api, b, uuid, leadsVersion, onOpen = { id, tabKey -> leadStack.add("detail:$tabKey" to id) }, onNew = { leadStack.add("form" to 0) }, onEdit = { leadStack.add("form" to it) })
+            else if (current.key == "bids") com.example.gavanhomes.ui.bids.ProjectBids(api, b, uuid, bidsVersion, onOpen = { bidStack.add("detail" to it) }, onNew = { bidStack.add("form" to 0) }, onNewFromTask = { bidStack.add("formtask" to it) }, settingsOpen = settingsFor == "bids", onCloseSettings = { settingsFor = null })
+            else if (current.key == "leads") com.example.gavanhomes.ui.leads.ProjectLeads(api, b, uuid, leadsVersion, onOpen = { id, tabKey -> leadStack.add("detail:$tabKey" to id) }, onNew = { leadStack.add("form" to 0) }, onEdit = { leadStack.add("form" to it) }, settingsOpen = settingsFor == "leads", onCloseSettings = { settingsFor = null })
             else if (current.key == "targets") com.example.gavanhomes.ui.targets.ProjectTargets(api, b, uuid, targetsVersion, onOpen = { targetStack.add("detail" to it) }, onNew = { targetStack.add("form" to 0) },
                 onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) })
             else if (current.key != null) androidx.compose.runtime.key(current.key) { ProjectModule(api, b, uuid, current.key) }
@@ -285,9 +291,18 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     }
 
     // a task / target form has its own Save bar, so the footer tabs step aside while one is open
-    val formOpen = taskStack.lastOrNull()?.first == "form" || targetStack.lastOrNull()?.first == "form" || leadStack.lastOrNull()?.first == "form"
+    val formOpen = taskStack.lastOrNull()?.first == "form" || targetStack.lastOrNull()?.first == "form" || leadStack.lastOrNull()?.first == "form" || bidStack.lastOrNull()?.first?.startsWith("form") == true
     androidx.compose.runtime.LaunchedEffect(formOpen) { com.example.gavanhomes.ui.common.Chrome.hideBar = formOpen }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { com.example.gavanhomes.ui.common.Chrome.hideBar = false } }
+
+    bidStack.lastOrNull()?.let { (kind, bid) ->
+        fun pop() { if (bidStack.isNotEmpty()) bidStack.removeAt(bidStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            if (kind == "detail") androidx.compose.runtime.key(bidStack.size, bid) {
+                com.example.gavanhomes.ui.bids.BidDetailScreen(api, b, bid, bidsVersion, onBack = ::pop, onEdit = { bidStack.add("form" to it) }, onChanged = { bidsVersion++ })
+            } else com.example.gavanhomes.ui.bids.BidFormScreen(api, b, uuid, bid.takeIf { kind == "form" && it > 0 }, onBack = ::pop, onSaved = { bidsVersion++; pop() }, taskId = if (kind == "formtask") bid else 0)
+        }
+    }
 
     leadStack.lastOrNull()?.let { (kind, lid) ->
         fun pop() { if (leadStack.isNotEmpty()) leadStack.removeAt(leadStack.lastIndex) }

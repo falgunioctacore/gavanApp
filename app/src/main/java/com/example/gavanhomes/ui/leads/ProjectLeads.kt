@@ -105,7 +105,7 @@ private val Sorts = listOf("newest" to "Newest first", "oldest" to "Oldest first
  * Data: GET /projects/{uuid}/lead-center/overview · options · list · followups.
  */
 @Composable
-fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int, String) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit) {
+fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int, String) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit, settingsOpen: Boolean = false, onCloseSettings: () -> Unit = {}) {
     var view by remember { mutableIntStateOf(0) }                    // 0 Dashboard · 1 Leads · 2 Follow-ups
     var overview by remember { mutableStateOf<JSONObject?>(null) }
     var options by remember { mutableStateOf<JSONObject?>(null) }
@@ -122,7 +122,8 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     }
     LaunchedEffect(uuid, version) { options = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/lead-center/options") } }.getOrNull() }
 
-    SegTabs(listOf("Dashboard", "Leads", "Follow-ups"), view) { view = it }
+    if (settingsOpen) { SettingsEntry(true, "Lead settings", b.base, onCloseSettings); LeadSettings(api, b, uuid, version) { attempt++ }; return }
+    SegTabs(listOf("Dashboard", "Leads", "Follow-ups", "Lists", "Export", "Pipeline"), view) { view = it }
 
     val o = overview
     if (o == null) {
@@ -140,7 +141,10 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     when (view) {
         0 -> LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 }
         1 -> LeadList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ })
-        else -> FollowupList(api, b, uuid, version, options, onOpen)
+        2 -> FollowupList(api, b, uuid, version, options, onOpen)
+        3 -> LeadLists(api, b, uuid, version, onOpenList = { id -> sel = mapOf("list_id" to setOf(id.toString())); query = ""; view = 1 }, onChanged = { attempt++ })
+        4 -> ExportRequests(api, b, uuid, version, options)
+        else -> PipelineReport(api, b, uuid, version, options)
     }
 }
 
@@ -440,6 +444,8 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     var editF by remember { mutableStateOf<JSONObject?>(null) }
     var statusF by remember { mutableStateOf<JSONObject?>(null) }
     var deleteF by remember { mutableStateOf<JSONObject?>(null) }
+    var pickLead by remember { mutableStateOf(false) }
+    var scheduleFor by remember { mutableStateOf<JSONObject?>(null) }
     fun act(success: String, call: () -> Unit) {
         scope.launch {
             try { withContext(Dispatchers.IO) { call() }; android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show(); attempt++ }
@@ -469,7 +475,10 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
         countWith = { m -> if (m == sel) total else -1 },
         sortOptions = FollowupSorts.map { it.second }, sortIndex = sort, onSort = { sort = it },
     )
-    Text("$total follow-up${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("$total follow-up${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(start = 4.dp))
+        Text("+  Schedule follow-up", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(b.base).clickable { pickLead = true }.padding(horizontal = 16.dp, vertical = 9.dp))
+    }
 
     rows.forEach { f ->
         FollowupCard(f, options, showLead = true, onClick = { detail = f }, onStatus = if (f.optBoolean("can_status")) ({ statusF = f }) else null,
@@ -490,6 +499,8 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
         Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
     }
 
+    if (pickLead) LeadPickSheet(api, uuid, onClose = { pickLead = false }) { lead -> pickLead = false; scheduleFor = lead }
+    scheduleFor?.let { lead -> FollowupSheet(b, options, JSONObject(), onClose = { scheduleFor = null }) { body -> scheduleFor = null; act("Follow-up scheduled") { api.send("POST", "/lead-center/${lead.optInt("id")}/followups", body) } } }
     detail?.let { f -> FollowupDetailSheet(b, options, f, onClose = { detail = null }, onOpenLead = { detail = null; onOpen(f.optInt("lead_id"), "followups") }, onStatus = { detail = null; statusF = f }, onEdit = { detail = null; editF = f }, onDelete = { detail = null; deleteF = f }) }
     editF?.let { f -> FollowupSheet(b, options, f, onClose = { editF = null }) { body -> editF = null; act("Follow-up saved") { api.send("PUT", "/lead-center/${f.optInt("lead_id")}/followups/${f.optInt("id")}", body) } } }
     statusF?.let { f -> StatusSheet(b, options, f, onClose = { statusF = null }) { st, note -> statusF = null; act("Follow-up marked $st") { api.send("POST", "/lead-center/${f.optInt("lead_id")}/followups/${f.optInt("id")}/status", JSONObject().put("status", st).put("notes", note)) } } }
@@ -595,3 +606,16 @@ private fun FollowupDetailSheet(b: Branding, options: JSONObject?, f: JSONObject
         }
     }
 }
+
+/** The ⚙ Settings pill that sits above a module's tabs (instead of a Settings tab); [back] true shows a "‹ Back" pill in its place. */
+@Composable
+internal fun SettingsEntry(open: Boolean, title: String, accent: Color, onToggle: () -> Unit) {
+    Row(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (open) Text(title, color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, modifier = Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
+        Text(
+            if (open) "‹  Back" else "⚙  Settings", color = if (open) Color.White else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+            modifier = Modifier.shadow(if (open) 0.dp else 2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(if (open) accent else Color.White).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
+        )
+    }
+}
+
