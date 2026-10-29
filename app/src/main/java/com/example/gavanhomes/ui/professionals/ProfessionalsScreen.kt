@@ -250,8 +250,7 @@ fun ProfessionalsScreen(
                     HeroBar(
                         b, title, onBack,
                         actions = {
-                            toggle(); Spacer(Modifier.size(8.dp))
-                            HeroButton("⟳") { refresh() }
+                            toggle()
                             if (section == 1) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onAddPro() } }
                             if (section == 2) { Spacer(Modifier.size(8.dp)); HeroButton("+") { typeSheet = JSONObject(); typeOpen = true } }
                         },

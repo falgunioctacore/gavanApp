@@ -65,7 +65,7 @@ internal suspend fun ApiClient.listAll(resource: String, maxPages: Int = 8): Lis
 
 /** Brand-gradient header with a back button and title; [content] sits under the title row. */
 @Composable
-internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, content: @Composable () -> Unit = {}) {
+internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, content: @Composable () -> Unit = {}) {
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
@@ -84,6 +84,7 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @C
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 actions()
+                if (showBell && !compact && LocalOpenNotifications.current != null) { Spacer(Modifier.size(8.dp)); NotificationBell() }
             }
             if (!compact) {
                 Spacer(Modifier.height(18.dp))

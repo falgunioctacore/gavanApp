@@ -7,9 +7,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/** Where the Laravel app lives. 127.0.0.1 works over USB with `adb reverse tcp:8000 tcp:8000`. */
+/**
+ * Where the Laravel app lives — set per build type (app/build.gradle.kts): the debug build talks to the local server
+ * (127.0.0.1 over USB with `adb reverse tcp:8000 tcp:8000`), the release build to https://gavan.co.in.
+ */
 object ApiConfig {
-    const val BASE_URL = "http://127.0.0.1:8000"
+    val BASE_URL: String = com.example.gavanhomes.BuildConfig.BASE_URL
     const val PREFIX = "/api/mobile/admin"
 }
 

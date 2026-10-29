@@ -57,6 +57,7 @@ import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.User
 import com.example.gavanhomes.data.str
 import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.NotificationBell
 import com.example.gavanhomes.ui.common.SegTabs
 import com.example.gavanhomes.ui.shell.Module
 import kotlinx.coroutines.Dispatchers
@@ -178,7 +179,11 @@ private fun Content(
     }
     var tab by remember { mutableIntStateOf(0) }
 
-    LazyColumn(Modifier.widthIn(max = 720.dp).fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+    var refreshing by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(d) { refreshing = false }                                   // fresh data arrived
+    androidx.compose.runtime.LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; onRefresh() }, modifier = Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.widthIn(max = 720.dp).fillMaxSize().align(Alignment.TopCenter), contentPadding = PaddingValues(bottom = 28.dp)) {
         // ── hero ──
         item {
             Box(
@@ -196,12 +201,9 @@ private fun Content(
                             Text(greeting, color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
                             Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        RoundGlyph("⟳", onRefresh)
+                        NotificationBell()
                         Spacer(Modifier.size(8.dp))
-                        Text(
-                            "Log out", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = .2f)).clickable { onLogout() }.padding(horizontal = 14.dp, vertical = 11.dp),
-                        )
+                        com.example.gavanhomes.ui.common.LogoutIconButton(onLogout)
                     }
 
                     Spacer(Modifier.height(18.dp))
@@ -237,6 +239,7 @@ private fun Content(
             else -> people(w, b)
         }
         item { Spacer(Modifier.navigationBarsPadding()) }
+    }
     }
 }
 

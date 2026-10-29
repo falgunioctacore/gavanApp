@@ -193,8 +193,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                 HeroBar(
                     b, "Projects", onBack,
                     actions = {
-                        HeroButton("⟳") { reload++ }
-                        if (canCreate) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onOpenForm(null) } }
+                        if (canCreate) HeroButton("+") { onOpenForm(null) }
                     },
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

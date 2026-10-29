@@ -305,7 +305,7 @@ fun HrScreen(
                     HeroBar(
                         b, sec.label, onBack,
                         actions = {
-                            toggle(); Spacer(Modifier.size(8.dp)); HeroButton("⟳") { refresh() }
+                            toggle()
                             if (sec.slug != null && can?.optBoolean("create") == true) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onAdd(sec.slug) } }
                             if (section == LEAVE && can?.optBoolean("apply") == true) { Spacer(Modifier.size(8.dp)); HeroButton("+") { leaveApply = true } }
                         },

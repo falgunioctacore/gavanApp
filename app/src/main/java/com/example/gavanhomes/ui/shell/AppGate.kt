@@ -3,6 +3,7 @@ package com.example.gavanhomes.ui.shell
 import com.example.gavanhomes.ui.auth.GavanLoginScreen
 import com.example.gavanhomes.ui.common.Branding
 import com.example.gavanhomes.ui.common.SwalConfirm
+import com.example.gavanhomes.ui.common.cachedBranding
 import com.example.gavanhomes.ui.common.loadBranding
 import com.example.gavanhomes.ui.common.swipeBack
 import com.example.gavanhomes.ui.dashboard.DashboardScreen
@@ -12,7 +13,10 @@ import com.example.gavanhomes.ui.projects.ProjectsScreen
 import com.example.gavanhomes.ui.users.UserDetailScreen
 import com.example.gavanhomes.ui.users.UserFormScreen
 import com.example.gavanhomes.ui.audit.AuditScreen
+import com.example.gavanhomes.ui.common.LocalOpenNotifications
+import com.example.gavanhomes.ui.common.NotificationCenter
 import com.example.gavanhomes.ui.hod.HodScreen
+import com.example.gavanhomes.ui.notifications.NotificationsScreen
 import com.example.gavanhomes.ui.settings.AppSettingsScreen
 import com.example.gavanhomes.ui.hr.HrFormScreen
 import com.example.gavanhomes.ui.hr.HrRecordScreen
@@ -25,6 +29,7 @@ import com.example.gavanhomes.ui.users.UsersScreen
 import com.example.gavanhomes.ui.account.AccountScreen
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -93,11 +98,11 @@ fun AppGate() {
     var token by remember { mutableStateOf(store.token) }
     val api = remember { ApiClient { token } }
     var gate by remember { mutableStateOf<Gate>(if (token == null) Gate.SignedOut else Gate.Checking) }
-    var branding by remember { mutableStateOf(Branding()) }
+    var branding by remember { mutableStateOf(cachedBranding(context)) }       // instant: the last branding seen
     var attempt by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) { branding = loadBranding(api) }
+    LaunchedEffect(Unit) { branding = loadBranding(api, context) }
 
     /** Straight in with the saved user (the dashboard call validates the token); only ask the server when nothing is saved. */
     suspend fun enter() {
@@ -171,6 +176,29 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
 
+    var notifFrom by remember { mutableStateOf("dashboard") }   // the screen the bell was pressed on, so Back returns there
+    val openNotifications: () -> Unit = { if (screen != "notifications") notifFrom = screen; screen = "notifications" }
+
+    // the unread badge: starts from the last count, then is fetched on start, whenever the app comes back to the front, and every minute;
+    // after a failed fetch (connection down) it tries again in a few seconds instead of waiting a minute
+    remember(store) { NotificationCenter.unread = store.unread }
+    var badgeTick by remember { mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(context) {
+        val owner = context as? androidx.lifecycle.LifecycleOwner
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) badgeTick++ }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose { owner?.lifecycle?.removeObserver(observer) }
+    }
+    LaunchedEffect(badgeTick) {
+        while (true) {
+            val ok = runCatching {
+                val n = withContext(Dispatchers.IO) { api.get("/notifications") }.optInt("unread")
+                NotificationCenter.unread = n; store.unread = n
+            }.isSuccess
+            kotlinx.coroutines.delay(if (ok) 60_000 else 8_000)
+        }
+    }
+
     var confirmLogout by remember { mutableStateOf(false) }
     val logout: () -> Unit = { confirmLogout = true }          // asks first; the real sign-out is below
 
@@ -202,6 +230,11 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     fun buildWebView(sessionUrl: String, firstPath: String): WebView = WebView(context).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        // locked down: the page can read no phone files, load no http content inside an https page, and Safe Browsing is on
+        settings.allowFileAccess = false
+        settings.allowContentAccess = false
+        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        if (android.os.Build.VERSION.SDK_INT >= 26) settings.safeBrowsingEnabled = true
         webChromeClient = WebChromeClient()
         var established = false                                  // the session link has been followed
         webViewClient = object : WebViewClient() {
@@ -218,7 +251,16 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 else -> false
             }
 
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = route(view, request.url.toString())
+            private val ownHost = Uri.parse(ApiConfig.BASE_URL).host
+
+            // the website stays inside the app; a link to anywhere else opens in the phone's browser instead
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (request.url.host != ownHost) {
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    return true
+                }
+                return route(view, request.url.toString())
+            }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 if (established) opening = false
@@ -272,6 +314,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "professionalForm" || screen == "professionalDetail" || screen == "reviewDetail" -> screen = "professionals"
             screen == "hrForm" || screen == "hrRecord" -> screen = "hr"
             screen == "appSettings" -> screen = "account"
+            screen == "notifications" -> screen = notifFrom
             screen == "professionals" && proSection != 0 -> proSection = 0    // back from a section → that module's dashboard first
             screen == "hr" && hrSection != 0 -> hrSection = 0
             screen == "hod" && hodSection != 0 -> hodSection = 0
@@ -289,9 +332,11 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"
         "hrRecord", "hrForm" -> "hr"
         "appSettings" -> "account"
+        "notifications" -> when (notifFrom) { "projectDetail", "projectForm" -> "projects"; "userDetail", "userForm" -> "users"; "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"; "hrRecord", "hrForm" -> "hr"; "appSettings" -> "account"; "notifications" -> "dashboard"; else -> notifFrom }
         else -> screen
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalOpenNotifications provides openNotifications) {
     if (screen == "web") {
         Box(Modifier.fillMaxSize().background(Color(0xFFF3F2F0))) {
             webView?.let { wv ->
@@ -363,6 +408,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     Modifier.fillMaxSize().background(Color(0xFFF3F2F0)).pointerInput(Unit) { detectTapGestures { } },   // taps never reach the list below
                 ) {
                     when (screen) {
+                        "notifications" -> NotificationsScreen(api, branding, onBack = { screen = notifFrom })
                         "projectDetail" -> ProjectDetailScreen(
                             api, branding, uuid = detailUuid.orEmpty(), onBack = { screen = "projects" },
                             onEdit = { uuid -> formUuid = uuid; screen = "projectForm" },
@@ -409,8 +455,9 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 }
             }
             if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings") {   // the forms have their own Save bar
-                ModuleBar(modules, base, accent = branding.base, onSelect = ::openModule)
+                ModuleBar(modules, base, accent = branding.base, onLogout = logout, onSelect = ::openModule)
             }
         }
+    }
     }
 }

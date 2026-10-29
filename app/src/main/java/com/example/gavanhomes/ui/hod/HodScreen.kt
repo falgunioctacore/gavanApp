@@ -38,6 +38,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -152,6 +153,9 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
     var loading by remember { mutableStateOf(false) }
 
     var siteSheet by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }                      // pull-down refresh in progress
+    LaunchedEffect(loading) { if (!loading) refreshing = false }
+    LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
     var customize by remember { mutableStateOf(false) }
     var targetFor by remember { mutableStateOf<JSONObject?>(null) }
 
@@ -253,12 +257,13 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
             val sites = d.objects("sites")
             val delays = d.objects("delays")
 
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, sec.label, onBack,
                         actions = {
-                            toggle(); Spacer(Modifier.size(8.dp)); HeroButton("⟳") { reload++ }
+                            toggle()
                             if (section == OVERVIEW) { Spacer(Modifier.size(8.dp)); HeroButton("⚙") { customize = true } }
                         },
                     ) {
@@ -306,6 +311,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
                     DELAYS -> delayList(delays, b) { n -> context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n"))) }
                     else -> reportList(reports, reportTab, { reportTab = it }, b)
                 }
+            }
             }
         }
     }

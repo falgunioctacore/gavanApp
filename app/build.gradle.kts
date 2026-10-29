@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -13,18 +15,44 @@ android {
         applicationId = "com.example.gavanhomes"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+    // release signing: the key and its passwords live in keystore.properties / the .jks next to this project (both git-ignored)
+    val keystoreProps = Properties().apply {
+        val f = rootProject.file("keystore.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    signingConfigs {
+        if (keystoreProps.containsKey("storeFile")) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile").removePrefix("../"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
             }
+        }
+    }
+
+    buildTypes {
+        // the build you run from Android Studio: your local Laravel server (http://127.0.0.1:8000 over `adb reverse`)
+        debug {
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "GavanHomes")
+            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8000\"")
+        }
+        // the app you ship: the live site, https only and signed
+        release {
+            // ./gradlew assembleRelease -PsideBySide  → installs next to the real app, for testing the release build on your own phone
+            if (project.hasProperty("sideBySide")) applicationIdSuffix = ".rel"
+            resValue("string", "app_name", "GavanHomes")
+            buildConfigField("String", "BASE_URL", "\"https://gavan.co.in\"")
+            // no R8 shrinking: limiting it to library packages broke androidx.startup on launch (IllegalAccessError)
+            optimization { enable = false }
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     compileOptions {
@@ -33,6 +61,8 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+        resValues = true
     }
 }
 

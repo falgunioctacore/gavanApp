@@ -70,8 +70,9 @@ import java.util.Calendar
  */
 @Composable
 fun GavanLoginScreen(api: ApiClient, onSignedIn: (String, User) -> Unit) {
-    var branding by remember { mutableStateOf(Branding()) }
-    LaunchedEffect(Unit) { branding = loadBranding(api) }
+    val appContext = androidx.compose.ui.platform.LocalContext.current
+    var branding by remember { mutableStateOf(cachedBranding(appContext)) }
+    LaunchedEffect(Unit) { branding = loadBranding(api, appContext) }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

@@ -28,6 +28,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -137,6 +138,9 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
     var error by remember(section) { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var picker by remember { mutableStateOf<String?>(null) }
+    var refreshing by remember { mutableStateOf(false) }                      // pull-down refresh in progress
+    LaunchedEffect(loading) { if (!loading) refreshing = false }
+    LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
     var expanded by remember(section) { mutableStateOf<Int?>(null) }
     val query = filters.query()
 
@@ -198,11 +202,12 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
     ) {
         Column(Modifier.fillMaxSize().background(KitPage)) {
             val s = stats?.optJSONObject(tab.slug)
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, tab.label, onBack,
-                        actions = { HeroButton("☰") { scope.launch { drawer.open() } }; Spacer(Modifier.size(8.dp)); HeroButton("⟳") { reload++; runCatching { } } },
+                        actions = { HeroButton("☰") { scope.launch { drawer.open() } } },
                     ) {
                         val c = when (tab.slug) {
                             "logins" -> listOf(s?.optInt("total") to "Total", s?.optInt("today") to "Today", s?.optInt("activeUsersToday") to "People", s?.optInt("failedToday") to "Failed")
@@ -266,6 +271,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                         modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),
                     )
                 }
+            }
             }
         }
     }

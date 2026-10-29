@@ -176,8 +176,7 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                 HeroBar(
                     b, "Users", onBack,
                     actions = {
-                        HeroButton("⟳") { reload++ }
-                        if (canCreate) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onAdd() } }
+                        if (canCreate) HeroButton("+") { onAdd() }
                     },
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

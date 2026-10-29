@@ -43,6 +43,7 @@ private val BarPriority = listOf("dashboard", "projects", "hr", "users", "profes
 private const val BarSlots = 3
 
 private val MoreModule = Module("more", "More", "⋯", "", native = true)
+private val LogoutTile = Module("logout", "Log out", "", "", native = true)
 
 /**
  * The footer tabs: three key modules (Dashboards, Projects, HR & Admin) and a **More** tab that opens a sheet with the rest. A full-width white bar with softly rounded top
@@ -51,7 +52,7 @@ private val MoreModule = Module("more", "More", "⋯", "", native = true)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0xFF3670F7), onSelect: (Module) -> Unit) {
+fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0xFF3670F7), onLogout: (() -> Unit)? = null, onSelect: (Module) -> Unit) {
     val ranked = modules.sortedBy { BarPriority.indexOf(it.key).let { i -> if (i < 0) Int.MAX_VALUE else i } }
     val onBar = ranked.take(if (ranked.size > BarSlots + 1) BarSlots else ranked.size)
     val more = ranked.drop(onBar.size)
@@ -74,7 +75,7 @@ fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0x
                     Box(
                         Modifier.padding(top = 7.dp).size(width = 54.dp, height = 30.dp).clip(RoundedCornerShape(15.dp)).background(if (on) accent.copy(alpha = .16f) else Color.Transparent),
                         contentAlignment = Alignment.Center,
-                    ) { Text(m.glyph, fontSize = if (isMore) 24.sp else 19.sp, color = if (on) accent else Muted) }
+                    ) { ModuleIcon(m.key, if (on) accent else Muted, 22.dp, bold = on) }
                     Text(
                         m.label, fontSize = 10.5.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Medium, color = if (on) Ink else Muted,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 3.dp, start = 4.dp, end = 4.dp),
@@ -89,20 +90,24 @@ fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0x
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
             Text("More", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Ink)
             Text("The rest of your modules", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 14.dp))
-            more.chunked(3).forEach { row ->
+            // sign-out is the last tile of the grid, right after the modules (the app shell asks "Log out?" first)
+            val tiles = if (onLogout != null) more + LogoutTile else more
+            tiles.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { m ->
-                        val on = m.key == activeKey
+                        val out = m.key == "logout"
+                        val on = !out && m.key == activeKey
+                        val tint = if (out) Color(0xFFD03B3B) else accent
                         Column(
-                            Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(if (on) accent.copy(alpha = .12f) else Color(0xFFF7F5F1))
-                                .border(1.dp, if (on) accent.copy(alpha = .5f) else Color(0xFFEFECE6), RoundedCornerShape(20.dp))
-                                .clickable { sheet = false; onSelect(m) }.padding(vertical = 16.dp),
+                            Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(if (out) Color(0xFFFEF2F2) else if (on) accent.copy(alpha = .12f) else Color(0xFFF7F5F1))
+                                .border(1.dp, if (out) Color(0xFFFBD5D5) else if (on) accent.copy(alpha = .5f) else Color(0xFFEFECE6), RoundedCornerShape(20.dp))
+                                .clickable { sheet = false; if (out) onLogout?.invoke() else onSelect(m) }.padding(vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(if (on) accent else Color.White), contentAlignment = Alignment.Center) {
-                                Text(m.glyph, fontSize = 22.sp, color = if (on) Color.White else accent)
+                                ModuleIcon(m.key, if (on) Color.White else tint, 24.dp)
                             }
-                            Text(m.label, fontSize = 12.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = Ink, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 8.dp, start = 6.dp, end = 6.dp))
+                            Text(m.label, fontSize = 12.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (out) tint else Ink, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 8.dp, start = 6.dp, end = 6.dp))
                         }
                     }
                     repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }

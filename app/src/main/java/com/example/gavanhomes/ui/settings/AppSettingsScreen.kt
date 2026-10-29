@@ -132,7 +132,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                 )
                 logo?.let { parts += FormPart("app_logo", fileName = it.name, mime = it.mime, bytes = it.bytes) }
                 withContext(Dispatchers.IO) { api.sendForm("/app-settings", parts) }
-                val fresh = loadBranding(api)           // the new logo, name and colour go straight into the whole app
+                val fresh = loadBranding(api, context)           // the new logo, name and colour go straight into the whole app
                 Toast.makeText(context, "App settings saved", Toast.LENGTH_SHORT).show()
                 onSaved(fresh)
             } catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf("app_name" to (e.message ?: "Could not save")) } }

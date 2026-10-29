@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# release signing — never commit these
+/keystore.properties
+*.jks
+*.keystore
+/GavanHomes-*.apk
