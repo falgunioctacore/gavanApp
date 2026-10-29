@@ -330,8 +330,8 @@ fun TaskDetailScreen(
                     Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = KitMuted, fontSize = 11.sp)
                 }
 
-                "discussion" -> TaskDiscussion(api, b, id) { attempt++; onChanged() }              // a new message adds to the activity feed
-                "assign" -> TaskAssignTab(api, b, id, d.optString("name"), canEdit) { attempt++; onChanged() }   // so the details, people and activity show the change
+                "discussion" -> TaskDiscussion(api, b, id, onChanged = { attempt++; onChanged() })              // a new message adds to the activity feed
+                "assign" -> TaskAssignTab(api, b, id, d.optString("name"), canEdit, onChanged = { attempt++; onChanged() })   // so the details, people and activity show the change
                 // ───── activity ─────
                 else -> {
                     val history = d.objs("history")
@@ -414,7 +414,7 @@ private fun dial(context: android.content.Context, phone: String) {
 
 /** The number, with **Call** (opens the dialer) and **WhatsApp** (opens a chat with them). */
 @Composable
-private fun PhoneActions(phone: String) {
+internal fun PhoneActions(phone: String) {
     val context = LocalContext.current
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(phone, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
@@ -426,7 +426,7 @@ private fun PhoneActions(phone: String) {
 }
 
 @Composable
-private fun CallChip(phone: String) {
+internal fun CallChip(phone: String) {
     val context = LocalContext.current
     Text("Call", color = KitGood, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitGood.copy(alpha = .12f)).clickable { dial(context, phone) }.padding(horizontal = 14.dp, vertical = 8.dp))
 }
@@ -434,7 +434,7 @@ private fun CallChip(phone: String) {
 private fun statusIdFor(d: JSONObject, name: String): Int = d.objs("statuses").firstOrNull { it.optString("name") == name }?.optInt("id") ?: 0
 
 @Composable
-private fun SendButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun SendButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     Text(
         label, color = Color.White, fontWeight = FontWeight.Bold,
         modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (enabled) KitInk else KitMuted).clickable(enabled = enabled) { onClick() }.padding(horizontal = 18.dp, vertical = 16.dp),
@@ -442,7 +442,7 @@ private fun SendButton(label: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Fact(label: String, value: String?) {
+internal fun Fact(label: String, value: String?) {
     if (value.isNullOrBlank() || value == "null") return
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Text(label, color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(.8f))
@@ -452,7 +452,7 @@ private fun Fact(label: String, value: String?) {
 
 /** A selectable pill: filled in its colour when on, tinted when off. */
 @Composable
-private fun Pick(label: String, on: Boolean, tint: Color, onClick: () -> Unit) {
+internal fun Pick(label: String, on: Boolean, tint: Color, onClick: () -> Unit) {
     Text(
         label, color = if (on) Color.White else tint, fontWeight = FontWeight.Bold, fontSize = 13.sp,
         modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) tint else tint.copy(alpha = .1f)).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -641,7 +641,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                     }
                 }
                 // the save bar stays in reach
-                Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
                     Text(
                         if (saving) "Saving…" else if (editing) "Save task" else "Create task", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),
@@ -720,7 +720,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
 }
 
 @Composable
-private fun Label(text: String) {
+internal fun Label(text: String) {
     Text(text.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.6.sp, modifier = Modifier.padding(top = 4.dp))
 }
 

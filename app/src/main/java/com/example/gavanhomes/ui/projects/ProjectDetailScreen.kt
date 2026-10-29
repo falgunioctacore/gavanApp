@@ -142,6 +142,8 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     var tab by remember { mutableIntStateOf(0) }                        // the tab inside Details
     // Tasks: task pages open over the project, newest on top ("detail" id · "form" id, 0 = a new task)
     val taskStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+    val targetStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+    var targetsVersion by remember { mutableIntStateOf(0) }
     var tasksVersion by remember { mutableIntStateOf(0) }               // bumped after a change, so lists reload
     var unit by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
 
@@ -250,6 +252,8 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
 
             if (current.key == "tasks") ProjectTasks(api, b, uuid, tasksVersion, onOpen = { taskStack.add("detail" to it) }, onNew = { taskStack.add("form" to 0) },
                 onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) })
+            else if (current.key == "targets") com.example.gavanhomes.ui.targets.ProjectTargets(api, b, uuid, targetsVersion, onOpen = { targetStack.add("detail" to it) }, onNew = { targetStack.add("form" to 0) },
+                onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) })
             else if (current.key != null) androidx.compose.runtime.key(current.key) { ProjectModule(api, b, uuid, current.key) }
             else if (section == 0) ProjectDashboard(dash, dashError, b) { dashAttempt++ }
             else {
@@ -277,6 +281,11 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     }
     }
 
+    // a task / target form has its own Save bar, so the footer tabs step aside while one is open
+    val formOpen = taskStack.lastOrNull()?.first == "form" || targetStack.lastOrNull()?.first == "form"
+    androidx.compose.runtime.LaunchedEffect(formOpen) { com.example.gavanhomes.ui.common.Chrome.hideBar = formOpen }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { com.example.gavanhomes.ui.common.Chrome.hideBar = false } }
+
     taskStack.lastOrNull()?.let { (kind, tid) ->
         fun pop() { if (taskStack.isNotEmpty()) taskStack.removeAt(taskStack.lastIndex) }
         Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
@@ -286,6 +295,18 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     onChanged = { tasksVersion++ },
                 )
             } else TaskFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { tasksVersion++; pop() })
+        }
+    }
+
+    targetStack.lastOrNull()?.let { (kind, tid) ->
+        fun pop() { if (targetStack.isNotEmpty()) targetStack.removeAt(targetStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            if (kind.startsWith("detail")) androidx.compose.runtime.key(targetStack.size, tid) {
+                com.example.gavanhomes.ui.targets.TargetDetailScreen(
+                    api, b, tid, targetsVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 1; "discussion" -> 2; "activity" -> 3; "assign" -> 4; else -> 0 }, onBack = ::pop, onEdit = { targetStack.add("form" to it) },
+                    onChanged = { targetsVersion++ },
+                )
+            } else com.example.gavanhomes.ui.targets.TargetFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { targetsVersion++; pop() })
         }
     }
 

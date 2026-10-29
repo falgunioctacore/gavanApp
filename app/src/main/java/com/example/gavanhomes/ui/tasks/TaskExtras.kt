@@ -121,7 +121,7 @@ internal fun RemoteImage(url: String, modifier: Modifier, contentScale: ContentS
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, onChanged: () -> Unit = {}) {
+fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-center", onChanged: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var header by remember { mutableStateOf<JSONObject?>(null) }
@@ -141,7 +141,7 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, onChanged: () -> Unit =
 
     suspend fun load() {
         try {
-            val r = withContext(Dispatchers.IO) { api.get("/task-center/$id/thread") }
+            val r = withContext(Dispatchers.IO) { api.get("$base/$id/thread") }
             header = r.optJSONObject("header"); allowed = true; error = null
             val list = r.objs("messages")
             // only touch the list when something changed, so the scroll position does not jump
@@ -163,9 +163,9 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, onChanged: () -> Unit =
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    if (file != null) api.sendForm("/task-center/$id/thread", listOfNotNull(
+                    if (file != null) api.sendForm("$base/$id/thread", listOfNotNull(
                         body.takeIf { it.isNotEmpty() }?.let { FormPart("content", value = it) }, FormPart("attachment", fileName = file.name, mime = file.mime, bytes = file.bytes)))
-                    else api.send("POST", "/task-center/$id/thread", JSONObject().put("content", body))
+                    else api.send("POST", "$base/$id/thread", JSONObject().put("content", body))
                 }
                 text = ""; picked = null
                 Toast.makeText(context, if (file != null) "File sent" else "Message sent", Toast.LENGTH_SHORT).show()
@@ -252,16 +252,16 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, onChanged: () -> Unit =
                 Input("Message", draft, { draft = it }, singleLine = false)
                 Text("Save", color = Color.White, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (draft.isBlank()) KitMuted else b.base).clickable(enabled = draft.isNotBlank()) {
-                        editing = null; changeMessage({ api.send("POST", "/task-center/$id/thread/${m.optInt("id")}/edit", JSONObject().put("content", draft.trim())) }, "Message edited")
+                        editing = null; changeMessage({ api.send("POST", "$base/$id/thread/${m.optInt("id")}/edit", JSONObject().put("content", draft.trim())) }, "Message edited")
                     }.padding(vertical = 14.dp))
             }
         }
     }
     askDelete?.let { m -> SwalConfirm(
         title = "Delete this message?", text = "It will show as deleted for everyone.", confirmText = "Yes, delete",
-        onConfirm = { askDelete = null; changeMessage({ api.send("POST", "/task-center/$id/thread/${m.optInt("id")}/delete", JSONObject()) }, "Message deleted") }, onCancel = { askDelete = null },
+        onConfirm = { askDelete = null; changeMessage({ api.send("POST", "$base/$id/thread/${m.optInt("id")}/delete", JSONObject()) }, "Message deleted") }, onCancel = { askDelete = null },
     ) }
-    if (galleryOpen) Gallery(api, id, onClose = { galleryOpen = false })
+    if (galleryOpen) Gallery(api, id, base, onClose = { galleryOpen = false })
 }
 
 @Composable
@@ -304,11 +304,11 @@ private fun Bubble(m: JSONObject, b: Branding, onOpen: (String) -> Unit, onLong:
 /** Everything shared in the discussion: pictures and videos, documents and links, grouped by month. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Gallery(api: ApiClient, id: Int, onClose: () -> Unit) {
+private fun Gallery(api: ApiClient, id: Int, base: String, onClose: () -> Unit) {
     val context = LocalContext.current
     var data by remember { mutableStateOf<JSONObject?>(null) }
     var tab by remember { mutableIntStateOf(0) }
-    LaunchedEffect(id) { data = runCatching { withContext(Dispatchers.IO) { api.get("/task-center/$id/thread/media") } }.getOrNull() ?: JSONObject() }
+    LaunchedEffect(id) { data = runCatching { withContext(Dispatchers.IO) { api.get("$base/$id/thread/media") } }.getOrNull() ?: JSONObject() }
 
     fun groups(key: String): List<Pair<String, List<JSONObject>>> {
         val o = data?.optJSONObject(key) ?: return emptyList()
@@ -366,7 +366,7 @@ private fun GalleryRow(icon: String, title: String, date: String, onClick: () ->
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdit: Boolean, onChanged: () -> Unit) {
+fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdit: Boolean, base: String = "/task-center", onChanged: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<JSONObject?>(null) }
@@ -380,7 +380,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
 
     LaunchedEffect(id, attempt) {
         try {
-            val d = withContext(Dispatchers.IO) { api.detail("/task-center/$id/assign") }
+            val d = withContext(Dispatchers.IO) { api.detail("$base/$id/assign") }
             info = d; chosen = d.objs("assigned").map { it.optString("key") }.toSet()
         } catch (e: Exception) { error = e.message ?: "Could not load" }
     }
@@ -418,7 +418,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
                 saving = true
                 scope.launch {
                     try {
-                        withContext(Dispatchers.IO) { api.send("POST", "/task-center/$id/assign", JSONObject().put("assignees", JSONArray(sel.toList())).put("reason", reason.trim())) }
+                        withContext(Dispatchers.IO) { api.send("POST", "$base/$id/assign", JSONObject().put("assignees", JSONArray(sel.toList())).put("reason", reason.trim())) }
                         Toast.makeText(context, "Task assigned", Toast.LENGTH_SHORT).show(); reason = ""; onChanged(); attempt++
                     } catch (e: ApiException) { reasonError = e.errors["reason"] ?: e.message }
                     catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not assign", Toast.LENGTH_LONG).show() }

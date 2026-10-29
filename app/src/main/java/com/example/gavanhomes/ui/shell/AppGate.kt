@@ -454,7 +454,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings") {   // the forms have their own Save bar
+            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings" && !com.example.gavanhomes.ui.common.Chrome.hideBar) {   // the forms have their own Save bar
                 ModuleBar(modules, base, accent = branding.base, onLogout = logout, onSelect = ::openModule)
             }
         }
