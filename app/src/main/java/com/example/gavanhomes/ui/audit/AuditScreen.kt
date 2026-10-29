@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.audit
 
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -203,7 +205,8 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
         Column(Modifier.fillMaxSize().background(KitPage)) {
             val s = stats?.optJSONObject(tab.slug)
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, tab.label, onBack,
@@ -214,7 +217,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                             "changes" -> listOf(s?.optInt("total") to "Total", s?.optInt("today") to "Today", s?.optInt("createdToday") to "Created", s?.optInt("deletedToday") to "Deleted")
                             else -> listOf(s?.optInt("total") to "Total", s?.optInt("today") to "Today", s?.optInt("activeUsersToday") to "People", s?.optInt("uniqueUrlsToday") to "Pages")
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { c.forEachIndexed { i, (v, l) -> ProCounter(v?.toString() ?: "–", l, Modifier.weight(if (i == 0) 1.2f else 1f), big = i == 0) } }
+                        HeroSummary(c.map { (v, l) -> (v?.toString() ?: "–") to l })
                     }
                 }
 
@@ -272,6 +275,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                     )
                 }
             }
+            ScrollTopButton(listState)
             }
         }
     }

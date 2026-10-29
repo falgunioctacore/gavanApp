@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -187,7 +190,8 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
         val done = all.count { statusKind(it.status) == "done" }
 
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
             // ── header: title, add / refresh, and live counters ──
             item {
                 HeroBar(
@@ -196,12 +200,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                         if (canCreate) HeroButton("+") { onOpenForm(null) }
                     },
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Counter(all.size.toString(), "Projects", Modifier.weight(1.2f), big = true)
-                        Counter(inProgress.toString(), "In progress", Modifier.weight(1f))
-                        Counter(pending.toString(), "Pending", Modifier.weight(1f))
-                        Counter(done.toString(), "Done", Modifier.weight(1f))
-                    }
+                    HeroSummary(listOf(all.size.toString() to (if (all.size == 1) "project" else "projects"), inProgress.toString() to "In progress", pending.toString() to "Pending", done.toString() to "Done"), bar = true)
                 }
             }
 
@@ -236,6 +235,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                     onMail = { p.email?.let { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$it"))) } })
             }
         }
+        ScrollTopButton(listState)
         }
     }
 
@@ -302,24 +302,60 @@ private fun TimelineRing(p: P, tint: Color) {
     }
 }
 
+/**
+ * A project card, in three bands: who it is (avatar, name, code, status), where it stands (property types, the timeline as a bar with the days left),
+ * and the numbers with the quick actions (tasks, members, call, mail, more).
+ */
 @Composable
 private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Unit, onCall: () -> Unit, onMail: () -> Unit) {
-    EntityCard(
-        title = p.name, subtitle = p.code ?: "No code", accent = p.banner, onClick = onClick, onMore = onMore,
-        trailing = { if (p.progress != null) TimelineRing(p, b.base) },
-        chips = {
+    val shape = RoundedCornerShape(24.dp)
+    val left = p.left
+    val late = left != null && left < 0
+    val tone = if (late) KitDanger else b.base
+    Column(
+        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(4.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
+            .clip(shape).background(Color.White).clickable { onClick() },
+    ) {
+        // ── who ──
+        Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), verticalAlignment = Alignment.Top) {
+            Box(Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(p.banner.first, p.banner.second))), contentAlignment = Alignment.Center) {
+                Text(p.name.take(1).uppercase().ifEmpty { "?" }, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 21.sp)
+                Text(p.code ?: "No code", fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            }
             if (p.status != null) Pill(p.status, statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
-            Pill(if (p.active) "Active" else "Inactive", (if (p.active) KitGood else Color(0xFF5F6B76)).copy(alpha = .14f), if (p.active) KitGood else Color(0xFF5F6B76))
-            p.types.take(3).forEach { Pill(it, b.base.copy(alpha = .16f), b.dark) }
-            if (p.types.size > 3) Pill("+${p.types.size - 3}", b.base.copy(alpha = .16f), b.dark)
-        },
-        meta = if (p.start != null || p.end != null) "${p.start.pretty()}  →  ${p.end.pretty()}" else null,
-        footerLeft = { CardStat("${p.tasks}", if (p.tasks == 1) "task" else "tasks"); CardStat("${p.members}", if (p.members == 1) "member" else "members") },
-        footerRight = {
-            if (p.phone != null) CardAction("✆", b.base, onCall)
-            if (p.email != null) CardAction("✉", b.base, onMail)
-        },
-    )
+        }
+
+        // ── where it stands ──
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (p.types.isNotEmpty()) Text(p.types.joinToString("  ·  "), fontSize = 12.5.sp, color = b.dark, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (p.start != null || p.end != null) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${p.start.pretty()}  →  ${p.end.pretty()}", fontSize = 12.sp, color = KitMuted, modifier = Modifier.weight(1f))
+                    if (left != null) Text(if (late) "${-left} days late" else "$left days left", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = tone)
+                }
+                if (p.progress != null) Box(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)).background(tone.copy(alpha = .16f))) {
+                    Box(Modifier.fillMaxWidth(p.progress.coerceIn(0f, 1f)).fillMaxHeight().background(tone))
+                }
+            }
+        }
+
+        // ── numbers and actions ──
+        Row(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                CardStat("${p.tasks}", if (p.tasks == 1) "task" else "tasks")
+                CardStat("${p.members}", if (p.members == 1) "member" else "members")
+                if (!p.active) Text("Inactive", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF5F6B76), modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFEDEBE7)).padding(horizontal = 8.dp, vertical = 3.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (p.phone != null) CardAction("✆", b.base, onCall)
+                if (p.email != null) CardAction("✉", b.base, onMail)
+                Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF3F2F0)).clickable { onMore() }, contentAlignment = Alignment.Center) { Text("⋯", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
 }
 
 @Composable

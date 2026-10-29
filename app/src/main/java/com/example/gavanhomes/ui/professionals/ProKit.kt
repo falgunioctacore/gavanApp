@@ -119,29 +119,107 @@ internal fun ProSheetAction(glyph: String, label: String, danger: Boolean = fals
     }
 }
 
+/** A dashboard section: a white card with a small accent mark beside the title, the title and an optional line under it. */
 @Composable
 internal fun ProCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(Color.White).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column {
-            Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = KitInk)
-            if (sub != null) Text(sub, color = KitMuted, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.padding(end = 10.dp).size(width = 4.dp, height = 30.dp).clip(RoundedCornerShape(2.dp)).background(ProBlue))
+            Column {
+                Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = KitInk)
+                if (sub != null) Text(sub, color = KitMuted, fontSize = 12.sp)
+            }
         }
         content()
     }
 }
 
+/** A key number: a coloured edge on top, the small caption, then the number big in that colour. */
 @Composable
-internal fun ProTile(value: String, label: String, modifier: Modifier, tint: Color = KitInk) {
-    Column(
-        modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(vertical = 12.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = tint)
-        Text(label, fontSize = 11.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+internal fun ProTile(value: String, label: String, modifier: Modifier, tint: Color = KitInk, sub: String? = null) {
+    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)) {
+        Box(Modifier.fillMaxWidth().height(4.dp).background(if (tint == KitInk) Color(0xFFCBD5E1) else tint))
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.4.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, color = tint)
+            if (sub != null) Text(sub, fontSize = 11.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** A key number with an optional small line under it ("7 in progress"). */
+internal class ProKpi(val value: String, val label: String, val tint: Color = KitInk, val sub: String? = null)
+
+/** Key numbers with their small lines, [columns] to a row. */
+@Composable
+internal fun ProKpiTiles(kpis: List<ProKpi>, columns: Int = 2) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        kpis.chunked(columns).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { ProTile(it.value, it.label, Modifier.weight(1f), it.tint, it.sub) }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** Key numbers in a grid, [columns] to a row (value, caption, colour). */
+@Composable
+internal fun ProKpiGrid(tiles: List<Triple<String, String, Color>>, columns: Int = 2) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        tiles.chunked(columns).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { (v, l, c) -> ProTile(v, l, Modifier.weight(1f), c) }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/**
+ * A "how it splits" card: a donut with the total in the middle and, beside it, one line per slice (colour, label, count, share).
+ * [slices] are (label, count, colour); zero slices are left out. Tapping the card calls [onClick].
+ */
+@Composable
+internal fun ProDonutCard(title: String, sub: String? = null, slices: List<Triple<String, Int, Color>>, empty: String = "Nothing yet.", onClick: (() -> Unit)? = null) {
+    val shown = slices.filter { it.second > 0 }
+    val total = shown.sumOf { it.second }
+    ProCard(title, sub) {
+        if (total == 0) { Text(empty, color = KitMuted, fontSize = 14.sp); return@ProCard }
+        Row(
+            Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clip(RoundedCornerShape(14.dp)).clickable { onClick() } else Modifier),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(Modifier.size(118.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.foundation.Canvas(Modifier.size(118.dp)) {
+                    val stroke = 20.dp.toPx()
+                    val box = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                    var start = -90f
+                    shown.forEach { (_, n, c) ->
+                        val sweep = 360f * n / total
+                        drawArc(c, start, (sweep - if (shown.size > 1) 2f else 0f).coerceAtLeast(0.5f), false, androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2), box, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                        start += sweep
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(total.toString(), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = KitInk)
+                    Text("total", fontSize = 11.sp, color = KitMuted)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                shown.forEach { (label, n, c) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(c))
+                        Text(label, color = KitInk, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                        Text("$n · ${Math.round(n * 100f / total)}%", color = KitMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
     }
 }
 

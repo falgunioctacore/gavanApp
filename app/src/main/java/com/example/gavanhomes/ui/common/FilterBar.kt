@@ -221,7 +221,7 @@ private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<Stri
                 Box(Modifier.width(1.dp).height(30.dp).background(Line))
                 Column(Modifier.weight(1.4f).fillMaxHeight().background(Blue).clickable { onApply(draft) }, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Apply", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                    Text("$count ${if (count == 1) "result" else "results"}", color = Color.White.copy(alpha = .85f), fontSize = 11.sp)
+                    if (count >= 0) Text("$count ${if (count == 1) "result" else "results"}", color = Color.White.copy(alpha = .85f), fontSize = 11.sp)   // a negative count = not known without asking the server
                 }
             }
         }

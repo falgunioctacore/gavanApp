@@ -175,6 +175,25 @@ class ApiClient(private val tokenProvider: () -> String?) {
             conn.disconnect()
         }
     }
+    /** A file the server builds on request (an export): its bytes and the name the server gave it. */
+    fun download(path: String): Pair<String, ByteArray> {
+        val conn = URL(ApiConfig.BASE_URL + ApiConfig.PREFIX + path).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 120_000
+            tokenProvider()?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                val text = conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                throw ApiException(code, runCatching { JSONObject(text).optString("message") }.getOrNull()?.ifEmpty { null } ?: "Could not create the file ($code)")
+            }
+            val name = Regex("filename=\"?([^\";]+)\"?").find(conn.getHeaderField("Content-Disposition").orEmpty())?.groupValues?.get(1) ?: "export"
+            return name to conn.inputStream.use { it.readBytes() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     private fun firstError(errors: JSONObject): String? {
         val key = errors.keys().asSequence().firstOrNull() ?: return null
         return errors.optJSONArray(key)?.optString(0)

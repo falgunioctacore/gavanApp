@@ -60,6 +60,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
     var newPass by remember { mutableStateOf("") }
     var passMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         HeroBar(b, "Account", onBack) {
@@ -91,7 +92,8 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
                                 api.updateProfile(mapOf("first_name" to first.trim(), "last_name" to last.trim(), "email" to email.trim(), "phone_number" to phone.trim()))
                             }
                             onUser(updated); message = true to "Saved"
-                        } catch (e: Exception) { message = false to (e.message ?: "Could not save") } finally { busy = false }
+                            android.widget.Toast.makeText(context, "Profile saved", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) { message = false to (e.message ?: "Could not save"); android.widget.Toast.makeText(context, e.message ?: "Could not save", android.widget.Toast.LENGTH_LONG).show() } finally { busy = false }
                     }
                 }
             }
@@ -106,7 +108,8 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
                         try {
                             withContext(Dispatchers.IO) { api.changePassword(current, newPass) }
                             passMessage = true to "Password updated"; current = ""; newPass = ""
-                        } catch (e: Exception) { passMessage = false to (e.message ?: "Could not update the password") }
+                            android.widget.Toast.makeText(context, "Password updated", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) { passMessage = false to (e.message ?: "Could not update the password"); android.widget.Toast.makeText(context, e.message ?: "Could not update the password", android.widget.Toast.LENGTH_LONG).show() }
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -76,6 +78,10 @@ import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.SegTabs
 import com.example.gavanhomes.ui.common.listAllMeta
+import com.example.gavanhomes.ui.professionals.ProBlue
+import com.example.gavanhomes.ui.professionals.ProCard
+import com.example.gavanhomes.ui.professionals.ProDonutCard
+import com.example.gavanhomes.ui.professionals.ProKpiGrid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -116,6 +122,8 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
     var roles by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var canCreate by remember { mutableStateOf(false) }
     var canEdit by remember { mutableStateOf(false) }
+    var canManageRoles by remember { mutableStateOf(false) }                 // super admins add / edit / delete roles
+    var roleEditor by remember { mutableStateOf<Pair<Boolean, Int?>?>(null) }   // (open, role id — null = a new role)
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var tab by remember { mutableIntStateOf(0) }
@@ -136,7 +144,9 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
             users = items.map(::U)
             canCreate = meta.optJSONObject("can")?.optBoolean("create") == true
             canEdit = meta.optJSONObject("can")?.optBoolean("edit") == true
-            roles = withContext(Dispatchers.IO) { api.list("roles").items }
+            val rolePage = withContext(Dispatchers.IO) { api.list("roles") }
+            roles = rolePage.items
+            canManageRoles = rolePage.raw.optJSONObject("can")?.optBoolean("manage") == true
         } catch (e: Exception) { error = e.message ?: "Could not load users" }
     }
 
@@ -170,7 +180,8 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
         val maxPerms = (roles.maxOfOrNull { it.optInt("permissions_count") } ?: 1).coerceAtLeast(1)
 
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
             // ── header: title, add / refresh, and live counters ──
             item {
                 HeroBar(
@@ -179,17 +190,14 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                         if (canCreate) HeroButton("+") { onAdd() }
                     },
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Counter(all.size.toString(), "People", Modifier.weight(1.2f), big = true)
-                        Counter(active.toString(), "Active", Modifier.weight(1f))
-                        Counter(pending.toString(), "Pending", Modifier.weight(1f))
-                        Counter(inactive.toString(), "Inactive", Modifier.weight(1f))
-                    }
+                    HeroSummary(listOf(all.size.toString() to (if (all.size == 1) "person" else "people"), active.toString() to "Active", pending.toString() to "Pending", inactive.toString() to "Inactive"), bar = true)
                 }
             }
-            item { SegTabs(listOf("People ${all.size}", "Roles ${roles.size}"), tab) { tab = it } }
+            item { SegTabs(listOf("Dashboard", "People ${all.size}", "Roles ${roles.size}"), tab) { tab = it } }
 
             if (tab == 0) {
+                usersDashboard(all, roles, b, onOpenUser) { tab = it }
+            } else if (tab == 1) {
                 item {
                     FilterBar(
                         query, { query = it }, "Search people…",
@@ -225,16 +233,29 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                     )
                 }
             } else {
+                item {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${roles.size} role${if (roles.size == 1) "" else "s"}" + if (canManageRoles) " · tap one to edit" else "", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                        if (canManageRoles) Text(
+                            "+  Add role", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp,
+                            modifier = Modifier.shadow(6.dp, RoundedCornerShape(16.dp), ambientColor = b.base, spotColor = b.base).clip(RoundedCornerShape(16.dp)).background(b.base)
+                                .clickable { roleEditor = true to null }.padding(horizontal = 16.dp, vertical = 10.dp),
+                        )
+                    }
+                }
                 items(roles.chunked(2)) { pair ->
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        pair.forEach { r -> RoleTile(r, maxPerms, b, Modifier.weight(1f).height(150.dp)) }
+                        pair.forEach { r -> RoleTile(r, maxPerms, b, Modifier.weight(1f).height(150.dp).then(if (canManageRoles) Modifier.clip(RoundedCornerShape(24.dp)).clickable { roleEditor = true to r.optInt("id") } else Modifier)) }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
         }
+        ScrollTopButton(listState)
         }
     }
+
+    roleEditor?.let { (_, rid) -> RoleEditor(api, b, rid, onClose = { roleEditor = null }, onSaved = { roleEditor = null; reload++ }) }
 
     // ── ⋯ actions ──
     sheet?.let { u ->
@@ -248,6 +269,62 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                 u.email?.let { m -> SheetAction("✉", m) { sheet = null; context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$m"))) } }
             }
         }
+    }
+}
+
+// ─────────────────────────────── dashboard ───────────────────────────────
+
+/**
+ * The Users dashboard, worked out from the people and roles already loaded: key numbers, how people split by status, role and department,
+ * who is still pending, and who joined last. Tapping a donut opens the People or Roles tab.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.usersDashboard(all: List<U>, roles: List<JSONObject>, b: Branding, onOpen: (Int) -> Unit, onTab: (Int) -> Unit) {
+    val palette = listOf(ProBlue, KitGood, Amber, Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF0E9AA7))
+    val active = all.count { it.status == "active" }
+    val pending = all.count { it.status == "pending" }
+    val inactive = all.size - active - pending
+
+    item { Spacer(Modifier.height(10.dp)) }
+    item {
+        ProKpiGrid(listOf(
+            Triple(all.size.toString(), "People", KitInk), Triple(active.toString(), "Active", KitGood),
+            Triple(pending.toString(), "Pending", Amber), Triple(inactive.toString(), "Inactive", Color(0xFF9AA5B8)),
+            Triple(all.count { it.admin }.toString(), "Admins", ProBlue), Triple(roles.size.toString(), "Roles", Color(0xFF8B5CF6)),
+        ))
+    }
+    item { ProDonutCard("People by status", "Tap to see everyone", listOf(Triple("Active", active, KitGood), Triple("Pending", pending, Amber), Triple("Inactive", inactive, Color(0xFF9AA5B8))), "No users yet.") { onTab(1) } }
+    item {
+        val byRole = all.groupBy { it.role ?: "No role" }.map { (r, l) -> r.headline() to l.size }.sortedByDescending { it.second }
+        ProDonutCard("People by role", "Tap to open the roles", byRole.mapIndexed { i, (r, n) -> Triple(r, n, palette[i % palette.size]) }, "No users yet.") { onTab(2) }
+    }
+    val byDept = all.mapNotNull { it.department }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }
+    if (byDept.isNotEmpty()) item {
+        ProDonutCard("People by department", null, byDept.mapIndexed { i, e -> Triple(e.key, e.value, palette[i % palette.size]) })
+    }
+
+    val waiting = all.filter { it.status == "pending" }
+    if (waiting.isNotEmpty()) item {
+        ProCard("Waiting to be approved", "${waiting.size} ${if (waiting.size == 1) "person" else "people"} pending") {
+            waiting.take(5).forEach { u -> PersonRow(u, b, Amber, "Pending") { onOpen(u.id) } }
+        }
+    }
+    item {
+        ProCard("Recently added", "The newest people") {
+            all.sortedByDescending { it.id }.take(5).forEach { u -> PersonRow(u, b, statusColor(u.status), (u.status ?: "—").headline()) { onOpen(u.id) } }
+            if (all.isEmpty()) Text("No users yet.", color = KitMuted, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun PersonRow(u: U, b: Branding, tone: Color, badge: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onClick() }, verticalAlignment = Alignment.CenterVertically) {
+        com.example.gavanhomes.ui.common.Initials(u.name, 40.dp)
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(u.name, fontWeight = FontWeight.Bold, color = KitInk, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(listOfNotNull(u.role?.headline(), u.department).joinToString(" · ").ifEmpty { u.email.orEmpty() }, color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Pill(badge, tone.copy(alpha = .14f), tone)
     }
 }
 

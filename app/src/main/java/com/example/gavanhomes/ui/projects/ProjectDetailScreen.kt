@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -21,7 +22,19 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.input.pointer.pointerInput
+import com.example.gavanhomes.ui.tasks.ProjectTasks
+import com.example.gavanhomes.ui.tasks.TaskDetailScreen
+import com.example.gavanhomes.ui.tasks.TaskFormScreen
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -82,6 +95,23 @@ private val UnitLabels = listOf(
     "land_area" to "Land area", "undivided_share" to "Undivided share", "east" to "East", "west" to "West", "north" to "North", "south" to "South",
 )
 private val UnitDocs = listOf("unit_plan" to "Unit plan", "vastu_report" to "Vastu report", "statement" to "Statement", "plan_copy" to "Plan copy")
+/** A page of the project drawer; [key] is the module it lists (null for the two built-in pages). */
+private class Section(val label: String, val blurb: String, val glyph: String, val key: String? = null)
+private val Sections = listOf(
+    Section("Dashboard", "Numbers and charts at a glance", "▦"),
+    Section("Details", "Overview, units, developer and pricing", "ⓘ"),
+)
+/** The website's project tabs (commonTabs.blade.php), in its order — each one a native list (ProjectModule). */
+private val ModuleSections = listOf(
+    Section("Tasks", "Work items and their progress", "✔", "tasks"), Section("Targets", "Goals and how far they are", "◎", "targets"),
+    Section("Bids", "Bids and their status", "▤", "bids"), Section("Leads", "Leads and follow-ups", "⚑", "leads"),
+    Section("Inventory", "Materials and stock", "▣", "inventory"), Section("Procurements", "Purchase orders, indents, suppliers", "⛟", "procurements"),
+    Section("Customers", "Bookings and customers", "◍", "customers"), Section("Attendance", "Workers and today's attendance", "◷", "attendance"),
+    Section("Assets", "Equipment and its value", "◈", "assets"), Section("Accounting", "Payments and expenses", "₹", "accounting"),
+    Section("Communications", "WhatsApp and email templates", "✉", "communications"), Section("Files", "Project documents", "▥", "files"),
+    Section("Discussion", "Project chats", "☰", "discussion"), Section("General", "Contractors, workers, engineers, parties", "⚙", "general"),
+    Section("Reports", "Headline numbers per area", "▮", "reports"),
+)
 private val Tabs = listOf("Overview", "Inventory", "Developer", "Pricing")
 
 private fun JSONObject.strings(key: String): List<String> = optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
@@ -108,13 +138,26 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     var root by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var tab by remember { mutableIntStateOf(0) }
+    var section by remember { mutableIntStateOf(0) }                    // which of Sections is open
+    var tab by remember { mutableIntStateOf(0) }                        // the tab inside Details
+    // Tasks: task pages open over the project, newest on top ("detail" id · "form" id, 0 = a new task)
+    val taskStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+    var tasksVersion by remember { mutableIntStateOf(0) }               // bumped after a change, so lists reload
     var unit by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
+
+    var dash by remember { mutableStateOf<JSONObject?>(null) }
+    var dashError by remember { mutableStateOf<String?>(null) }
+    var dashAttempt by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(attempt) {
         error = null
         try { root = withContext(Dispatchers.IO) { api.detail("/projects/$uuid") } }
         catch (e: Exception) { error = e.message ?: "Could not load the project" }
+    }
+    LaunchedEffect(dashAttempt) {
+        dashError = null
+        try { dash = withContext(Dispatchers.IO) { api.detail("/projects/$uuid/dashboard") } }
+        catch (e: Exception) { dashError = e.message ?: "Could not load the dashboard" }
     }
 
     val view: (String) -> Unit = { path ->
@@ -123,6 +166,52 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     }
     fun launch(intent: Intent) { runCatching { context.startActivity(intent) } }
 
+    val scope = rememberCoroutineScope()
+    val drawer = rememberDrawerState(DrawerValue.Closed)
+    // Dashboard, Details, then every module this user may open (the dashboard response says which)
+    val allowed = dash?.optJSONArray("tabs")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+    val sections = Sections + ModuleSections.filter { it.key in allowed }
+    val current = sections.getOrElse(section) { sections[0] }
+    androidx.activity.compose.BackHandler(enabled = drawer.isOpen || section != 0) { if (drawer.isOpen) scope.launch { drawer.close() } else section = 0 }
+
+    // all the project's pages live in a side drawer (opened with ☰) instead of rows of tabs
+    ModalNavigationDrawer(
+        drawerState = drawer,
+        gesturesEnabled = drawer.isOpen,                       // opened with ☰ — a left-edge swipe means "go back"
+        drawerContent = {
+            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+                Column(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(b.deep, b.base), start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(700f, 700f)))
+                            .statusBarsPadding().padding(horizontal = 20.dp, vertical = 24.dp),
+                    ) {
+                        Column {
+                            Text(root?.optJSONObject("detail")?.str("name") ?: "Project", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(root?.optJSONObject("detail")?.str("code") ?: "Project pages", color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
+                        }
+                    }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp)) {
+                    sections.forEachIndexed { i, s ->
+                        val on = i == section
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 3.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (on) b.base.copy(alpha = .16f) else Color.Transparent)
+                                .clickable { section = i; scope.launch { drawer.close() } }.padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (on) b.base else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+                                Text(s.glyph, color = if (on) Color.White else KitInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                                Text(s.label, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = KitInk, fontSize = 15.sp)
+                                Text(s.blurb, color = KitMuted, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    }
+                }
+            }
+        },
+    ) {
     Column(Modifier.fillMaxSize().background(KitPage)) {
         val d = root?.optJSONObject("detail")
         if (d == null) {
@@ -141,10 +230,15 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         val units = inventory?.keys()?.asSequence()?.toList().orEmpty().sorted().flatMap { t -> d.optJSONObject("inventory")!!.objects(t).map { t to it } }
         val counts = UnitColors.keys.associateWith { s -> units.count { it.second.str("status") == s } }
 
-        Column(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize().verticalScroll(rememberScrollState())) {
+        val pageScroll = rememberScrollState()
+        Box(Modifier.fillMaxSize()) {
+        Column(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize().verticalScroll(pageScroll)) {
             HeroBar(
-                b, "Project details", onBack,
-                actions = { if (root?.optBoolean("can_edit") == true) HeroButton("✎") { onEdit(uuid) } },
+                b, current.label, onBack,
+                actions = {
+                    if (root?.optBoolean("can_edit") == true) { HeroButton("✎") { onEdit(uuid) }; Spacer(Modifier.size(8.dp)) }
+                    HeroButton("☰") { scope.launch { drawer.open() } }
+                },
             ) {
                 Column {
                     Text(d.str("name") ?: "Project", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
@@ -154,23 +248,44 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 }
             }
 
-            // ── numbers at a glance ──
-            Row(Modifier.padding(horizontal = 16.dp).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Tile(units.size.toString(), "Units", Modifier.weight(1f))
-                Tile((counts["available"] ?: 0).toString(), "Available", Modifier.weight(1f), KitGood)
-                Tile(((counts["sold"] ?: 0) + (counts["booked"] ?: 0)).toString(), "Sold / booked", Modifier.weight(1f), KitDanger)
-                Tile(d.optJSONArray("members")?.length()?.toString() ?: "0", "Members", Modifier.weight(1f))
-            }
+            if (current.key == "tasks") ProjectTasks(api, b, uuid, tasksVersion, onOpen = { taskStack.add("detail" to it) }, onNew = { taskStack.add("form" to 0) },
+                onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) })
+            else if (current.key != null) androidx.compose.runtime.key(current.key) { ProjectModule(api, b, uuid, current.key) }
+            else if (section == 0) ProjectDashboard(dash, dashError, b) { dashAttempt++ }
+            else {
+                // ── numbers at a glance ──
+                Row(Modifier.padding(horizontal = 16.dp).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Tile(units.size.toString(), "Units", Modifier.weight(1f))
+                    Tile((counts["available"] ?: 0).toString(), "Available", Modifier.weight(1f), KitGood)
+                    Tile(((counts["sold"] ?: 0) + (counts["booked"] ?: 0)).toString(), "Sold / booked", Modifier.weight(1f), KitDanger)
+                    Tile(d.optJSONArray("members")?.length()?.toString() ?: "0", "Members", Modifier.weight(1f))
+                }
 
-            SegTabs(Tabs, tab) { tab = it }
+                SegTabs(Tabs, tab) { tab = it }
 
-            when (tab) {
-                0 -> Overview(d, b, ::launch)
-                1 -> Inventory(d, units, counts) { t, u -> unit = t to u }
-                2 -> Developer(d, view)
-                else -> Pricing(d, b)
+                when (tab) {
+                    0 -> Overview(d, b, ::launch)
+                    1 -> Inventory(d, units, counts) { t, u -> unit = t to u }
+                    2 -> Developer(d, view)
+                    else -> Pricing(d, b)
+                }
             }
             Spacer(Modifier.height(28.dp))
+        }
+        ScrollTopButton(pageScroll)
+        }
+    }
+    }
+
+    taskStack.lastOrNull()?.let { (kind, tid) ->
+        fun pop() { if (taskStack.isNotEmpty()) taskStack.removeAt(taskStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            if (kind.startsWith("detail")) androidx.compose.runtime.key(taskStack.size, tid) {
+                TaskDetailScreen(
+                    api, b, tid, tasksVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 1; "discussion" -> 2; "activity" -> 3; "assign" -> 4; else -> 0 }, onBack = ::pop, onEdit = { taskStack.add("form" to it) }, onOpenTask = { taskStack.add("detail" to it) },
+                    onChanged = { tasksVersion++ },
+                )
+            } else TaskFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { tasksVersion++; pop() })
         }
     }
 

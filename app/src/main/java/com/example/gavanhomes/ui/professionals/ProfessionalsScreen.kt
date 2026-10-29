@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -245,7 +247,8 @@ fun ProfessionalsScreen(
             }
 
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; loadedAt.clear(); reload++ }, modifier = Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, title, onBack,
@@ -314,6 +317,7 @@ fun ProfessionalsScreen(
                     else -> performance(perf!!, b, onOpenPro)
                 }
             }
+            ScrollTopButton(listState)
             }
         }
     }
@@ -373,9 +377,7 @@ private fun HeroCounters(section: Int, dash: JSONObject?, pros: List<Pro>?, type
         else -> { val a = perf.orEmpty(); listOf(a.size.toString() to "Tracked", a.sumOf { it.optInt("total_tasks") }.toString() to "Tasks", a.sumOf { it.optInt("approved") }.toString() to "Approved",
             a.sumOf { it.optInt("rework_count") }.toString() to "Reworks") }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items.forEachIndexed { i, (v, l) -> ProCounter(v, l, Modifier.weight(if (i == 0) 1.2f else 1f), big = i == 0) }
-    }
+    HeroSummary(items)
 }
 
 // ─────────────────────────────── dashboard ───────────────────────────────
@@ -384,47 +386,23 @@ private fun LazyListScope.dashboard(d: JSONObject, b: Branding, onOpenPro: (Stri
     val s = d.optJSONObject("stats") ?: JSONObject()
     item { Spacer(Modifier.height(14.dp)) }
     item {
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ProTile(s.optInt("open").toString(), "Open tasks", Modifier.weight(1f), ProBlue)
-            ProTile(s.optInt("submitted").toString(), "Awaiting review", Modifier.weight(1f), ProAmber)
-            ProTile(s.optInt("approved").toString(), "Approved", Modifier.weight(1f), KitGood)
-        }
+        ProKpiGrid(listOf(
+            Triple(s.optInt("open").toString(), "Open tasks", ProBlue), Triple(s.optInt("submitted").toString(), "Awaiting review", ProAmber),
+            Triple(s.optInt("approved").toString(), "Approved", KitGood), Triple(s.optInt("types").toString(), "Types", KitInk),
+            Triple(s.optInt("expiring").toString(), "Licences expiring", ProAmber), Triple(s.optInt("expired").toString(), "Licences expired", KitDanger),
+        ))
     }
-    item {
-        Row(Modifier.padding(horizontal = 16.dp).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ProTile(s.optInt("types").toString(), "Types", Modifier.weight(1f))
-            ProTile(s.optInt("expiring").toString(), "Licences expiring", Modifier.weight(1f), ProAmber)
-            ProTile(s.optInt("expired").toString(), "Licences expired", Modifier.weight(1f), KitDanger)
-        }
-    }
+
 
     val byType = d.objects("by_type")
     item {
-        ProCard("Professionals by type", "Tap to open the directory") {
-            if (byType.isEmpty()) Text("No professionals yet.", color = KitMuted, fontSize = 14.sp)
-            val max = (byType.maxOfOrNull { it.optInt("count") } ?: 1).coerceAtLeast(1)
-            byType.forEachIndexed { i, t ->
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onSection(1) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row { Text(t.optString("name"), color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f)); Text(t.optInt("count").toString(), fontWeight = FontWeight.Bold, color = KitInk) }
-                    ProBar(t.optInt("count").toFloat() / max, listOf(b.base, ProBlue, Color(0xFF8B5CF6), KitGood)[i % 4])
-                }
-            }
-        }
+        val palette = listOf(b.base, ProBlue, Color(0xFF8B5CF6), KitGood, ProAmber, Color(0xFFEC4899))
+        ProDonutCard("Professionals by type", "Tap to open the directory", byType.mapIndexed { i, t -> Triple(t.optString("name"), t.optInt("count"), palette[i % palette.size]) }, "No professionals yet.") { onSection(1) }
     }
 
     val byStatus = d.optJSONObject("by_status")
     item {
-        ProCard("Task status", "Work assigned to professionals") {
-            val keys = byStatus?.keys()?.asSequence()?.toList().orEmpty()
-            if (keys.isEmpty()) Text("No tasks assigned to professionals yet.", color = KitMuted, fontSize = 14.sp)
-            val total = keys.sumOf { byStatus!!.optInt(it) }.coerceAtLeast(1)
-            keys.forEach { k ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row { Text(statusLabel(k), color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f)); Text(byStatus!!.optInt(k).toString(), fontWeight = FontWeight.Bold, color = KitInk) }
-                    ProBar(byStatus!!.optInt(k).toFloat() / total, statusColor(k))
-                }
-            }
-        }
+        ProDonutCard("Task status", "Work assigned to professionals", byStatus?.keys()?.asSequence()?.toList().orEmpty().map { k -> Triple(statusLabel(k), byStatus!!.optInt(k), statusColor(k)) }, "No tasks assigned to professionals yet.")
     }
 
     val alerts = d.objects("licence_alerts")

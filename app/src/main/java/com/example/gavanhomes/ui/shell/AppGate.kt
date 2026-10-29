@@ -5,7 +5,6 @@ import com.example.gavanhomes.ui.common.Branding
 import com.example.gavanhomes.ui.common.SwalConfirm
 import com.example.gavanhomes.ui.common.cachedBranding
 import com.example.gavanhomes.ui.common.loadBranding
-import com.example.gavanhomes.ui.common.swipeBack
 import com.example.gavanhomes.ui.dashboard.DashboardScreen
 import com.example.gavanhomes.ui.projects.ProjectDetailScreen
 import com.example.gavanhomes.ui.projects.ProjectFormScreen
@@ -213,6 +212,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 // revoke the API token first (it is still the active one), then clear it locally
                 scope.launch {
                     runCatching { withContext(Dispatchers.IO) { api.logout() } }
+                    Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
                     onSignedOut()
                 }
             },
@@ -354,7 +354,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             }
         }
     } else {
-        Column(Modifier.fillMaxSize().swipeBack(enabled = screen != "dashboard" && (screen != base || (base != "hr" && base != "professionals" && base != "hod" && base != "audit")))) {   // the two sidebar modules keep left-to-right for their drawer
+        Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 // the list under a details / form screen stays composed (the overlay hides it), so Back returns to exactly
                 // where you were: scroll position, filters, search and loaded data

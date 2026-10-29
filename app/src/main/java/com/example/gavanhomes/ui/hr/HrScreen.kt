@@ -1,5 +1,8 @@
 package com.example.gavanhomes.ui.hr
 
+import com.example.gavanhomes.ui.professionals.ProDonutCard
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -300,7 +303,8 @@ fun HrScreen(
             val can = d.optJSONObject("can")
 
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; loadedAt.clear(); reload++ }, modifier = Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, sec.label, onBack,
@@ -359,6 +363,7 @@ fun HrScreen(
                     else -> suppliers(d, b) { supplier = it }
                 }
             }
+            ScrollTopButton(listState)
             }
         }
     }
@@ -438,7 +443,7 @@ private fun Counters(section: Int, d: JSONObject, rows: List<Row_>) {
         section == PAYROLL -> { val a = d.objects("data"); listOf(a.size.toString() to "People", a.count { !it.isNull("slip") }.toString() to "Slips", a.count { it.isNull("slip") }.toString() to "Pending", money(a.sumOf { it.optDouble("net") }) to "Net total") }
         else -> listOf((d.optInt("total")).toString() to "Suppliers")
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items.forEachIndexed { i, (v, l) -> ProCounter(v, l, Modifier.weight(if (i == 0) 1.2f else 1f), big = i == 0) } }
+    HeroSummary(items)
 }
 
 // ─────────────────────────────── dashboard ───────────────────────────────
@@ -465,32 +470,15 @@ private fun LazyListScope.dashboard(root: JSONObject, onSection: (Int) -> Unit) 
 
     val dept = d.optJSONObject("departments")
     item {
-        ProCard("Employees by department") {
-            val keys = dept?.keys()?.asSequence()?.toList().orEmpty()
-            if (keys.isEmpty()) Text("No employees yet.", color = KitMuted, fontSize = 14.sp)
-            val max = (keys.maxOfOrNull { dept!!.optInt(it) } ?: 1).coerceAtLeast(1)
-            keys.forEachIndexed { i, k ->
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onSection(1) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row { Text(k, color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f)); Text(dept!!.optInt(k).toString(), fontWeight = FontWeight.Bold, color = KitInk) }
-                    ProBar(dept!!.optInt(k).toFloat() / max, listOf(ProBlue, KitGood, ProAmber, Color(0xFF8B5CF6))[i % 4])
-                }
-            }
-        }
+        val palette = listOf(ProBlue, KitGood, ProAmber, Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF0E9AA7))
+        ProDonutCard("Employees by department", "Tap to open the employees", dept?.keys()?.asSequence()?.toList().orEmpty().mapIndexed { i, k -> Triple(k, dept!!.optInt(k), palette[i % palette.size]) }, "No employees yet.") { onSection(1) }
     }
 
     listOf("Recruitment pipeline" to "recruitment", "Performance reviews" to "performance", "Documents" to "documents", "Exit & F&F" to "exits").forEach { (title, key) ->
         val m = d.optJSONObject(key)
         val keys = m?.keys()?.asSequence()?.toList().orEmpty()
         if (keys.isNotEmpty()) item {
-            ProCard(title) {
-                val total = keys.sumOf { m!!.optInt(it) }.coerceAtLeast(1)
-                keys.forEach { k ->
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row { Text(hrStatusLabel(k), color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f)); Text(m!!.optInt(k).toString(), fontWeight = FontWeight.Bold, color = KitInk) }
-                        ProBar(m!!.optInt(k).toFloat() / total, hrStatusColor(k))
-                    }
-                }
-            }
+            ProDonutCard(title, null, keys.map { k -> Triple(hrStatusLabel(k), m!!.optInt(k), hrStatusColor(k)) })
         }
     }
 

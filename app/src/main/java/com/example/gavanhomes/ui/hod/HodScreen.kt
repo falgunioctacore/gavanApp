@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hod
 
+import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -258,7 +260,8 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
             val delays = d.objects("delays")
 
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
                         b, sec.label, onBack,
@@ -275,7 +278,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
                             DELAYS -> listOf(delays.size.toString() to "Pending", delays.count { (it.optInt("days_late")) > 7 }.toString() to "Over a week", delays.count { it.str("assignee") != null }.toString() to "Assigned")
                             else -> listOf((reports?.size ?: 0).toString() to "Periods")
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items.forEachIndexed { i, (v, l) -> ProCounter(v, l, Modifier.weight(if (i == 0) 1.2f else 1f), big = i == 0) } }
+                        HeroSummary(items)
                     }
                 }
 
@@ -312,6 +315,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
                     else -> reportList(reports, reportTab, { reportTab = it }, b)
                 }
             }
+            ScrollTopButton(listState)
             }
         }
     }
