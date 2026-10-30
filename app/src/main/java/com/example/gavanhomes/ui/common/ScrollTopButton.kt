@@ -34,9 +34,9 @@ import kotlinx.coroutines.launch
 
 /** The round "back to top" button, like the website's: it fades in at the bottom-right once the page has been scrolled down a screen or so. */
 @Composable
-private fun BoxScope.TopButton(visible: Boolean, onClick: () -> Unit) {
+private fun BoxScope.TopButton(visible: Boolean, lift: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
     AnimatedVisibility(
-        visible, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+        visible, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp + lift),
         enter = fadeIn() + scaleIn(initialScale = .7f), exit = fadeOut() + scaleOut(targetScale = .7f),
     ) {
         androidx.compose.foundation.layout.Box(
@@ -55,16 +55,16 @@ private fun BoxScope.TopButton(visible: Boolean, onClick: () -> Unit) {
 
 /** For a list (LazyColumn): shows once the first screenful has scrolled away. */
 @Composable
-fun BoxScope.ScrollTopButton(state: LazyListState) {
+fun BoxScope.ScrollTopButton(state: LazyListState, lift: androidx.compose.ui.unit.Dp = 0.dp) {
     val scope = rememberCoroutineScope()
     val show by remember { derivedStateOf { state.firstVisibleItemIndex > 2 || (state.firstVisibleItemIndex > 0 && state.firstVisibleItemScrollOffset > 0 && state.firstVisibleItemIndex > 1) } }
-    TopButton(show) { scope.launch { state.animateScrollToItem(0) } }
+    TopButton(show, lift) { scope.launch { state.animateScrollToItem(0) } }
 }
 
-/** For a scrolling page (verticalScroll): shows once it is scrolled about a screen down. */
+/** For a scrolling page (verticalScroll): shows once it is scrolled about a screen down; [lift] raises it above a floating button. */
 @Composable
-fun BoxScope.ScrollTopButton(state: ScrollState) {
+fun BoxScope.ScrollTopButton(state: ScrollState, lift: androidx.compose.ui.unit.Dp = 0.dp) {
     val scope = rememberCoroutineScope()
     val show by remember { derivedStateOf { state.value > 1400 } }
-    TopButton(show) { scope.launch { state.animateScrollTo(0) } }
+    TopButton(show, lift) { scope.launch { state.animateScrollTo(0) } }
 }

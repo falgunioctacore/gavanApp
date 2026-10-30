@@ -2,6 +2,9 @@ package com.example.gavanhomes.ui.projects
 
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.FabLift
+import com.example.gavanhomes.ui.common.QuickFab
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -191,14 +194,11 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
 
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
             // ── header: title, add / refresh, and live counters ──
             item {
                 HeroBar(
                     b, "Projects", onBack,
-                    actions = {
-                        if (canCreate) HeroButton("+") { onOpenForm(null) }
-                    },
                 ) {
                     HeroSummary(listOf(all.size.toString() to (if (all.size == 1) "project" else "projects"), inProgress.toString() to "In progress", pending.toString() to "Pending", done.toString() to "Done"), bar = true)
                 }
@@ -235,7 +235,8 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                     onMail = { p.email?.let { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$it"))) } })
             }
         }
-        ScrollTopButton(listState)
+        ScrollTopButton(listState, lift = if (canCreate) FabLift else 0.dp)
+        QuickFab(b, if (canCreate) listOf(FabAction("project", "New project")) else emptyList()) { onOpenForm(null) }
         }
     }
 

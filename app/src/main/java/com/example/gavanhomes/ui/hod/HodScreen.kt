@@ -243,7 +243,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
             val toggle: @Composable () -> Unit = { HeroButton("☰") { scope.launch { drawer.open() } } }
 
             if (d == null) {
-                HeroBar(b, sec.label, onBack, actions = { toggle() })
+                HeroBar(b, sec.label, onBack, leading = toggle)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (error == null) CircularProgressIndicator(color = b.base)
                     else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
@@ -264,9 +264,8 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
             LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
                 item {
                     HeroBar(
-                        b, sec.label, onBack,
+                        b, sec.label, onBack, leading = toggle,
                         actions = {
-                            toggle()
                             if (section == OVERVIEW) { Spacer(Modifier.size(8.dp)); HeroButton("⚙") { customize = true } }
                         },
                     ) {

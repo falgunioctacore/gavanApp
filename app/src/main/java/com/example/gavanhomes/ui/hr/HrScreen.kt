@@ -3,6 +3,9 @@ package com.example.gavanhomes.ui.hr
 import com.example.gavanhomes.ui.professionals.ProDonutCard
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.FabLift
+import com.example.gavanhomes.ui.common.QuickFab
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -287,7 +290,7 @@ fun HrScreen(
             val d = data[section]
 
             if (d == null) {
-                HeroBar(b, sec.label, onBack, actions = { toggle() })
+                HeroBar(b, sec.label, onBack, leading = toggle)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (error == null) CircularProgressIndicator(color = b.base)
                     else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
@@ -304,14 +307,11 @@ fun HrScreen(
 
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; loadedAt.clear(); reload++ }, modifier = Modifier.fillMaxSize()) {
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
                 item {
                     HeroBar(
-                        b, sec.label, onBack,
+                        b, sec.label, onBack, leading = toggle,
                         actions = {
-                            toggle()
-                            if (sec.slug != null && can?.optBoolean("create") == true) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onAdd(sec.slug) } }
-                            if (section == LEAVE && can?.optBoolean("apply") == true) { Spacer(Modifier.size(8.dp)); HeroButton("+") { leaveApply = true } }
                         },
                     ) { Counters(section, d, rows) }
                 }
@@ -363,7 +363,12 @@ fun HrScreen(
                     else -> suppliers(d, b) { supplier = it }
                 }
             }
-            ScrollTopButton(listState)
+            val fab = listOfNotNull(
+                FabAction("add", "Add to ${sec.label}").takeIf { sec.slug != null && can?.optBoolean("create") == true },
+                FabAction("leave", "Apply for leave").takeIf { section == LEAVE && can?.optBoolean("apply") == true },
+            )
+            ScrollTopButton(listState, lift = if (fab.isNotEmpty()) FabLift else 0.dp)
+            QuickFab(b, fab) { if (it == "leave") leaveApply = true else sec.slug?.let(onAdd) }
             }
         }
     }

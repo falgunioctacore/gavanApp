@@ -95,7 +95,7 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
     LaunchedEffect(module, tab, attempt) { load(1) }
     LaunchedEffect(search) { if (search.isNotEmpty() || rows.isNotEmpty()) { delay(350); load(1) } }   // search as you type, after a short pause
 
-    if (tabs.size > 1) SegTabs(tabs.map { it.optString("label") }, tabs.indexOfFirst { it.optString("key") == tab }.coerceAtLeast(0)) { tab = tabs[it].optString("key"); search = "" }
+    if (tabs.size > 1) com.example.gavanhomes.ui.common.ModulePages(module.replaceFirstChar { it.uppercase() }, tabs.map { it.optString("label") }, tabs.indexOfFirst { it.optString("key") == tab }.coerceAtLeast(0)) { tab = tabs[it].optString("key"); search = "" }
 
     if (module != "reports") Column(Modifier.padding(top = 10.dp)) { SearchBox(search, { search = it }, "Search…") }
 

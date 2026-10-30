@@ -63,9 +63,9 @@ internal suspend fun ApiClient.listAll(resource: String, maxPages: Int = 8): Lis
     out
 }
 
-/** Brand-gradient header with a back button and title; [content] sits under the title row. */
+/** Brand-gradient header with a back button (and [leading], e.g. the drawer ☰, beside it on the left) and title; [content] sits under the title row. */
 @Composable
-internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, content: @Composable () -> Unit = {}) {
+internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, leading: (@Composable () -> Unit)? = null, content: @Composable () -> Unit = {}) {
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
@@ -79,6 +79,7 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @C
                     Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onBack() },
                     contentAlignment = Alignment.Center,
                 ) { Text("←", color = Color.White, fontSize = 20.sp) }
+                if (leading != null) { Spacer(Modifier.size(8.dp)); leading() }
                 Text(
                     title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,

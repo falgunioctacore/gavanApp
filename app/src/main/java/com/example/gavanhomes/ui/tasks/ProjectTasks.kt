@@ -72,6 +72,8 @@ import androidx.compose.ui.unit.sp
 import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.str
 import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.ProvideFab
 import com.example.gavanhomes.ui.common.FilterBar
 import com.example.gavanhomes.ui.common.FilterGroup
 import com.example.gavanhomes.ui.common.FilterOption
@@ -144,7 +146,7 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     }
     LaunchedEffect(uuid) { pickers = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/task-center/options") } }.getOrNull() }
 
-    SegTabs(listOf("Dashboard", "List", "Board", "History"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Tasks", listOf("Dashboard", "List", "Board", "History"), view) { view = it }
 
     val o = overview
     if (o == null) {
@@ -158,6 +160,7 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
         return
     }
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
+    ProvideFab(if (canCreate) listOf(FabAction("task", "New task")) else emptyList()) { onNew() }
 
     when (view) {
         0 -> TaskDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 }
@@ -171,10 +174,6 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
 
 @Composable
 private fun TaskDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, onOpen: (Int) -> Unit, onQuick: (String) -> Unit) {
-    if (canCreate) Text(
-        "+  New task", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onNew() }.padding(vertical = 14.dp),
-    )
 
     // status numbers
     val tiles = listOf(Triple("Total", o.optInt("total"), KitInk)) + o.objs("statuses").map { Triple(it.optString("name"), it.optInt("count"), statusTint(it.optString("name"))) }
@@ -394,7 +393,6 @@ private fun TaskList(
     Row(Modifier.padding(horizontal = 16.dp).padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("$total task${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
         ActionPill(if (exporting) "Exporting…" else "Export", ActionIcon.Download, filled = false, accent = b.base, enabled = !exporting) { sheet = "export" }
-        if (canCreate) { Spacer(Modifier.size(8.dp)); ActionPill("New task", ActionIcon.Plus, filled = true, accent = b.base) { onNew() } }
     }
 
     // bulk bar

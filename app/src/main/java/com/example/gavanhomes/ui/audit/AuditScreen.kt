@@ -210,7 +210,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                 item {
                     HeroBar(
                         b, tab.label, onBack,
-                        actions = { HeroButton("☰") { scope.launch { drawer.open() } } },
+                        leading = { HeroButton("☰") { scope.launch { drawer.open() } } },
                     ) {
                         val c = when (tab.slug) {
                             "logins" -> listOf(s?.optInt("total") to "Total", s?.optInt("today") to "Today", s?.optInt("activeUsersToday") to "People", s?.optInt("failedToday") to "Failed")

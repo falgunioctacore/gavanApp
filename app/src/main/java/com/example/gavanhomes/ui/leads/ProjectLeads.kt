@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.str
 import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.ProvideFab
 import com.example.gavanhomes.ui.common.FilterBar
 import com.example.gavanhomes.ui.common.FilterGroup
 import com.example.gavanhomes.ui.common.FilterOption
@@ -123,7 +125,7 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     LaunchedEffect(uuid, version) { options = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/lead-center/options") } }.getOrNull() }
 
     if (settingsOpen) { SettingsEntry(true, "Lead settings", b.base, onCloseSettings); LeadSettings(api, b, uuid, version) { attempt++ }; return }
-    SegTabs(listOf("Dashboard", "Leads", "Follow-ups", "Lists", "Export", "Pipeline"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Leads", listOf("Dashboard", "Leads", "Follow-ups", "Lists", "Export", "Pipeline"), view) { view = it }
 
     val o = overview
     if (o == null) {
@@ -137,11 +139,15 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
         return
     }
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
+    var pickFollowup by remember { mutableStateOf(false) }          // + → Schedule follow-up: open the lead picker on the Follow-ups tab
+    ProvideFab(listOfNotNull(FabAction("lead", "New lead", KitInk).takeIf { canCreate }, FabAction("followup", "Schedule follow-up", Amber, "◷"))) { key ->
+        if (key == "lead") onNew() else { view = 2; pickFollowup = true }
+    }
 
     when (view) {
         0 -> LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 }
         1 -> LeadList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ })
-        2 -> FollowupList(api, b, uuid, version, options, onOpen)
+        2 -> FollowupList(api, b, uuid, version, options, onOpen, pickLead0 = pickFollowup) { pickFollowup = false }
         3 -> LeadLists(api, b, uuid, version, onOpenList = { id -> sel = mapOf("list_id" to setOf(id.toString())); query = ""; view = 1 }, onChanged = { attempt++ })
         4 -> ExportRequests(api, b, uuid, version, options)
         else -> PipelineReport(api, b, uuid, version, options)
@@ -152,10 +158,6 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
 
 @Composable
 private fun LeadDashboard(o: JSONObject, options: JSONObject?, canCreate: Boolean, onNew: () -> Unit, onOpen: (Int, String) -> Unit, onQuick: (String) -> Unit) {
-    if (canCreate) Text(
-        "+  New lead", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onNew() }.padding(vertical = 14.dp),
-    )
     val k = o.optJSONObject("kpis") ?: JSONObject()
     Box(Modifier.padding(top = 14.dp)) {
         ProKpiTiles(
@@ -264,7 +266,6 @@ private fun LeadList(
     )
     Row(Modifier.padding(horizontal = 16.dp).padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("$total lead${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        if (canCreate) Text("+  New lead", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(b.base).clickable { onNew() }.padding(horizontal = 16.dp, vertical = 9.dp))
     }
 
     if (selected.isNotEmpty()) Column(
@@ -427,7 +428,7 @@ private fun FilterPill(label: String, active: Boolean, accent: Color, onClick: (
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int, options: JSONObject?, onOpen: (Int, String) -> Unit) {
+private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int, options: JSONObject?, onOpen: (Int, String) -> Unit, pickLead0: Boolean = false, onPickShown: () -> Unit = {}) {
     var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableIntStateOf(0) }
@@ -445,6 +446,7 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     var statusF by remember { mutableStateOf<JSONObject?>(null) }
     var deleteF by remember { mutableStateOf<JSONObject?>(null) }
     var pickLead by remember { mutableStateOf(false) }
+    LaunchedEffect(pickLead0) { if (pickLead0) { pickLead = true; onPickShown() } }
     var scheduleFor by remember { mutableStateOf<JSONObject?>(null) }
     fun act(success: String, call: () -> Unit) {
         scope.launch {
@@ -477,7 +479,6 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     )
     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("$total follow-up${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(start = 4.dp))
-        Text("+  Schedule follow-up", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(b.base).clickable { pickLead = true }.padding(horizontal = 16.dp, vertical = 9.dp))
     }
 
     rows.forEach { f ->
@@ -607,15 +608,21 @@ private fun FollowupDetailSheet(b: Branding, options: JSONObject?, f: JSONObject
     }
 }
 
-/** The ⚙ Settings pill that sits above a module's tabs (instead of a Settings tab); [back] true shows a "‹ Back" pill in its place. */
+/**
+ * The title over a module's settings page (opened with the header's ⚙). There is no Back pill here: the header's ← and the
+ * phone's Back close the settings. [open] false (the closed state) shows a "⚙ Settings" pill that opens them.
+ */
 @Composable
 internal fun SettingsEntry(open: Boolean, title: String, accent: Color, onToggle: () -> Unit) {
     Row(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        if (open) Text(title, color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, modifier = Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
-        Text(
-            if (open) "‹  Back" else "⚙  Settings", color = if (open) Color.White else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-            modifier = Modifier.shadow(if (open) 0.dp else 2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(if (open) accent else Color.White).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
-        )
+        if (open) Text(title, color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        else {
+            Spacer(Modifier.weight(1f))
+            Text(
+                "⚙  Settings", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(Color.White).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
     }
 }
 

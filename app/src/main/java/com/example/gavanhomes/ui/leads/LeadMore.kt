@@ -101,12 +101,13 @@ private fun Loading(loading: Boolean, empty: Boolean, error: String?, emptyText:
 
 @Composable
 private fun Header(title: String, sub: String, button: String?, accent: Color, onClick: () -> Unit) {
+    // the page's add action goes on the screen's + button
+    com.example.gavanhomes.ui.common.ProvideFab(listOfNotNull(button?.let { com.example.gavanhomes.ui.common.FabAction("add", it.removePrefix("+").trim()) })) { onClick() }
     Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
             Text(sub, color = KitMuted, fontSize = 12.sp)
         }
-        if (button != null) Text(button, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(accent).clickable { onClick() }.padding(horizontal = 16.dp, vertical = 9.dp))
     }
 }
 
@@ -373,8 +374,8 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
     val rows = x.objs(when (kind.key) { "status" -> "statuses"; "label" -> "labels"; "followup-status" -> "followup_statuses"; "followup-type" -> "followup_types"; "email-template" -> "email_templates"; else -> "message_templates" })
     fun done() { attempt++; onChanged() }
 
-    PillTabs(Kinds.map { PillTab(it.tab) }, tab, b.base) { tab = it }
-    Header(kind.tab, if (canManage) "Add, edit or remove" else "Only admins can change these", if (canManage) "+  New" else null, b.base) { editing = JSONObject() }
+    com.example.gavanhomes.ui.common.ModulePages("Lead settings", Kinds.map { it.tab }, tab) { tab = it }
+    Header(kind.tab, if (canManage) "Add, edit or remove" else "Only admins can change these", if (canManage) "+  New ${kind.noun}" else null, b.base) { editing = JSONObject() }
 
     rows.forEach { r ->
         val core = r.optBoolean("core")

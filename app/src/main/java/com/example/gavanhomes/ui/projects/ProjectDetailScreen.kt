@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.PageDrawer
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
 import android.net.Uri
@@ -26,6 +27,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.input.pointer.pointerInput
 import com.example.gavanhomes.ui.tasks.ProjectTasks
+import com.example.gavanhomes.ui.common.FabLift
+import com.example.gavanhomes.ui.common.FabSpec
+import com.example.gavanhomes.ui.common.LocalFab
+import com.example.gavanhomes.ui.common.QuickFab
 import com.example.gavanhomes.ui.tasks.TaskDetailScreen
 import com.example.gavanhomes.ui.tasks.TaskFormScreen
 import androidx.compose.material3.CircularProgressIndicator
@@ -108,7 +113,7 @@ private val ModuleSections = listOf(
     Section("Inventory", "Materials and stock", "▣", "inventory"), Section("Procurements", "Purchase orders, indents, suppliers", "⛟", "procurements"),
     Section("Customers", "Bookings and customers", "◍", "customers"), Section("Attendance", "Workers and today's attendance", "◷", "attendance"),
     Section("Assets", "Equipment and its value", "◈", "assets"), Section("Accounting", "Payments and expenses", "₹", "accounting"),
-    Section("Communications", "WhatsApp and email templates", "✉", "communications"), Section("Files", "Project documents", "▥", "files"),
+    Section("Communications", "Send WhatsApp, SMS and email", "✉", "communications"), Section("Files", "Project documents", "▥", "files"),
     Section("Discussion", "Project chats", "☰", "discussion"), Section("General", "Contractors, workers, engineers, parties", "⚙", "general"),
     Section("Reports", "Headline numbers per area", "▮", "reports"),
 )
@@ -149,6 +154,25 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     var bidsVersion by remember { mutableIntStateOf(0) }
     val leadStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     var leadsVersion by remember { mutableIntStateOf(0) }
+    val inventoryStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }   // material · issue · return · new-… · edit-material
+    var inventoryVersion by remember { mutableIntStateOf(0) }
+    val procStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }        // indent · po · supplier · new-… · edit-supplier
+    var procVersion by remember { mutableIntStateOf(0) }
+    val custStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }        // booking · customer · visit · issue · loan · new-… · edit-…
+    var custVersion by remember { mutableIntStateOf(0) }
+    val attStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }         // worker · new-worker · edit-worker
+    var attVersion by remember { mutableIntStateOf(0) }
+    val assetStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }       // asset · maintenance · new-… · edit-…
+    var assetVersion by remember { mutableIntStateOf(0) }
+    val accStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }         // payment · expense · invoice · new-… · edit-…
+    var accVersion by remember { mutableIntStateOf(0) }
+    val genStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }         // contractor
+    var genVersion by remember { mutableIntStateOf(0) }
+    var report by remember { mutableStateOf<Pair<String, String>?>(null) }                                // open report: key, title
+    var compose by remember { mutableStateOf<Pair<String, Int>?>(null) }                                  // send screen: channel, template id
+    var commsVersion by remember { mutableIntStateOf(0) }
+    var chat by remember { mutableStateOf<Pair<String, String>?>(null) }                                  // open chat: uuid, name
+    var chatsVersion by remember { mutableIntStateOf(0) }
     var tasksVersion by remember { mutableIntStateOf(0) }               // bumped after a change, so lists reload
     var unit by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
 
@@ -180,7 +204,10 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     val sections = Sections + ModuleSections.filter { it.key in allowed }
     val current = sections.getOrElse(section) { sections[0] }
     androidx.compose.runtime.LaunchedEffect(section) { settingsFor = null }
-    androidx.activity.compose.BackHandler(enabled = drawer.isOpen || section != 0) { if (drawer.isOpen) scope.launch { drawer.close() } else section = 0 }
+    // Back: closes the drawer, then an open settings page, then goes to the project dashboard
+    androidx.activity.compose.BackHandler(enabled = drawer.isOpen || settingsFor != null || section != 0) {
+        when { drawer.isOpen -> scope.launch { drawer.close() }; settingsFor != null -> settingsFor = null; else -> section = 0 }
+    }
 
     // all the project's pages live in a side drawer (opened with ☰) instead of rows of tabs
     ModalNavigationDrawer(
@@ -239,14 +266,17 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         val counts = UnitColors.keys.associateWith { s -> units.count { it.second.str("status") == s } }
 
         val pageScroll = rememberScrollState()
+        val fabSlot = remember { androidx.compose.runtime.mutableStateListOf<FabSpec>() }   // the open module's create actions, shown on the + button
+        val pageSlot = remember { androidx.compose.runtime.mutableStateListOf<com.example.gavanhomes.ui.common.PageSpec>() }   // its pages, in the bottom-left drawer
         Box(Modifier.fillMaxSize()) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalFab provides fabSlot, com.example.gavanhomes.ui.common.LocalPages provides pageSlot) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize().verticalScroll(pageScroll)) {
             HeroBar(
-                b, current.label, onBack,
+                b, current.label, { if (settingsFor != null) settingsFor = null else onBack() },      // ← closes an open settings page first
+                leading = { HeroButton("☰") { scope.launch { drawer.open() } } },
                 actions = {
                     if (root?.optBoolean("can_edit") == true) { HeroButton("✎") { onEdit(uuid) }; Spacer(Modifier.size(8.dp)) }
-                    if (current.key == "leads" || current.key == "bids") { HeroButton("⚙") { settingsFor = if (settingsFor == current.key) null else current.key }; Spacer(Modifier.size(8.dp)) }
-                    HeroButton("☰") { scope.launch { drawer.open() } }
+                    if (current.key == "leads" || current.key == "bids" || current.key == "inventory") { HeroButton("⚙") { settingsFor = if (settingsFor == current.key) null else current.key }; Spacer(Modifier.size(8.dp)) }
                 },
             ) {
                 Column {
@@ -261,6 +291,19 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) })
             else if (current.key == "bids") com.example.gavanhomes.ui.bids.ProjectBids(api, b, uuid, bidsVersion, onOpen = { bidStack.add("detail" to it) }, onNew = { bidStack.add("form" to 0) }, onNewFromTask = { bidStack.add("formtask" to it) }, settingsOpen = settingsFor == "bids", onCloseSettings = { settingsFor = null })
             else if (current.key == "leads") com.example.gavanhomes.ui.leads.ProjectLeads(api, b, uuid, leadsVersion, onOpen = { id, tabKey -> leadStack.add("detail:$tabKey" to id) }, onNew = { leadStack.add("form" to 0) }, onEdit = { leadStack.add("form" to it) }, settingsOpen = settingsFor == "leads", onCloseSettings = { settingsFor = null })
+            else if (current.key == "communications") com.example.gavanhomes.ui.comms.ProjectComms(api, b, uuid, commsVersion) { ch, t -> compose = ch to t }
+            else if (current.key == "files") com.example.gavanhomes.ui.files.ProjectFiles(api, b, uuid, 0)
+            else if (current.key == "discussion") com.example.gavanhomes.ui.discussion.ProjectDiscussion(api, b, uuid, chatsVersion) { c, n -> chat = c to n }
+            else if (current.key == "reports") com.example.gavanhomes.ui.reports.ProjectReports(api, b, uuid) { k, t -> report = k to t }
+            else if (current.key == "general")com.example.gavanhomes.ui.general.ProjectGeneral(api, b, uuid, genVersion + attVersion,
+                onOpen = { kind, id -> if (kind == "worker") attStack.add("worker" to id) else genStack.add(kind to id) }, onNewWorker = { attStack.add("new-worker" to 0) })
+            else if (current.key == "accounting")com.example.gavanhomes.ui.accounting.ProjectAccounting(api, b, uuid, accVersion, onOpen = { kind, id -> accStack.add(kind to id) }, onNew = { kind -> accStack.add("new-$kind" to 0) })
+            else if (current.key == "assets")com.example.gavanhomes.ui.assets.ProjectAssets(api, b, uuid, assetVersion, onOpen = { kind, id -> assetStack.add(kind to id) }, onNew = { kind -> assetStack.add("new-$kind" to 0) }, onChanged = { assetVersion++ })
+            else if (current.key == "attendance")com.example.gavanhomes.ui.attendance.ProjectAttendance(api, b, uuid, attVersion, onOpen = { attStack.add("worker" to it) }, onNew = { attStack.add("new-worker" to 0) })
+            else if (current.key == "customers")com.example.gavanhomes.ui.customers.ProjectCustomers(api, b, uuid, custVersion, onOpen = { kind, id -> custStack.add(kind to id) }, onNew = { kind -> custStack.add("new-$kind" to 0) })
+            else if (current.key == "procurements")com.example.gavanhomes.ui.procurement.ProjectProcurement(api, b, uuid, procVersion, onOpen = { kind, id -> procStack.add(kind to id) }, onNew = { kind -> procStack.add("new-$kind" to 0) }, onChanged = { procVersion++ })
+            else if (current.key == "inventory") com.example.gavanhomes.ui.inventory.ProjectInventory(api, b, uuid, inventoryVersion, onOpen = { kind, id -> inventoryStack.add(kind to id) }, onNew = { kind -> inventoryStack.add("new-$kind" to 0) }, onChanged = { inventoryVersion++ },
+                settingsOpen = settingsFor == "inventory", onCloseSettings = { settingsFor = null })
             else if (current.key == "targets") com.example.gavanhomes.ui.targets.ProjectTargets(api, b, uuid, targetsVersion, onOpen = { targetStack.add("detail" to it) }, onNew = { targetStack.add("form" to 0) },
                 onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) })
             else if (current.key != null) androidx.compose.runtime.key(current.key) { ProjectModule(api, b, uuid, current.key) }
@@ -274,7 +317,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     Tile(d.optJSONArray("members")?.length()?.toString() ?: "0", "Members", Modifier.weight(1f))
                 }
 
-                SegTabs(Tabs, tab) { tab = it }
+                com.example.gavanhomes.ui.common.ModulePages("Details", Tabs, tab) { tab = it }
 
                 when (tab) {
                     0 -> Overview(d, b, ::launch)
@@ -283,15 +326,26 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     else -> Pricing(d, b)
                 }
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(if (fabSlot.isNotEmpty() || pageSlot.isNotEmpty()) 96.dp else 28.dp))      // room under the floating + button
         }
-        ScrollTopButton(pageScroll)
+        }
+        val fab = fabSlot.lastOrNull()
+        ScrollTopButton(pageScroll, lift = if (fab != null) FabLift else 0.dp)
+        fab?.let { QuickFab(b, it.actions, it.onPick) }
+        PageDrawer(b, pageSlot.lastOrNull())
         }
     }
     }
 
     // a task / target form has its own Save bar, so the footer tabs step aside while one is open
     val formOpen = taskStack.lastOrNull()?.first == "form" || targetStack.lastOrNull()?.first == "form" || leadStack.lastOrNull()?.first == "form" || bidStack.lastOrNull()?.first?.startsWith("form") == true
+        || inventoryStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || procStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || custStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || attStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || assetStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || accStack.lastOrNull()?.first?.let { it.startsWith("new-") || it.startsWith("edit-") } == true
+        || compose != null || chat != null
     androidx.compose.runtime.LaunchedEffect(formOpen) { com.example.gavanhomes.ui.common.Chrome.hideBar = formOpen }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { com.example.gavanhomes.ui.common.Chrome.hideBar = false } }
 
@@ -301,6 +355,130 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             if (kind == "detail") androidx.compose.runtime.key(bidStack.size, bid) {
                 com.example.gavanhomes.ui.bids.BidDetailScreen(api, b, bid, bidsVersion, onBack = ::pop, onEdit = { bidStack.add("form" to it) }, onChanged = { bidsVersion++ })
             } else com.example.gavanhomes.ui.bids.BidFormScreen(api, b, uuid, bid.takeIf { kind == "form" && it > 0 }, onBack = ::pop, onSaved = { bidsVersion++; pop() }, taskId = if (kind == "formtask") bid else 0)
+        }
+    }
+
+    inventoryStack.lastOrNull()?.let { (kind, iid) ->
+        fun pop() { if (inventoryStack.isNotEmpty()) inventoryStack.removeAt(inventoryStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(inventoryStack.size, iid) {
+                when (kind) {
+                    "material" -> com.example.gavanhomes.ui.inventory.MaterialDetailScreen(api, b, uuid, iid, inventoryVersion, onBack = ::pop, onEdit = { inventoryStack.add("edit-material" to it) }, onChanged = { inventoryVersion++ })
+                    "new-material", "edit-material" -> com.example.gavanhomes.ui.inventory.MaterialFormScreen(api, b, uuid, iid.takeIf { it > 0 }, onBack = ::pop, onSaved = { inventoryVersion++; pop() })
+                    "new-issue", "new-return" -> com.example.gavanhomes.ui.inventory.DocFormScreen(api, b, uuid, kind.removePrefix("new-"), onBack = ::pop, onSaved = { inventoryVersion++; pop() })
+                    else -> com.example.gavanhomes.ui.inventory.DocDetailScreen(api, b, kind, iid, onBack = ::pop, onChanged = { inventoryVersion++ })
+                }
+            }
+        }
+    }
+
+    compose?.let { (ch, t) ->
+        androidx.activity.compose.BackHandler { compose = null }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(ch, t) { com.example.gavanhomes.ui.comms.ComposeScreen(api, b, uuid, ch, t, onBack = { compose = null }, onSent = { commsVersion++; compose = null }) }
+        }
+    }
+
+    chat?.let { (c, n) ->
+        androidx.activity.compose.BackHandler { chat = null; chatsVersion++ }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(c) { com.example.gavanhomes.ui.discussion.ChatScreen(api, b, uuid, c, n, onBack = { chat = null; chatsVersion++ }, onChanged = {}) }
+        }
+    }
+
+    report?.let { (k, t) ->
+        androidx.activity.compose.BackHandler { report = null }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(k) { com.example.gavanhomes.ui.reports.ReportScreen(api, b, uuid, k, t) { report = null } }
+        }
+    }
+
+    genStack.lastOrNull()?.let { (_, gid) ->
+        fun pop() { if (genStack.isNotEmpty()) genStack.removeAt(genStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(genStack.size, gid) {
+                com.example.gavanhomes.ui.general.ContractorDetailScreen(api, b, uuid, gid, genVersion, onBack = ::pop, onChanged = { genVersion++ }, onOpenWorker = { attStack.add("worker" to it) })
+            }
+        }
+    }
+
+    accStack.lastOrNull()?.let { (kind, xid) ->
+        fun pop() { if (accStack.isNotEmpty()) accStack.removeAt(accStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(accStack.size, xid) {
+                val saved = { accVersion++; pop() }
+                when (kind) {
+                    "payment" -> com.example.gavanhomes.ui.accounting.PaymentDetailScreen(api, b, uuid, xid, accVersion, onBack = ::pop, onEdit = { accStack.add("edit-payment" to it) }, onChanged = { accVersion++ })
+                    "expense" -> com.example.gavanhomes.ui.accounting.ExpenseDetailScreen(api, b, uuid, xid, accVersion, onBack = ::pop, onEdit = { accStack.add("edit-expense" to it) }, onChanged = { accVersion++ })
+                    "invoice" -> com.example.gavanhomes.ui.accounting.InvoiceDetailScreen(api, b, uuid, xid, accVersion, onBack = ::pop, onChanged = { accVersion++ })
+                    "new-payment_in", "new-payment_out", "edit-payment" -> com.example.gavanhomes.ui.accounting.PaymentFormScreen(api, b, uuid, if (kind == "new-payment_out") "payment_out" else "payment_in", xid.takeIf { kind == "edit-payment" && it > 0 }, onBack = ::pop, onSaved = saved)
+                    else -> com.example.gavanhomes.ui.accounting.ExpenseFormScreen(api, b, uuid, xid.takeIf { kind == "edit-expense" && it > 0 }, onBack = ::pop, onSaved = saved)
+                }
+            }
+        }
+    }
+
+    assetStack.lastOrNull()?.let { (kind, aid) ->
+        fun pop() { if (assetStack.isNotEmpty()) assetStack.removeAt(assetStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(assetStack.size, aid) {
+                val saved = { assetVersion++; pop() }
+                when (kind) {
+                    "asset" -> com.example.gavanhomes.ui.assets.AssetDetailScreen(api, b, uuid, aid, assetVersion, onBack = ::pop, onEdit = { assetStack.add("edit-asset" to it) }, onChanged = { assetVersion++ }, onOpenMaintenance = { assetStack.add("maintenance" to it) })
+                    "maintenance" -> com.example.gavanhomes.ui.assets.MaintenanceDetailScreen(api, b, uuid, aid, assetVersion, onBack = ::pop, onEdit = { assetStack.add("edit-maintenance" to it) }, onChanged = { assetVersion++ })
+                    "new-asset", "edit-asset" -> com.example.gavanhomes.ui.assets.AssetFormScreen(api, b, uuid, aid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                    "new-maintenance", "edit-maintenance" -> com.example.gavanhomes.ui.assets.MaintenanceFormScreen(api, b, uuid, aid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                    else -> com.example.gavanhomes.ui.assets.TransferFormScreen(api, b, uuid, onBack = ::pop, onSaved = saved)
+                }
+            }
+        }
+    }
+
+    attStack.lastOrNull()?.let { (kind, wid) ->
+        fun pop() { if (attStack.isNotEmpty()) attStack.removeAt(attStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(attStack.size, wid) {
+                if (kind == "worker") com.example.gavanhomes.ui.attendance.WorkerDetailScreen(api, b, uuid, wid, attVersion, onBack = ::pop, onEdit = { attStack.add("edit-worker" to it) }, onChanged = { attVersion++ })
+                else com.example.gavanhomes.ui.attendance.WorkerFormScreen(api, b, uuid, wid.takeIf { kind == "edit-worker" && it > 0 }, onBack = ::pop, onSaved = { attVersion++; pop() })
+            }
+        }
+    }
+
+    custStack.lastOrNull()?.let { (kind, cid) ->
+        fun pop() { if (custStack.isNotEmpty()) custStack.removeAt(custStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(custStack.size, cid) {
+                val open = { k: String, i: Int -> custStack.add(k to i); Unit }
+                val saved = { custVersion++; pop() }
+                when (kind) {
+                    "booking" -> com.example.gavanhomes.ui.customers.BookingDetailScreen(api, b, cid, custVersion, onBack = ::pop, onChanged = { custVersion++ }, onOpenCustomer = { open("customer", it) })
+                    "customer" -> com.example.gavanhomes.ui.customers.CustomerDetailScreen(api, b, uuid, cid, custVersion, onBack = ::pop, onEdit = { open("edit-customer", it) }, onChanged = { custVersion++ }, onOpen = open)
+                    "visit" -> com.example.gavanhomes.ui.customers.VisitDetailScreen(api, b, cid, custVersion, onBack = ::pop, onEdit = { open("edit-visit", it) }, onChanged = { custVersion++ })
+                    "issue" -> com.example.gavanhomes.ui.customers.IssueDetailScreen(api, b, uuid, cid, custVersion, onBack = ::pop, onEdit = { open("edit-issue", it) }, onChanged = { custVersion++ })
+                    "loan" -> com.example.gavanhomes.ui.customers.LoanDetailScreen(api, b, cid, custVersion, onBack = ::pop, onEdit = { open("edit-loan", it) }, onChanged = { custVersion++ })
+                    "new-customer", "edit-customer" -> com.example.gavanhomes.ui.customers.CustomerFormScreen(api, b, uuid, cid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                    "new-visit", "edit-visit" -> com.example.gavanhomes.ui.customers.VisitFormScreen(api, b, uuid, cid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                    "new-issue", "edit-issue" -> com.example.gavanhomes.ui.customers.IssueFormScreen(api, b, uuid, cid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                    else -> com.example.gavanhomes.ui.customers.LoanFormScreen(api, b, uuid, cid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved)
+                }
+            }
+        }
+    }
+
+    procStack.lastOrNull()?.let { (kind, pid) ->
+        fun pop() { if (procStack.isNotEmpty()) procStack.removeAt(procStack.lastIndex) }
+        Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
+            androidx.compose.runtime.key(procStack.size, pid) {
+                when (kind) {
+                    "indent" -> com.example.gavanhomes.ui.procurement.IndentDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
+                    "po" -> com.example.gavanhomes.ui.procurement.PoDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onReceive = { procStack.add("new-receive" to it) }, onOpenIndent = { procStack.add("indent" to it) })
+                    "supplier" -> com.example.gavanhomes.ui.procurement.SupplierDetailScreen(api, b, pid, procVersion, onBack = ::pop, onEdit = { procStack.add("edit-supplier" to it) }, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
+                    "new-indent" -> com.example.gavanhomes.ui.procurement.IndentFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })
+                    "new-po" -> com.example.gavanhomes.ui.procurement.PoFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })
+                    "new-receive" -> com.example.gavanhomes.ui.procurement.ReceiveFormScreen(api, b, uuid, pid, onBack = ::pop, onSaved = { procVersion++; inventoryVersion++; pop() })
+                    else -> com.example.gavanhomes.ui.procurement.SupplierFormScreen(api, b, uuid, pid.takeIf { kind == "edit-supplier" && it > 0 }, onBack = ::pop, onSaved = { procVersion++; pop() })
+                }
+            }
         }
     }
 

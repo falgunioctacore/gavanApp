@@ -39,6 +39,7 @@ android {
 
     buildTypes {
         // the build you run from Android Studio: your local Laravel server (http://127.0.0.1:8000 over `adb reverse`)
+        // — a phone cannot resolve gavanhomes.test (it only exists in the PC's hosts file)
         debug {
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "GavanHomes")

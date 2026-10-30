@@ -2,6 +2,9 @@ package com.example.gavanhomes.ui.professionals
 
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.FabLift
+import com.example.gavanhomes.ui.common.QuickFab
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -235,7 +238,7 @@ fun ProfessionalsScreen(
             val ready = when (section) { 0 -> dash != null; 1 -> pros != null; 2 -> types != null; 3 -> reviews != null; else -> perf != null }
 
             if (!ready) {
-                HeroBar(b, title, onBack, actions = { toggle() })
+                HeroBar(b, title, onBack, leading = toggle)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (error == null) CircularProgressIndicator(color = b.base)
                     else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
@@ -248,14 +251,11 @@ fun ProfessionalsScreen(
 
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; loadedAt.clear(); reload++ }, modifier = Modifier.fillMaxSize()) {
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
+            LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
                 item {
                     HeroBar(
-                        b, title, onBack,
+                        b, title, onBack, leading = toggle,
                         actions = {
-                            toggle()
-                            if (section == 1) { Spacer(Modifier.size(8.dp)); HeroButton("+") { onAddPro() } }
-                            if (section == 2) { Spacer(Modifier.size(8.dp)); HeroButton("+") { typeSheet = JSONObject(); typeOpen = true } }
                         },
                     ) { HeroCounters(section, dash, pros, types, reviews, perf) }
                 }
@@ -317,7 +317,9 @@ fun ProfessionalsScreen(
                     else -> performance(perf!!, b, onOpenPro)
                 }
             }
-            ScrollTopButton(listState)
+            val fab = when (section) { 1 -> listOf(FabAction("pro", "New professional")); 2 -> listOf(FabAction("type", "New type")); else -> emptyList() }
+            ScrollTopButton(listState, lift = if (fab.isNotEmpty()) FabLift else 0.dp)
+            QuickFab(b, fab) { if (it == "pro") onAddPro() else { typeSheet = JSONObject(); typeOpen = true } }
             }
         }
     }

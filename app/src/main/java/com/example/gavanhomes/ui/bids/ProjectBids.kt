@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.str
 import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.ProvideFab
 import com.example.gavanhomes.ui.common.FilterBar
 import com.example.gavanhomes.ui.common.FilterGroup
 import com.example.gavanhomes.ui.common.FilterOption
@@ -117,7 +119,7 @@ fun ProjectBids(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
     LaunchedEffect(uuid, version) { options = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/bid-center/options") } }.getOrNull() }
 
     if (settingsOpen) { com.example.gavanhomes.ui.leads.SettingsEntry(true, "Bid settings", b.base, onCloseSettings); BidSettings(api, b, uuid, version) { attempt++ }; return }
-    SegTabs(listOf("Dashboard", "Bids", "Task bids"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Bids", listOf("Dashboard", "Bids", "Task bids"), view) { view = it }
 
     val o = overview
     if (o == null) {
@@ -131,6 +133,7 @@ fun ProjectBids(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
         return
     }
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
+    ProvideFab(if (canCreate) listOf(FabAction("bid", "New bid")) else emptyList()) { onNew() }
     when (view) {
         0 -> BidDashboard(o, canCreate, onNew, onOpen) { key -> sel = mapOf("status" to setOf(key)); query = ""; view = 1 }
         2 -> TaskBidList(api, b, uuid, bidsRefresh + version, onOpen, onNewFromTask)
@@ -142,10 +145,6 @@ fun ProjectBids(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
 
 @Composable
 private fun BidDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, onOpen: (Int) -> Unit, onStatus: (String) -> Unit) {
-    if (canCreate) Text(
-        "+  New bid", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onNew() }.padding(vertical = 14.dp),
-    )
     val c = o.optJSONObject("counts") ?: JSONObject()
     Box(Modifier.padding(top = 14.dp)) {
         ProKpiTiles(
@@ -234,7 +233,6 @@ private fun BidList(
     )
     Row(Modifier.padding(horizontal = 16.dp).padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("$total bid${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        if (canCreate) Text("+  New bid", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(b.base).clickable { onNew() }.padding(horizontal = 16.dp, vertical = 9.dp))
     }
 
     if (selected.isNotEmpty()) Row(

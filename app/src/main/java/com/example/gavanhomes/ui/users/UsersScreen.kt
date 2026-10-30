@@ -1,7 +1,11 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.PageDrawer
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
+import com.example.gavanhomes.ui.common.FabAction
+import com.example.gavanhomes.ui.common.FabLift
+import com.example.gavanhomes.ui.common.QuickFab
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -181,19 +185,15 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
 
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; reload++ }, modifier = Modifier.fillMaxSize()) {
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
+        LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
             // ── header: title, add / refresh, and live counters ──
             item {
                 HeroBar(
                     b, "Users", onBack,
-                    actions = {
-                        if (canCreate) HeroButton("+") { onAdd() }
-                    },
                 ) {
                     HeroSummary(listOf(all.size.toString() to (if (all.size == 1) "person" else "people"), active.toString() to "Active", pending.toString() to "Pending", inactive.toString() to "Inactive"), bar = true)
                 }
             }
-            item { SegTabs(listOf("Dashboard", "People ${all.size}", "Roles ${roles.size}"), tab) { tab = it } }
 
             if (tab == 0) {
                 usersDashboard(all, roles, b, onOpenUser) { tab = it }
@@ -236,11 +236,6 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                 item {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("${roles.size} role${if (roles.size == 1) "" else "s"}" + if (canManageRoles) " · tap one to edit" else "", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        if (canManageRoles) Text(
-                            "+  Add role", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp,
-                            modifier = Modifier.shadow(6.dp, RoundedCornerShape(16.dp), ambientColor = b.base, spotColor = b.base).clip(RoundedCornerShape(16.dp)).background(b.base)
-                                .clickable { roleEditor = true to null }.padding(horizontal = 16.dp, vertical = 10.dp),
-                        )
                     }
                 }
                 items(roles.chunked(2)) { pair ->
@@ -251,7 +246,10 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
                 }
             }
         }
-        ScrollTopButton(listState)
+        val fab = if (tab == 2) listOfNotNull(FabAction("role", "New role").takeIf { canManageRoles }) else listOfNotNull(FabAction("user", "New user").takeIf { canCreate })
+        ScrollTopButton(listState, lift = if (fab.isNotEmpty()) FabLift else 0.dp)
+        QuickFab(b, fab) { if (it == "user") onAdd() else roleEditor = true to null }
+        PageDrawer(b, com.example.gavanhomes.ui.common.PageSpec("Users", listOf("Dashboard", "People ${all.size}", "Roles ${roles.size}"), tab) { tab = it })
         }
     }
 

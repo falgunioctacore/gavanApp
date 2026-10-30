@@ -190,12 +190,12 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
         }
     }
 
+    com.example.gavanhomes.ui.common.ProvideFab(if (canManage) listOf(com.example.gavanhomes.ui.common.FabAction("terms", "New terms")) else emptyList()) { editing = JSONObject() }
     Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("Terms & conditions", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
             Text("Attached to the bids you send to suppliers", color = KitMuted, fontSize = 12.sp)
         }
-        if (canManage) Text("+  New terms", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(b.base).clickable { editing = JSONObject() }.padding(horizontal = 16.dp, vertical = 9.dp))
     }
 
     rows.forEach { t ->
