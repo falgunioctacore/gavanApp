@@ -89,6 +89,7 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
     var tab by remember { mutableIntStateOf(0) }
     var confirmDelete by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var permissions by remember { mutableStateOf(false) }
 
     LaunchedEffect(attempt) {
         error = null
@@ -96,6 +97,8 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
         catch (e: Exception) { error = e.message ?: "Could not load the user" }
     }
     fun launch(intent: Intent) { runCatching { context.startActivity(intent) } }
+
+    if (permissions) UserPermissionsScreen(api, b, id, onClose = { permissions = false }) { permissions = false; attempt++ }
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         val d = root?.optJSONObject("data")
@@ -121,6 +124,8 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
             HeroBar(
                 b, "User details", onBack,
                 actions = {
+                    HeroButton("🔑") { permissions = true }
+                    Spacer(Modifier.size(8.dp))
                     if (can?.optBoolean("edit") == true) HeroButton("✎") { onEdit(id) }
                     if (can?.optBoolean("delete") == true && !deleting) { Spacer(Modifier.size(8.dp)); com.example.gavanhomes.ui.common.DeleteButton { confirmDelete = true } }
                 },
@@ -149,7 +154,7 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
             when (tab) {
                 0 -> Profile(d) { launch(it) }
                 1 -> Work(d)
-                else -> Access(d, role)
+                else -> Access(d, role) { permissions = true }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -222,7 +227,11 @@ private fun Work(d: JSONObject) {
 }
 
 @Composable
-private fun Access(d: JSONObject, role: String?) {
+private fun Access(d: JSONObject, role: String?, onManage: () -> Unit) {
+    Text(
+        "🔑  Manage permissions", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onManage() }.padding(vertical = 13.dp),
+    )
     if (role in FullAccessRoles) {
         Card("Full access") { Text("The ${role?.headline()} role has every permission, so none are listed individually.", color = KitMuted, fontSize = 14.sp) }
         return

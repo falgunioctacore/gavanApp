@@ -67,7 +67,7 @@ import org.json.JSONObject
 private val Verbs = setOf("view", "create", "edit", "delete", "approve", "export", "import", "manage", "assign", "update", "download", "upload", "print", "reject", "send")
 
 /** "create account settings" → ("account settings", "Create"); a permission with no verb in front keeps its whole name and the verb "Access". */
-private fun splitPermission(name: String): Pair<String, String> {
+internal fun splitPermission(name: String): Pair<String, String> {
     val first = name.substringBefore(' ')
     return if (first in Verbs && name.contains(' ')) name.substringAfter(' ') to first.replaceFirstChar { it.uppercase() } else name to "Access"
 }
@@ -149,6 +149,7 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
                             if (!system) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("${picked.size} of ${list.size} permissions", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                    Text("View only", color = b.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { picked = list.filter { it.startsWith("view ") }.toSet() }.padding(8.dp))
                                     Text("Select all", color = b.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { picked = list.toSet() }.padding(8.dp))
                                     Text("Clear", color = KitMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { picked = emptySet() }.padding(8.dp))
                                 }
