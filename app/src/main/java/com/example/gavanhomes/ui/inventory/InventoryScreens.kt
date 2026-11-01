@@ -175,7 +175,7 @@ fun MaterialDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, ver
 
             if (can.optBoolean("edit")) Text(
                 "±  Adjust stock", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { adjust = true }.padding(vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { adjust = true }.padding(vertical = 14.dp),
             )
 
             val history = x.objs("history")

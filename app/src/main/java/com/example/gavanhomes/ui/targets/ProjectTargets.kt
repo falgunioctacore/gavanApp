@@ -397,7 +397,7 @@ private fun TargetList(
 
     // bulk bar
     if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitInk).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

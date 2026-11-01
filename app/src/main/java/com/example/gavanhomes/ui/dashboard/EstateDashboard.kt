@@ -678,3 +678,200 @@ internal fun LazyListScope.estatePeople(e: JSONObject, w: JSONObject) {
         }
     }
 }
+
+// ───────────────────────────── shared pieces for the Sales and Site tabs ─────────────────────────────
+
+private fun JSONObject.nameOf(key: String): String? = optJSONObject(key)?.str("name")
+private fun shortDay(s: String?): String? = s?.takeIf { it.length >= 10 }?.let { whenText(it.take(10)) }
+
+/** Counts by name as horizontal bars in one hue, the count printed at the end of each — biggest first. */
+@Composable
+private fun BarList(counts: JSONObject, color: Color, limit: Int = 8) {
+    val rows = counts.keys().asSequence().map { it to counts.optInt(it) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(limit).toList()
+    if (rows.isEmpty()) { Text("Nothing yet.", color = Muted, fontSize = 13.sp); return }
+    val top = rows.maxOf { it.second }.coerceAtLeast(1)
+    rows.forEach { (l, n) ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(l.replace('_', ' ').replaceFirstChar { it.uppercase() }, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(112.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Box(Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(Grid)) {
+                Box(Modifier.fillMaxWidth(n.toFloat() / top).fillMaxHeight().clip(RoundedCornerShape(4.dp)).background(color))
+            }
+            Text("$n", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+        }
+    }
+}
+
+/** One line of a short list: a title, a muted line under it, and a tag on the right. */
+@Composable
+private fun ListLine(title: String, sub: String?, tag: String?, tagColor: Color = Muted) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Soft).padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            sub?.let { Text(it, color = Muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+        tag?.let { Text(it, color = tagColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(8.dp)).background(tagColor.copy(alpha = .1f)).padding(horizontal = 7.dp, vertical = 3.dp)) }
+    }
+}
+
+/** A status name's colour: done green, trouble red, waiting amber, anything else blue. */
+private fun statusTint(s: String?): Color {
+    val n = s?.lowercase() ?: return Muted
+    return when {
+        listOf("complete", "done", "approved", "delivered", "received", "active", "won", "paid").any { it in n } -> Avail
+        listOf("overdue", "late", "cancel", "reject", "out", "lost", "failed").any { it in n } -> Red
+        listOf("pending", "draft", "low", "due", "waiting").any { it in n } -> Booked
+        else -> Sold
+    }
+}
+
+// ───────────────────────────── Sales & buyers: the rest of the selling side ─────────────────────────────
+
+/** Leads by stage and by source, follow-ups due, the latest leads, the next site visits and customer care — from the website's dashboard data. */
+internal fun LazyListScope.estateSalesMore(w: JSONObject) {
+    w.optJSONObject("leadStats")?.let { ls ->
+        ls.optJSONObject("by_status")?.let { s -> item { EstateCard("Lead pipeline", "${ls.optInt("total")} leads by stage") { BarList(s, CSold) } } }
+    }
+    w.optJSONObject("leadSources")?.let { s -> item { EstateCard("Where leads come from", "By source") { BarList(s, CBooked) } } }
+    w.optJSONObject("followupStats")?.let { fs ->
+        val rows = w.rows("overdueFollowups").map { it to true } + w.rows("upcomingFollowups").map { it to false }
+        item {
+            EstateCard("Follow-ups", "${fs.optInt("pending")} pending · ${fs.optInt("overdue")} overdue") {
+                if (rows.isEmpty()) Text("No follow-ups scheduled.", color = Muted, fontSize = 13.sp)
+                rows.take(6).forEach { (f, late) ->
+                    ListLine(f.optJSONObject("lead")?.str("client_name") ?: "Lead", (f.str("followup_type") ?: "Follow-up").replaceFirstChar { it.uppercase() } + (shortDay(f.str("next_followup_at"))?.let { " · $it" } ?: ""),
+                        if (late) "Late" else "Due", if (late) Red else Booked)
+                }
+            }
+        }
+    }
+    val leads = w.rows("recentLeads")
+    if (leads.isNotEmpty()) item {
+        EstateCard("Latest leads", "Newest enquiries") {
+            leads.take(5).forEach { l -> ListLine(l.str("client_name") ?: "Lead", listOfNotNull(l.str("phone_number"), l.optJSONObject("assignee")?.str("name") ?: "Unassigned").joinToString(" · "), l.str("status"), statusTint(l.str("status"))) }
+        }
+    }
+    val visits = w.rows("upcomingVisits")
+    w.optJSONObject("careStats")?.let { c ->
+        item {
+            EstateCard("Customer care", "Site visits and open issues") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Stat("${c.optInt("upcomingVisits")}", "Visits coming up", Sold, Modifier.weight(1f))
+                    Stat("${c.optInt("visitsMonth")}", "Visits this month", Avail, Modifier.weight(1f))
+                    Stat("${c.optInt("openIssues")}", "Open issues", if (c.optInt("openIssues") > 0) Red else Muted, Modifier.weight(1f))
+                }
+                visits.take(4).forEach { v -> ListLine(v.str("customer") ?: "Visitor", (v.str("visit_type") ?: "Visit").replaceFirstChar { it.uppercase() } + (shortDay(v.str("visit_at"))?.let { " · $it" } ?: ""), v.str("status")?.replaceFirstChar { it.uppercase() }, statusTint(v.str("status"))) }
+            }
+        }
+    }
+}
+
+// ───────────────────────────── Site & stock ─────────────────────────────
+
+/**
+ * Site & stock: building the projects — task progress as a donut, targets, what is due this week, the team's workload, each
+ * project's completion — then materials, purchasing, tenders and equipment. From the website's dashboard data.
+ */
+internal fun LazyListScope.estateSite(w: JSONObject, onOpenProject: (String) -> Unit) {
+    w.optJSONObject("taskStats")?.let { t ->
+        item {
+            val done = t.optInt("completed"); val overdue = t.optInt("overdue"); val pending = t.optInt("pending")
+            val open = (t.optInt("total") - done - overdue - pending - t.optInt("cancelled")).coerceAtLeast(0)
+            EstateCard("Site work", "${t.optInt("total")} tasks · tap a slice") {
+                Donut(listOf(Triple("Completed", done, CAvail), Triple("In progress", open, CSold), Triple("Pending", pending, CBooked), Triple("Overdue", overdue, Red)), "${t.optInt("completion")}%", "done")
+            }
+        }
+    }
+    w.optJSONObject("targetStats")?.let { t ->
+        item {
+            EstateCard("Milestones & targets", "${t.optInt("total")} targets") {
+                Row { Text("Achieved", color = Muted, fontSize = 12.sp, modifier = Modifier.weight(1f)); Text("${t.optInt("completion")}%  ·  ${t.optInt("completed")} of ${t.optInt("total")}", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                Progress(t.optInt("completion"), CAvail)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Stat("${t.optInt("pending")}", "Pending", Booked, Modifier.weight(1f))
+                    Stat("${t.optInt("overdue")}", "Overdue", if (t.optInt("overdue") > 0) Red else Muted, Modifier.weight(1f))
+                }
+            }
+        }
+    }
+    val due = (w.rows("dueSoonTasks").map { it to "Task" } + w.rows("dueSoonTargets").map { it to "Target" }).filter { it.first.str("due_date") != null }.sortedBy { it.first.str("due_date") }.take(6)
+    if (due.isNotEmpty()) item {
+        EstateCard("Due this week", "Tasks and targets due in the next 7 days") {
+            due.forEach { (o, kind) -> ListLine(o.str("name") ?: kind, "$kind · ${o.nameOf("project") ?: "—"}", shortDay(o.str("due_date")), Booked) }
+        }
+    }
+    val workload = w.rows("workload")
+    if (workload.isNotEmpty()) item {
+        EstateCard("Team workload", "Open and finished tasks per person") {
+            val top = workload.maxOf { it.optInt("open") + it.optInt("completed") }.coerceAtLeast(1)
+            workload.take(8).forEach { p ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(p.str("name") ?: "—", color = Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(104.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Box(Modifier.weight(1f)) {
+                        Row(Modifier.fillMaxWidth((p.optInt("open") + p.optInt("completed")).toFloat() / top).height(14.dp).clip(RoundedCornerShape(4.dp))) {
+                            if (p.optInt("completed") > 0) Box(Modifier.weight(p.optInt("completed").toFloat()).fillMaxHeight().background(CAvail))
+                            if (p.optInt("open") > 0) Box(Modifier.weight(p.optInt("open").toFloat()).fillMaxHeight().background(CSold))
+                        }
+                    }
+                    Text(if (p.optInt("overdue") > 0) "${p.optInt("overdue")} late" else "${p.optInt("open")} open", color = if (p.optInt("overdue") > 0) Red else Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) { Legend("Finished", "", CAvail); Legend("Open", "", CSold) }
+        }
+    }
+    val projects = w.rows("projects")
+    if (projects.isNotEmpty()) item {
+        EstateCard("Project completion", "Share of each project's tasks finished") {
+            projects.forEach { p ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row { Text(p.str("name") ?: "Project", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${p.optInt("completion")}%", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
+                    Progress(p.optInt("completion"), CSold)
+                    Text("${p.optInt("completed_tasks")} of ${p.optInt("total_tasks")} tasks", color = Muted, fontSize = 10.sp)
+                }
+            }
+        }
+    }
+    w.optJSONObject("stockStats")?.let { s ->
+        val alerts = w.rows("stockAlerts")
+        item {
+            EstateCard("Materials", "Stock across your projects") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Stat("${s.optInt("materials")}", "Materials", Sold, Modifier.weight(1f))
+                    Stat("${s.optInt("low")}", "Low", if (s.optInt("low") > 0) Booked else Muted, Modifier.weight(1f))
+                    Stat("${s.optInt("out")}", "Out", if (s.optInt("out") > 0) Red else Muted, Modifier.weight(1f))
+                }
+                Text("Stock value ${inr(s.optDouble("value"))} · ${s.optInt("movesMonth")} movements this month", color = Muted, fontSize = 12.sp)
+                alerts.take(5).forEach { a -> ListLine(a.str("name") ?: "Material", listOfNotNull(a.str("project"), "balance ${a.optDouble("balance")}").joinToString(" · "), if (a.str("status") == "out") "Out" else "Low", if (a.str("status") == "out") Red else Booked) }
+            }
+        }
+    }
+    if (w.has("procStats") || w.has("poStatusCounts")) item {
+        val p = w.optJSONObject("procStats") ?: JSONObject()
+        EstateCard("Purchasing", if (w.has("poValue")) "${inr(w.optDouble("poValue"))} ordered in all" else "Orders, deliveries and receipts") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Stat("${p.optInt("openIndents")}", "Open indents", Booked, Modifier.weight(1f))
+                Stat("${p.optInt("pendingDeliveries")}", "Deliveries due", Sold, Modifier.weight(1f))
+                Stat("${p.optInt("grns")}", "Goods received", CAvail, Modifier.weight(1f))
+            }
+            w.optJSONObject("poStatusCounts")?.let { c -> Text("PURCHASE ORDERS BY STATUS", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp); BarList(c, CSold, 6) }
+            w.rows("recentPOs").take(4).forEach { po -> ListLine(po.str("po_number") ?: "PO", "${po.nameOf("project") ?: "—"} · ${inr(po.optDouble("total_amount"))}", po.str("status")?.replaceFirstChar { it.uppercase() }, statusTint(po.str("status"))) }
+        }
+    }
+    w.optJSONObject("bidStatusCounts")?.let { c ->
+        item {
+            EstateCard("Tenders & bids", "Bids by status") {
+                BarList(c, CBooked, 6)
+                w.rows("recentBids").take(3).forEach { bd -> ListLine(bd.str("title") ?: "Bid", bd.nameOf("project"), bd.str("bid_status")?.replaceFirstChar { it.uppercase() }, statusTint(bd.str("bid_status"))) }
+            }
+        }
+    }
+    w.optJSONObject("assetStats")?.let { a ->
+        val maint = (w.rows("overdueMaintenances") + w.rows("upcomingMaintenances")).take(4)
+        item {
+            EstateCard("Equipment & assets", "${a.optInt("total")} assets · ${inr(a.optDouble("value"))}") {
+                w.optJSONObject("assetsByCategory")?.let { BarList(it, CSold, 6) }
+                if (maint.isNotEmpty()) Text("MAINTENANCE", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                maint.forEach { m -> ListLine(m.optJSONObject("asset")?.str("name") ?: "Asset", (m.str("maintenance_type") ?: "Maintenance").replaceFirstChar { it.uppercase() }, shortDay(m.str("next_due_date")), Booked) }
+            }
+        }
+    }
+}

@@ -74,6 +74,7 @@ fun FilterBar(
     groups: List<FilterGroup>, selected: Map<String, Set<String>>, onApply: (Map<String, Set<String>>) -> Unit,
     countWith: (Map<String, Set<String>>) -> Int,
     sortOptions: List<String> = emptyList(), sortIndex: Int = 0, onSort: (Int) -> Unit = {},
+    single: Set<String> = emptySet(),
 ) {
     var filterOpen by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
@@ -149,11 +150,11 @@ fun FilterBar(
     }
 
     // ── Filter page ──
-    if (filterOpen) FilterPage(groups, selected, countWith, onClose = { filterOpen = false }, onApply = { onApply(it); filterOpen = false })
+    if (filterOpen) FilterPage(groups, selected, countWith, single, onClose = { filterOpen = false }, onApply = { onApply(it); filterOpen = false })
 }
 
 @Composable
-private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<String>>, countWith: (Map<String, Set<String>>) -> Int, onClose: () -> Unit, onApply: (Map<String, Set<String>>) -> Unit) {
+private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<String>>, countWith: (Map<String, Set<String>>) -> Int, single: Set<String>, onClose: () -> Unit, onApply: (Map<String, Set<String>>) -> Unit) {
     var draft by remember { mutableStateOf(selected) }
     var active by remember { mutableIntStateOf(0) }
     val group = groups.getOrNull(active)
@@ -194,15 +195,17 @@ private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<Stri
                 if (group != null) LazyColumn(Modifier.weight(1f).fillMaxHeight()) {
                     items(group.options, key = { it.value }) { o ->
                         val on = o.value in (draft[group.key] ?: emptySet())
+                        val one = group.key in single
                         Row(
                             Modifier.fillMaxWidth().clickable {
                                 val cur = draft[group.key] ?: emptySet()
-                                draft = draft + (group.key to if (on) cur - o.value else cur + o.value)
+                                // a one-choice group: the new pick replaces the old one (tap the chosen one again to clear it)
+                                draft = draft + (group.key to if (one) (if (on) emptySet() else setOf(o.value)) else if (on) cur - o.value else cur + o.value)
                             }.padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
-                                Modifier.size(22.dp).clip(RoundedCornerShape(4.dp)).background(if (on) Blue else Color.Transparent).border(2.dp, if (on) Blue else Color(0xFF9E9E9E), RoundedCornerShape(4.dp)),
+                                Modifier.size(22.dp).clip(if (one) CircleShape else RoundedCornerShape(4.dp)).background(if (on) Blue else Color.Transparent).border(2.dp, if (on) Blue else Color(0xFF9E9E9E), if (one) CircleShape else RoundedCornerShape(4.dp)),
                                 contentAlignment = Alignment.Center,
                             ) { if (on) Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold) }
                             o.color?.let { Box(Modifier.padding(start = 14.dp).size(9.dp).clip(CircleShape).background(it)) }

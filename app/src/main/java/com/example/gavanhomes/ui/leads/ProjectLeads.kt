@@ -268,7 +268,7 @@ private fun LeadList(
     }
 
     if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitInk).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +339,7 @@ internal fun LeadCard(r: JSONObject, options: JSONObject?, flat: Boolean = false
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selected != null) Box(Modifier.padding(end = 8.dp).size(22.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) }
+            if (selected != null) Box(Modifier.padding(end = 8.dp).size(22.dp).clip(CircleShape).background(if (selected) com.example.gavanhomes.ui.common.KitInkFill else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) }
             Box(Modifier.size(38.dp).clip(CircleShape).background(sc.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
                 Text(r.optString("name").trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }, color = sc, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }

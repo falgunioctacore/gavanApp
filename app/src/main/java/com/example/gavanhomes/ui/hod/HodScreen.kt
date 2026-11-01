@@ -117,8 +117,23 @@ private const val FUNNEL = 3
 private const val DELAYS = 4
 private const val REPORTS = 5
 
-private val Periods = listOf("Today", "Weekly", "Monthly", "Customize")
-private val PeriodLabel = mapOf("Today" to "Today", "Weekly" to "This week", "Monthly" to "This month", "Customize" to "Custom")
+private val Periods = listOf("Today", "Weekly", "Monthly", "LastMonth", "Quarter", "Year", "All", "Customize")
+private val PeriodLabel = mapOf(
+    "Today" to "Today", "Weekly" to "This week", "Monthly" to "This month", "LastMonth" to "Last month",
+    "Quarter" to "Last 3 months", "Year" to "This year", "All" to "All time", "Customize" to "Custom",
+)
+
+/** The website knows Today / Weekly / Monthly / Customize; the app's longer periods are sent as a custom date range. */
+private fun rangeFor(period: String): Pair<LocalDate, LocalDate>? {
+    val now = LocalDate.now()
+    return when (period) {
+        "LastMonth" -> now.minusMonths(1).withDayOfMonth(1).let { it to it.plusMonths(1).minusDays(1) }
+        "Quarter" -> now.minusMonths(3) to now
+        "Year" -> now.withDayOfYear(1) to now
+        "All" -> LocalDate.of(2000, 1, 1) to now
+        else -> null
+    }
+}
 private val Shown = DateTimeFormatter.ofPattern("d MMM")
 
 /** ₹ in lakh / crore, the way the website prints booking values. */
@@ -175,8 +190,10 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
     LaunchedEffect(filter) {
         loading = true; error = null
         try {
-            val q = StringBuilder("/hod/overview?period=$period")
-            if (period == "Customize") q.append("&date_from=$from&date_to=$to")
+            val range = rangeFor(period)
+            val q = StringBuilder("/hod/overview?period=" + if (range != null) "Customize" else period)
+            if (range != null) q.append("&date_from=${range.first}&date_to=${range.second}")
+            else if (period == "Customize") q.append("&date_from=$from&date_to=$to")
             projectId?.let { q.append("&project_id=$it") }
             val r = withContext(Dispatchers.IO) { api.get(q.toString()) }
             root = r
@@ -265,7 +282,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
                                 if (section != REPORTS) period = m["period"]?.firstOrNull() ?: "Today"
                                 projectId = m["site"]?.firstOrNull()?.toIntOrNull()
                             },
-                            countWith = { -1 },
+                            countWith = { -1 }, single = setOf("period", "site"),
                         )
                         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (period == "Customize" && section != REPORTS) {
@@ -892,7 +909,7 @@ private fun CustomizeSheet(prefs: MutableMap<String, Boolean>, period: String, o
         }
     }
     if (pickPeriod) {
-        val opts = Periods.filter { it != "Customize" }
+        val opts = listOf("Today", "Weekly", "Monthly")   // the defaults the website can store
         ChoiceSheet("Open on period", opts.mapIndexed { i, p -> Choice(i, PeriodLabel.getValue(p)) }, setOf(opts.indexOf(defaultPeriod)), multi = false, onDismiss = { pickPeriod = false }) { ids -> ids.firstOrNull()?.let { defaultPeriod = opts[it] } }
     }
 }

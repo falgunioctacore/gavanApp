@@ -227,7 +227,7 @@ private fun Work(d: JSONObject) {
 private fun Access(d: JSONObject, role: String?, onManage: () -> Unit) {
     Text(
         "🔑  Manage permissions", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onManage() }.padding(vertical = 13.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { onManage() }.padding(vertical = 13.dp),
     )
     if (role in FullAccessRoles) {
         Card("Full access") { Text("The ${role?.headline()} role has every permission, so none are listed individually.", color = KitMuted, fontSize = 14.sp) }

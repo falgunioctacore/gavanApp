@@ -519,7 +519,7 @@ internal fun FilteredList(
         search, { search = it }, placeholder, groups = groups, selected = sel,
         onApply = { m -> sel = m.mapValues { (k, v) -> if (k in one) v.take(1).toSet() else v }.filterValues { it.isNotEmpty() } },
         countWith = { m -> if (m == sel) total else -1 },
-        sortOptions = sorts.map { it.second }, sortIndex = sort, onSort = { sort = it },
+        sortOptions = sorts.map { it.second }, sortIndex = sort, onSort = { sort = it }, single = one,
     )
     Paged(api, b, path, query, version, empty, noun, onMeta = { total = it.optInt("total"); onMeta(it) }, item = item)
 }

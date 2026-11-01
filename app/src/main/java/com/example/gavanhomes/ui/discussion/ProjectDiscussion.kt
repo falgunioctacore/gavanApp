@@ -139,7 +139,7 @@ fun ProjectDiscussion(api: ApiClient, b: Branding, uuid: String, version: Int, o
             groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("show", "Show", listOf("unread" to "Unread", "groups" to "Groups", "direct" to "Direct").map { (k, l) -> com.example.gavanhomes.ui.common.FilterOption(k, l, list.count { c -> passes(c, k) }) })),
             selected = if (filter == "all") emptyMap() else mapOf("show" to setOf(filter)),
             onApply = { m -> filter = m["show"]?.firstOrNull() ?: "all" },
-            countWith = { m -> list.count { c -> passes(c, m["show"]?.firstOrNull() ?: "all") } },
+            countWith = { m -> list.count { c -> passes(c, m["show"]?.firstOrNull() ?: "all") } }, single = setOf("show"),
         )
         Spacer(Modifier.height(6.dp))
         val shown = list.filter { c ->

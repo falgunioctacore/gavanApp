@@ -255,7 +255,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                                 filters.user = m["user"]?.firstOrNull(); filters.type = m["type"]?.firstOrNull(); filters.pickDate(m["date"]?.firstOrNull())
                             },
                             countWith = { m -> if (m == sel) total else -1 },
-                            sortOptions = listOf("Newest first", "Oldest first"), sortIndex = filters.sort, onSort = { filters.sort = it },
+                            sortOptions = listOf("Newest first", "Oldest first"), sortIndex = filters.sort, onSort = { filters.sort = it }, single = setOf("event", "guard", "user", "type", "date"),
                         )
                         Text(if (loading && rows.isEmpty()) "Loading…" else "$total ${if (total == 1) "record" else "records"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
                     }

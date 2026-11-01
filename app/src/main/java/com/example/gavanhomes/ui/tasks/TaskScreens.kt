@@ -322,7 +322,7 @@ fun TaskDetailScreen(
                     }
                     if (canEdit) Text(
                         "+  Upload a file", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(KitInk).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
                     )
                     Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = KitMuted, fontSize = 11.sp)
                 }
@@ -434,7 +434,7 @@ private fun statusIdFor(d: JSONObject, name: String): Int = d.objs("statuses").f
 internal fun SendButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     Text(
         label, color = Color.White, fontWeight = FontWeight.Bold,
-        modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (enabled) KitInk else KitMuted).clickable(enabled = enabled) { onClick() }.padding(horizontal = 18.dp, vertical = 16.dp),
+        modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (enabled) com.example.gavanhomes.ui.common.KitInkFill else KitMuted).clickable(enabled = enabled) { onClick() }.padding(horizontal = 18.dp, vertical = 16.dp),
     )
 }
 

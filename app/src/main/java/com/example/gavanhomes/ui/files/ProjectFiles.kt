@@ -632,7 +632,7 @@ private fun Requests(api: ApiClient, b: Branding, uuid: String, version: Int, on
         rq, { rq = it }, "Search file, person or reason…",
         groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("status", "Status", listOf("pending" to "Pending", "approved" to "Approved", "denied" to "Denied").map { (k, l) -> com.example.gavanhomes.ui.common.FilterOption(k, l, color = when (k) { "approved" -> KitGood; "denied" -> KitDanger; else -> InvAmber }) })),
         selected = if (status.isBlank()) emptyMap() else mapOf("status" to setOf(status)),
-        onApply = { m -> status = m["status"]?.firstOrNull().orEmpty() }, countWith = { -1 },
+        onApply = { m -> status = m["status"]?.firstOrNull().orEmpty() }, countWith = { -1 }, single = setOf("status"),
     )
     Paged(api, b, "/projects/$uuid/file-center/requests", (if (status.isBlank()) "" else "&status=$status") + (if (rq.isBlank()) "" else "&search=" + java.net.URLEncoder.encode(rq.trim(), "UTF-8")), version + local, "No access requests.", "request", onMeta = { review = it.optBoolean("can_review") }) { r ->
         val st = r.optString("status")

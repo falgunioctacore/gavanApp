@@ -233,7 +233,7 @@ private fun BidList(
     }
 
     if (selected.isNotEmpty()) Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitInk).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
@@ -280,7 +280,7 @@ internal fun BidCard(r: JSONObject, flat: Boolean = false, selected: Boolean? = 
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selected != null) Box(Modifier.padding(end = 10.dp).size(24.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
+            if (selected != null) Box(Modifier.padding(end = 10.dp).size(24.dp).clip(CircleShape).background(if (selected) com.example.gavanhomes.ui.common.KitInkFill else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
             Text(r.optString("title"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.size(8.dp))
             Chip(r.optString("status_label"), sc)

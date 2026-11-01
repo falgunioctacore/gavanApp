@@ -108,6 +108,7 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     var attempt by remember { mutableIntStateOf(0) }
     var local by remember { mutableIntStateOf(0) }
     var sheet by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }      // contractor · engineer · party, with the row being edited ({} = new)
+    var listSheet by remember { mutableStateOf<Pair<GenList, JSONObject>?>(null) } // items · terms · cancellations · remarks · departments
     LaunchedEffect(version, attempt, local) {
         error = null
         try { overview = withContext(Dispatchers.IO) { api.detail("/projects/$uuid/general-center/overview") } } catch (e: Exception) { error = e.message ?: "Could not load" }
@@ -126,11 +127,17 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
         FabAction("worker", "Add worker", InvBlue, "☺").takeIf { can.optBoolean("create_workers") },
         FabAction("engineer", "New engineer", InvPurple, "✎").takeIf { can.optBoolean("create_engineers") },
         FabAction("party", "New party", KitGood, "◍").takeIf { can.optBoolean("create_parties") },
-    )) { k -> if (k == "worker") onNewWorker() else sheet = k to JSONObject() }
+    ) + GenLists.filter { can.optBoolean("create_${it.key}") }.map { FabAction("list:" + it.key, it.add, InvAmber, it.glyph) }) { k ->
+        when {
+            k == "worker" -> onNewWorker()
+            k.startsWith("list:") -> listSheet = GenLists.first { it.key == k.removePrefix("list:") } to JSONObject()
+            else -> sheet = k to JSONObject()
+        }
+    }
     val pages = listOfNotNull(
         Page("dashboard", "Dashboard"), Page("contractors", "Contractors").takeIf { can.optBoolean("contractors") }, Page("workers", "Workers").takeIf { can.optBoolean("workers") },
         Page("engineers", "Engineers").takeIf { can.optBoolean("engineers") }, Page("parties", "Parties").takeIf { can.optBoolean("parties") },
-    )
+    ) + GenLists.filter { can.optBoolean(it.key) }.map { Page(it.key, it.label) }
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
     ModulePages("Contractors & partners", pages.map { it.label }, index) { view = pages[it].key }
     val v = version + local
@@ -151,6 +158,7 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
             groups = listOfNotNull(o.strings("specializations").takeIf { it.isNotEmpty() }?.let { s -> FilterGroup("specialization", "Specialisation", s.map { FilterOption(it, it) }) }),
             sorts = NewestOldest + ("name" to "Name A–Z"), empty = "No engineers on this project.", noun = "engineer",
         ) { e -> Person(e.optString("name"), listOfNotNull(e.str("specialization"), e.str("email")).joinToString(" · "), e.str("phone"), emptyList()) { if (can.optBoolean("edit_engineers") || can.optBoolean("delete_engineers")) sheet = "engineer" to e } }
+        in GenLists.map { it.key } -> GenLists.first { it.key == pages[index].key }.let { l -> GenListPage(api, b, uuid, l, v) { r -> listSheet = l to r } }
         else -> FilteredList(
             api, b, "/projects/$uuid/general-center/parties", v, "Search name, GSTIN, phone or email…",
             groups = listOf(FilterGroup("gst_type", "GST", o.strings("gst_types").map { FilterOption(it, it) })), sorts = NewestOldest + ("name" to "Name A–Z"),
@@ -158,6 +166,7 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
         ) { p -> Person(p.optString("name"), listOfNotNull(p.str("gstin"), p.str("state")).joinToString(" · "), p.str("phone"), listOfNotNull(p.str("gst_type")?.let { it.take(24) to KitMuted })) { if (can.optBoolean("edit_parties") || can.optBoolean("delete_parties")) sheet = "party" to p } }
     }
     sheet?.let { (kind, row) -> EditSheet(api, b, uuid, kind, row, o, can, onClose = { sheet = null }) { sheet = null; local++ } }
+    listSheet?.let { (l, row) -> GenListSheet(api, b, uuid, l, row, can, onClose = { listSheet = null }) { listSheet = null; local++ } }
 }
 
 @Composable
@@ -167,6 +176,7 @@ private fun Dashboard(o: JSONObject, onPage: (String) -> Unit) {
         ProKpiTiles(listOf(
             ProKpi(s.optInt("contractors").toString(), "Contractors", KitInk), ProKpi(s.optInt("workers").toString(), "Workers", InvBlue), ProKpi(s.optInt("engineers").toString(), "Engineers", InvPurple),
             ProKpi(s.optInt("my_labour").toString(), "My labour", KitGood), ProKpi(s.optInt("vendor_labour").toString(), "Vendor labour", InvAmber), ProKpi(s.optInt("parties").toString(), "Parties", KitGood),
+            ProKpi(s.optInt("items").toString(), "Items", InvBlue), ProKpi(s.optInt("terms").toString(), "Terms", InvPurple), ProKpi(s.optInt("departments").toString(), "Departments", KitInk),
         ), columns = 3)
     }
     val palette = listOf(InvBlue, KitGood, InvAmber, InvPurple, KitDanger, KitMuted)
@@ -292,6 +302,98 @@ fun ContractorDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, v
     if (askDelete) SwalConfirm(title = "Delete ${x.optString("name")}?", text = "A contractor with workers can't be deleted.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
             try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/contractors/$id") }; Toast.makeText(context, "Contractor deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
+            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+        } }, onCancel = { askDelete = false })
+}
+
+// ───────────────────────────── items, terms, cancellations, remarks, departments ─────────────────────────────
+
+/** The website's other General lists: key, page name, the noun for one, the + button's label and glyph. */
+internal class GenList(val key: String, val label: String, val noun: String, val add: String, val glyph: String)
+internal val GenLists = listOf(
+    GenList("items", "Items & services", "item", "New item", "▣"),
+    GenList("terms", "Terms", "term", "New term", "§"),
+    GenList("cancellations", "Cancellations", "cancellation rule", "New cancellation rule", "✕"),
+    GenList("remarks", "Remarks", "remark", "New remark", "✎"),
+    GenList("departments", "Departments", "department", "New department", "▦"),
+)
+
+/** One list's page: the usual filter bar (search, Filter, sort) and a row per entry — tap one to edit it. */
+@Composable
+internal fun GenListPage(api: ApiClient, b: Branding, uuid: String, l: GenList, version: Int, onOpen: (JSONObject) -> Unit) {
+    FilteredList(
+        api, b, "/projects/$uuid/general-center/lists/${l.key}", version, "Search ${l.label.lowercase()}…",
+        groups = if (l.key == "items") listOf(FilterGroup("type", "Type", listOf(FilterOption("service", "Services"), FilterOption("material", "Materials")))) else emptyList(),
+        sorts = NewestOldest + ("name" to "Name A–Z"), empty = "No ${l.label.lowercase()} on this project yet.", noun = l.noun, single = setOf("type"),
+    ) { r ->
+        RowCard({ onOpen(r) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(r.optString("title"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (!r.isNull("value")) Text(rupees(r.optDouble("value")), color = KitGood, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+            }
+            r.str("text")?.let { Text(it, color = KitMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            val tags = r.strings("tags")
+            if (tags.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { tags.forEach { t -> Chip(t, if (t == "Inactive") KitMuted else if (t == "Active") KitGood else InvBlue) } }
+        }
+    }
+}
+
+/** Add or change an entry of one of the lists in a sheet (Delete for an existing one); remarks can only be added or deleted, like on the website. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun GenListSheet(api: ApiClient, b: Branding, uuid: String, l: GenList, row: JSONObject, can: JSONObject, onClose: () -> Unit, onDone: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val id = row.optInt("id")
+    val f0 = row.optJSONObject("fields") ?: JSONObject()
+    val editable = id == 0 || can.optBoolean("edit_${l.key}")
+    val fields = when (l.key) {
+        "items" -> listOf("name" to "Name", "unit" to "Unit (e.g. hr, bag, sq ft)", "default_rate" to "Default rate (₹)", "description" to "Description")
+        "terms", "cancellations" -> listOf("title" to "Title", "content" to (if (l.key == "terms") "Terms" else "Rule"), "type" to "Type (optional)")
+        "remarks" -> listOf("remarks" to "Remark", "module" to "About (optional, e.g. leads)")
+        else -> listOf("name" to "Name", "description" to "Description")
+    }
+    val f = remember { mutableStateMapOf<String, String>().apply { fields.forEach { (k, _) -> put(k, f0.str(k).orEmpty()) } } }
+    var type by remember { mutableStateOf(f0.str("type") ?: "service") }
+    var active by remember { mutableStateOf(if (f0.has("is_active")) f0.optBoolean("is_active") else true) }
+    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var saving by remember { mutableStateOf(false) }
+    var askDelete by remember { mutableStateOf(false) }
+    val first = fields.first().first
+    fun save() {
+        if (f[first].isNullOrBlank()) { errors = mapOf(first to "This can't be empty."); return }
+        val body = JSONObject(); f.forEach { (k, v) -> body.put(k, v.trim().ifBlank { JSONObject.NULL }) }
+        if (l.key == "items") body.put("type", type)
+        if (l.key == "terms" || l.key == "cancellations") body.put("is_active", if (active) 1 else 0)
+        if (id > 0) body.put("id", id)
+        saving = true; errors = emptyMap()
+        scope.launch {
+            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/lists/${l.key}", body) }; Toast.makeText(context, if (id > 0) "Saved" else "Added", Toast.LENGTH_SHORT).show(); onDone() }
+            catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf(first to (e.message ?: "Could not save")) } }
+            catch (e: Exception) { errors = mapOf(first to (e.message ?: "Could not save")) }
+            saving = false
+        }
+    }
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text((if (id > 0) (if (editable) "Edit " else "") else "New ") + l.noun, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
+            if (l.key == "items") Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.example.gavanhomes.ui.tasks.Pick("Service", type == "service", InvBlue) { if (editable) type = "service" }
+                com.example.gavanhomes.ui.tasks.Pick("Material", type == "material", InvAmber) { if (editable) type = "material" }
+            }
+            fields.forEach { (k, label) ->
+                Input(label, f[k].orEmpty(), { f[k] = if (k == "default_rate") it.filter { c -> c.isDigit() || c == '.' } else it }, errors[k],
+                    singleLine = k !in setOf("description", "content", "remarks"), keyboard = if (k == "default_rate") KeyboardType.Decimal else KeyboardType.Text, readOnly = !editable)
+            }
+            if (l.key == "terms" || l.key == "cancellations") com.example.gavanhomes.ui.projects.form.SwitchRow("Active", "Shown when this is picked on bids and bookings", active) { if (editable) active = it }
+            if (editable) ActionButton(if (saving) "Saving…" else if (id > 0) "Save" else "Add ${l.noun}", b.base) { if (!saving) save() }
+            else Text("Remarks can't be changed once saved — delete it and add a new one instead.", color = KitMuted, fontSize = 12.sp)
+            if (id > 0 && can.optBoolean("delete_${l.key}")) SmallAction("Delete this ${l.noun}", KitDanger) { askDelete = true }
+        }
+    }
+    if (askDelete) SwalConfirm(title = "Delete this ${l.noun}?", text = "It is removed from this project.", confirmText = "Yes, delete",
+        onConfirm = { askDelete = false; scope.launch {
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/lists/${l.key}/$id") }; Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show(); onDone() }
             catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
         } }, onCancel = { askDelete = false })
 }

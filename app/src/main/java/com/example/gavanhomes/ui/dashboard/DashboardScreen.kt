@@ -242,14 +242,11 @@ private fun Content(
         item { SegTabs(TabNames, tab) { tab = it } }
 
         when (tab) {
-            0 -> {
-                estateOverview(estate, b, onTab = { tab = it }, onOpenProject = onOpenProject)
-                if (estate.length() > 0) item { SectionTitle("More at a glance") }
-                overview(w, b, onOpenPath)
-            }
-            1 -> { estateSales(estate); sales(w, b) }
+            // the new real-estate views; the older lists only for someone with none of the new data
+            0 -> { estateOverview(estate, b, onTab = { tab = it }, onOpenProject = onOpenProject); if (estate.length() == 0) overview(w, b, onOpenPath) }
+            1 -> { estateSales(estate); estateSalesMore(w) }
             2 -> estateProjects(estate, onOpenProject)
-            3 -> { work(w, b); buying(w, b) }
+            3 -> estateSite(w, onOpenProject)
             // the new Finance and People views; the older lists only when the new data is not there
             4 -> { estateFinance(estate, w); if (estate.optJSONObject("finance") == null && w.optJSONObject("acctStats") == null) finance(w, b) }
             else -> { estatePeople(estate, w); if (estate.optJSONObject("people") == null && w.optJSONObject("labourStats") == null && w.optJSONObject("fileStats") == null) people(w, b) }

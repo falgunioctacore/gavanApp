@@ -71,7 +71,7 @@ fun BoxScope.QuickFab(b: Branding, actions: List<FabAction>, onPick: (String) ->
             }
         }
         Box(
-            Modifier.size(58.dp).shadow(10.dp, CircleShape).clip(CircleShape).background(if (open) KitInk else b.base).clickable { open = !open },
+            Modifier.size(58.dp).shadow(10.dp, CircleShape).clip(CircleShape).background(if (open) KitInkFill else b.base).clickable { open = !open },
             contentAlignment = Alignment.Center,
         ) { Text(if (open) "✕" else "+", color = Color.White, fontSize = if (open) 22.sp else 30.sp, fontWeight = FontWeight.Bold) }
     }

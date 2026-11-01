@@ -225,7 +225,7 @@ internal fun ExportRequests(api: ApiClient, b: Branding, uuid: String, version: 
         eq, { eq = it }, "Search person or reason…",
         groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("status", "Status", listOf("pending" to "Pending", "approved" to "Approved", "denied" to "Denied").map { (k, l) -> com.example.gavanhomes.ui.common.FilterOption(k, l, c?.optInt(k), when (k) { "approved" -> KitGood; "denied" -> KitDanger; else -> Amber }) })),
         selected = if (status == "all") emptyMap() else mapOf("status" to setOf(status)),
-        onApply = { m -> status = m["status"]?.firstOrNull() ?: "all" }, countWith = { -1 },
+        onApply = { m -> status = m["status"]?.firstOrNull() ?: "all" }, countWith = { -1 }, single = setOf("status"),
     )
     Spacer(Modifier.height(6.dp))
 

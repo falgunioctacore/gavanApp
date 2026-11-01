@@ -148,7 +148,7 @@ fun IndentDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
             }
             if (can.optBoolean("edit") && can.optBoolean("close")) Text(
                 "Close indent", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { ask = "close" }.padding(vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { ask = "close" }.padding(vertical = 14.dp),
             )
             Card("Details") {
                 Fact("Purpose", x.str("purpose")); Fact("Needed by", prettyDay(x.str("required_date"))); Fact("Expected delivery", prettyDay(x.str("expected")))

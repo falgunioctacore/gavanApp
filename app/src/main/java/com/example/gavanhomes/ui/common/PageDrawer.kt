@@ -145,7 +145,7 @@ fun BoxScope.PageDrawer(b: Branding, spec: PageSpec?) {
             }
         }
         Row(
-            Modifier.widthIn(max = 240.dp).shadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInk).clickable { open = !open }
+            Modifier.widthIn(max = 240.dp).shadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInkFill).clickable { open = !open }
                 .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

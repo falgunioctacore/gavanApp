@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gavanhomes.data.User
 import com.example.gavanhomes.ui.common.Branding
+import com.example.gavanhomes.ui.common.accentText
 
 private val Ink: Color get() = com.example.gavanhomes.ui.common.KitInk
 private val Muted: Color get() = com.example.gavanhomes.ui.common.KitMuted
@@ -80,22 +81,25 @@ internal fun EstateNavBar(places: List<Place>, active: String, b: Branding, onSe
     val quiet = remember { MutableInteractionSource() }
     Box(Modifier.fillMaxWidth().background(Page).navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 10.dp, top = 4.dp)) {
         Row(
-            Modifier.fillMaxWidth().height(64.dp).shadow(14.dp, RoundedCornerShape(32.dp), ambientColor = Color(0x22000000), spotColor = Color(0x22000000))
-                .clip(RoundedCornerShape(32.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 6.dp),
+            Modifier.fillMaxWidth().height(68.dp).shadow(14.dp, RoundedCornerShape(34.dp), ambientColor = Color(0x22000000), spotColor = Color(0x22000000))
+                .clip(RoundedCornerShape(34.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             places.forEach { p ->
                 val on = p.key == active
                 if (p.key == "projects") {
-                    // the raised centre button
-                    Column(Modifier.weight(1f).clickable(interactionSource = quiet, indication = null) { onSelect(p.key) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    // the centre button: a round brand-gradient button that sits inside the bar, its name under it; a ring marks it while Projects is open
+                    Column(
+                        Modifier.weight(1f).clickable(interactionSource = quiet, indication = null) { onSelect(p.key) },
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                    ) {
                         Box(
-                            Modifier.offset(y = (-14).dp).size(56.dp).shadow(10.dp, CircleShape).clip(CircleShape)
-                                .background(Brush.linearGradient(listOf(b.base, b.deep), start = Offset.Zero, end = Offset(160f, 160f)))
-                                .border(4.dp, com.example.gavanhomes.ui.common.KitCard, CircleShape),
+                            Modifier.size(42.dp).then(if (on) Modifier.border(2.dp, b.base.copy(alpha = .45f), CircleShape).padding(3.dp) else Modifier)
+                                .shadow(if (on) 0.dp else 6.dp, CircleShape).clip(CircleShape)
+                                .background(Brush.linearGradient(listOf(b.base, b.deep), start = Offset.Zero, end = Offset(120f, 120f))),
                             contentAlignment = Alignment.Center,
-                        ) { ModuleIcon(p.icon, Color.White, 24.dp, bold = true) }
-                        Text(p.label, fontSize = 11.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (on) b.deep else Muted, modifier = Modifier.offset(y = (-10).dp))
+                        ) { ModuleIcon(p.icon, Color.White, if (on) 18.dp else 20.dp, bold = true) }
+                        Text(p.label, fontSize = 11.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (on) b.accentText else Muted, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
                     }
                 } else {
                     Column(

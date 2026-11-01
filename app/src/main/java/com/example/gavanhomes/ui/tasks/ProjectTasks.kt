@@ -394,7 +394,7 @@ private fun TaskList(
 
     // bulk bar
     if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitInk).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -788,7 +788,7 @@ internal fun TaskCard(
     ) {
         Row(verticalAlignment = Alignment.Top) {
             if (selected != null) Box(
-                Modifier.padding(end = 10.dp, top = 1.dp).size(22.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine),
+                Modifier.padding(end = 10.dp, top = 1.dp).size(22.dp).clip(CircleShape).background(if (selected) com.example.gavanhomes.ui.common.KitInkFill else com.example.gavanhomes.ui.common.KitLine),
                 contentAlignment = Alignment.Center,
             ) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
             Text(r.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = KitInk, maxLines = if (narrow) 2 else 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))

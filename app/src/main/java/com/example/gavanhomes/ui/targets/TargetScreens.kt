@@ -285,7 +285,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                         }
                         if (canEdit) Text(
                             "+  Upload a file", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(KitInk).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
                         )
                         Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = KitMuted, fontSize = 11.sp)
                     }

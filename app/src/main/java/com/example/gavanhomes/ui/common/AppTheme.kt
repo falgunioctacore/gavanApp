@@ -27,3 +27,6 @@ internal val KitLine: Color get() = if (AppTheme.dark) Color(0xFF3A3834) else Co
 
 /** The brand colour for text and tags: its dark shade on light pages, its bright shade on dark ones (dark-on-dark can't be read). */
 internal val Branding.accentText: Color get() = if (AppTheme.dark) base else dark
+
+/** A dark pill or button behind white text (the page menu, selected chips, scroll-to-top): dark in both themes, a little lighter at night so it stands out. */
+internal val KitInkFill: Color get() = if (AppTheme.dark) Color(0xFF45423D) else Color(0xFF1F2A44)
