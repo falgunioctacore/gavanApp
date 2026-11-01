@@ -92,7 +92,7 @@ internal fun ProCounter(value: String, label: String, modifier: Modifier, big: B
 @Composable
 internal fun ProFilterChip(label: String, count: Int?, dot: Color?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White)
+        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -112,7 +112,7 @@ internal fun ProRoundAction(glyph: String, tint: Color, onClick: () -> Unit) {
 @Composable
 internal fun ProSheetAction(glyph: String, label: String, danger: Boolean = false, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { onClick() }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(if (danger) KitDanger.copy(alpha = .12f) else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(if (danger) KitDanger.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
             Text(glyph, fontSize = 17.sp, color = if (danger) KitDanger else KitInk)
         }
         Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = if (danger) KitDanger else KitInk, modifier = Modifier.padding(start = 14.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -124,7 +124,7 @@ internal fun ProSheetAction(glyph: String, label: String, danger: Boolean = fals
 internal fun ProCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp)).background(Color.White).padding(18.dp),
+            .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -141,7 +141,7 @@ internal fun ProCard(title: String, sub: String? = null, content: @Composable Co
 /** A key number: a coloured edge on top, the small caption, then the number big in that colour. */
 @Composable
 internal fun ProTile(value: String, label: String, modifier: Modifier, tint: Color = KitInk, sub: String? = null) {
-    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)) {
+    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
         Box(Modifier.fillMaxWidth().height(4.dp).background(if (tint == KitInk) Color(0xFFCBD5E1) else tint))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.4.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -243,14 +243,14 @@ internal fun ProDoc(label: String, path: String?, view: (String) -> Unit) {
         Text(label, color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Text(
             "View", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = KitInk,
-            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFF1EFEB)).clickable { view(path) }.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { view(path) }.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
 
 @Composable
 internal fun ProBar(fraction: Float, color: Color) {
-    Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFEDEBE7))) {
+    Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(com.example.gavanhomes.ui.common.KitSoft)) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxSize().background(color))
     }
 }
@@ -261,11 +261,8 @@ internal fun ProLoading(b: Branding, title: String, error: String?, onBack: () -
     Column(Modifier.fillMaxSize()) {
         HeroBar(b, title, onBack)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error, color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = onRetry) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = onRetry)
         }
     }
 }

@@ -118,8 +118,8 @@ fun ProjectAssets(api: ApiClient, b: Branding, uuid: String, version: Int, onOpe
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -129,10 +129,10 @@ fun ProjectAssets(api: ApiClient, b: Branding, uuid: String, version: Int, onOpe
     )) { onNew(it) }
     val pages = listOf(Page("dashboard", "Dashboard"), Page("assets", "Assets"), Page("maintenance", "Maintenance"), Page("transfers", "Transfers"))
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("Assets", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Equipment & assets", pages.map { it.label }, index) { view = pages[it].key }
     val v = version + local
     when (pages[index].key) {
-        "dashboard" -> Dashboard(o, onOpen) { view = it }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "assets", version); Dashboard(o, onOpen) { view = it } }
         "assets" -> AssetList(api, b, uuid, v, options) { onOpen("asset", it) }
         "maintenance" -> MaintenanceList(api, b, uuid, v, options) { onOpen("maintenance", it) }
         else -> TransferList(api, b, uuid, v, can) { local++; onChanged() }

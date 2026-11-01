@@ -178,7 +178,7 @@ private fun AdvanceSheet(b: Branding, onClose: () -> Unit, onDone: (JSONObject) 
     var txn by remember { mutableStateOf("") }
     var remarks by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Give advance", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input("Amount (₹)", amount, { amount = it.filter { c -> c.isDigit() || c == '.' }; error = null }, error, keyboard = KeyboardType.Decimal)

@@ -58,7 +58,7 @@ fun SwalConfirm(
 
     Dialog(onDismissRequest = onCancel) {
         Column(
-            Modifier.widthIn(max = 360.dp).fillMaxWidth().scale(pop.value).clip(RoundedCornerShape(10.dp)).background(Color.White).padding(horizontal = 20.dp, vertical = 26.dp),
+            Modifier.widthIn(max = 360.dp).fillMaxWidth().scale(pop.value).clip(RoundedCornerShape(10.dp)).background(KitCard).padding(horizontal = 20.dp, vertical = 26.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // warning icon: a ring with "!"

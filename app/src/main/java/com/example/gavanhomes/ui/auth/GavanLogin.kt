@@ -95,9 +95,9 @@ fun GavanLoginScreen(api: ApiClient, onSignedIn: (String, User) -> Unit) {
         }
     }
 
-    val pageBg = Color(0xFFF3F2F0)
-    val ink = Color(0xFF1F2A44)
-    val muted = Color(0xFF8A8F9C)
+    val pageBg = com.example.gavanhomes.ui.common.KitPage
+    val ink = com.example.gavanhomes.ui.common.KitInk
+    val muted = com.example.gavanhomes.ui.common.KitMuted
 
     Column(Modifier.fillMaxSize().background(pageBg).verticalScroll(rememberScrollState())) {
         // ── hero ──
@@ -113,7 +113,7 @@ fun GavanLoginScreen(api: ApiClient, onSignedIn: (String, User) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
-                    Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(Color.White),
+                    Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard),
                     contentAlignment = Alignment.Center,
                 ) {
                     branding.logo?.let { Image(it, contentDescription = branding.name, modifier = Modifier.size(66.dp), contentScale = ContentScale.Fit) }
@@ -130,7 +130,7 @@ fun GavanLoginScreen(api: ApiClient, onSignedIn: (String, User) -> Unit) {
             Column(
                 Modifier.widthIn(max = 460.dp).fillMaxWidth()
                     .shadow(20.dp, RoundedCornerShape(26.dp), ambientColor = branding.base, spotColor = branding.base)
-                    .clip(RoundedCornerShape(26.dp)).background(Color.White)
+                    .clip(RoundedCornerShape(26.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                     .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 22.dp),
             ) {
                 error?.let {
@@ -204,16 +204,16 @@ private fun IconField(
             .border(1.5.dp, Color(0xFFE6E3DE), RoundedCornerShape(16.dp)).padding(start = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(glyph, fontSize = 17.sp, color = Color(0xFF8A8F9C))
+        Text(glyph, fontSize = 17.sp, color = com.example.gavanhomes.ui.common.KitMuted)
         TextField(
             value = value, onValueChange = onValueChange, singleLine = true,
-            placeholder = { Text(placeholder, color = Color(0xFF8A8F9C).copy(alpha = .7f)) },
+            placeholder = { Text(placeholder, color = com.example.gavanhomes.ui.common.KitMuted.copy(alpha = .7f)) },
             visualTransformation = visual, keyboardOptions = keyboard,
             keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onDone?.invoke() }),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, cursorColor = brand,
-                focusedTextColor = Color(0xFF1F2A44), unfocusedTextColor = Color(0xFF1F2A44),
+                focusedTextColor = com.example.gavanhomes.ui.common.KitInk, unfocusedTextColor = com.example.gavanhomes.ui.common.KitInk,
             ),
             modifier = Modifier.weight(1f),
         )

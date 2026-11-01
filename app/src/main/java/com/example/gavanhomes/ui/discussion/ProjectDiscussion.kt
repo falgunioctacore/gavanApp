@@ -129,17 +129,19 @@ fun ProjectDiscussion(api: ApiClient, b: Branding, uuid: String, version: Int, o
     val list = chats
     if (list == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
     } else {
-        SearchBox(search, { search = it }, "Search chats…")
-        val unread = list.count { it.optInt("unread") > 0 }
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("all" to "All", "unread" to "Unread${if (unread > 0) " $unread" else ""}", "groups" to "Groups", "direct" to "Direct").forEach { (k, l) ->
-                com.example.gavanhomes.ui.tasks.Pick(l, filter == k, b.base) { filter = k }
-            }
-        }
+        val passes = { c: JSONObject, f: String -> when (f) { "unread" -> c.optInt("unread") > 0; "groups" -> c.optString("type") != "direct"; "direct" -> c.optString("type") == "direct"; else -> true } }
+        com.example.gavanhomes.ui.common.FilterBar(
+            search, { search = it }, "Search chats…",
+            groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("show", "Show", listOf("unread" to "Unread", "groups" to "Groups", "direct" to "Direct").map { (k, l) -> com.example.gavanhomes.ui.common.FilterOption(k, l, list.count { c -> passes(c, k) }) })),
+            selected = if (filter == "all") emptyMap() else mapOf("show" to setOf(filter)),
+            onApply = { m -> filter = m["show"]?.firstOrNull() ?: "all" },
+            countWith = { m -> list.count { c -> passes(c, m["show"]?.firstOrNull() ?: "all") } },
+        )
+        Spacer(Modifier.height(6.dp))
         val shown = list.filter { c ->
             (search.isBlank() || c.optString("name").contains(search, true) || c.optString("preview").contains(search, true)) && when (filter) {
                 "unread" -> c.optInt("unread") > 0
@@ -214,7 +216,7 @@ private fun NewChatSheet(api: ApiClient, b: Branding, uuid: String, group: Boole
             busy = false
         }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(if (group) "New group" else "New chat", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk, modifier = Modifier.weight(1f))
@@ -226,13 +228,13 @@ private fun NewChatSheet(api: ApiClient, b: Branding, uuid: String, group: Boole
             error?.let { Text(it, color = KitDanger, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp)) }
             SearchBox(q, { q = it }, "Search people…")
             val list = people
-            if (list == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { if (error == null) CircularProgressIndicator(color = b.base) }
+            if (list == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             else Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val shown = list.filter { q.isBlank() || it.optString("name").contains(q, true) || it.optString("sub").contains(q, true) }
                 if (shown.isEmpty()) Text("No one matches.", color = KitMuted, modifier = Modifier.padding(12.dp))
                 shown.forEach { p ->
                     val key = p.optString("key"); val on = key in picked
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1))
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft)
                         .clickable { if (group) { if (on) picked.remove(key) else picked.add(key) } else if (!busy) start(key, p.optString("name")) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Initials(p.optString("name"), size = 34.dp)
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -331,15 +333,15 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
         header?.str("status")?.let { Text(it, color = if (header?.optBoolean("online") == true) KitGood else KitMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                !loaded && error == null -> CircularProgressIndicator(color = b.base, modifier = Modifier.align(Alignment.Center))
-                !loaded -> Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+                !loaded && error == null -> com.example.gavanhomes.ui.common.EstateLoader(b.base, Modifier.align(Alignment.Center))
+                !loaded -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.align(Alignment.Center).padding(24.dp), onRetry = { attempt++ })
                 messages.isEmpty() -> Text("No messages yet — say hello.", color = KitMuted, modifier = Modifier.align(Alignment.Center))
                 else -> LazyColumn(state = listState, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxSize()) {
                     items(messages.size, key = { messages[it].optInt("id") }) { i ->
                         val m = messages[i]
                         if (i == 0 || messages[i - 1].optString("date") != m.optString("date")) {
                             Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                                Text(m.optString("date_label"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White).padding(horizontal = 10.dp, vertical = 4.dp))
+                                Text(m.optString("date_label"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                         val showSender = !m.optBoolean("self") && (i == 0 || messages[i - 1].optString("sender") != m.optString("sender") || messages[i - 1].optBoolean("self"))
@@ -356,12 +358,12 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
                 Text("Cancel", color = KitMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clickable { editing = null; text = "" })
             }
         }
-        Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             if (editing == null) Box(Modifier.size(42.dp).clip(CircleShape).clickable(enabled = !sending) { attach.launch("*/*") }, contentAlignment = Alignment.Center) { Text("📎", fontSize = 20.sp) }
             TextField(
                 value = text, onValueChange = { text = it }, placeholder = { Text("Message", color = KitMuted) }, maxLines = 5,
                 modifier = Modifier.weight(1f), shape = RoundedCornerShape(22.dp),
-                colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFFF3F2F0), unfocusedContainerColor = Color(0xFFF3F2F0), focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                colors = TextFieldDefaults.colors(focusedContainerColor = com.example.gavanhomes.ui.common.KitPage, unfocusedContainerColor = com.example.gavanhomes.ui.common.KitPage, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
             )
             Spacer(Modifier.size(6.dp))
             Box(Modifier.size(46.dp).clip(CircleShape).background(if (text.isBlank()) b.base.copy(alpha = .4f) else b.base).clickable { send() }, contentAlignment = Alignment.Center) {
@@ -372,7 +374,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
     }
 
     options?.let { m ->
-        ModalBottomSheet(onDismissRequest = { options = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { options = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(m.str("body") ?: m.str("attachment_name") ?: "Message", color = KitInk, fontSize = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 if (m.optBoolean("can_edit")) ActionButton("Edit", b.base) { options = null; editing = m; text = m.optString("body") }
@@ -388,12 +390,12 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
             } }, onCancel = { askDelete = null })
     }
     members?.let { r ->
-        ModalBottomSheet(onDismissRequest = { members = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { members = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 18.dp).heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val list = r.objs("members")
                 Text("Members · ${list.size}", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
                 list.forEach { p ->
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Initials(p.optString("name"), size = 34.dp, dot = if (p.optBoolean("online")) KitGood else null)
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                             Text(p.optString("name") + if (p.optBoolean("self")) " (you)" else "", color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -415,7 +417,7 @@ private fun Bubble(m: JSONObject, b: Branding, showSender: Boolean, onLong: () -
     Box(Modifier.fillMaxWidth(), contentAlignment = if (self) Alignment.CenterEnd else Alignment.CenterStart) {
         Column(
             Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = if (self) 18.dp else 4.dp, bottomEnd = if (self) 4.dp else 18.dp))
-                .background(if (self) b.base else Color.White).combinedClickable(onClick = { if (m.str("attachment_url") != null) onOpenFile() }, onLongClick = onLong).padding(horizontal = 12.dp, vertical = 8.dp),
+                .background(if (self) b.base else com.example.gavanhomes.ui.common.KitCard).combinedClickable(onClick = { if (m.str("attachment_url") != null) onOpenFile() }, onLongClick = onLong).padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (showSender) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(m.optString("sender"), color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
@@ -426,7 +428,7 @@ private fun Bubble(m: JSONObject, b: Branding, showSender: Boolean, onLong: () -
                 else -> {
                     m.str("attachment_url")?.let { url ->
                         if (m.optBoolean("is_image")) RemoteImage(served(url))
-                        else Row(Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp)).background(if (self) Color.White.copy(alpha = .18f) else Color(0xFFF3F2F0)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        else Row(Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp)).background(if (self) Color.White.copy(alpha = .18f) else com.example.gavanhomes.ui.common.KitPage).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("📎", fontSize = 18.sp)
                             Column(Modifier.padding(start = 8.dp)) {
                                 Text(m.optString("attachment_name", "File"), color = ink, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)

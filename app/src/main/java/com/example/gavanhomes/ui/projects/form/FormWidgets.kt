@@ -59,7 +59,7 @@ private const val MaxFileBytes = 5 * 1024 * 1024        // the website's limit: 
 @Composable
 fun FormCard(title: String, hint: String? = null, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
@@ -148,7 +148,7 @@ fun FileField(label: String, slot: FileSlot, error: String? = null, pick: (FileS
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                .border(1.dp, if (error != null) KitDanger else Color(0xFFD9D6D0), RoundedCornerShape(14.dp)).padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+                .border(1.dp, if (error != null) KitDanger else com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(14.dp)).padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -175,7 +175,7 @@ fun FileField(label: String, slot: FileSlot, error: String? = null, pick: (FileS
 private fun Chip(text: String, filled: Boolean = false, onClick: () -> Unit) {
     Text(
         text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (filled) Color.White else KitInk, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (filled) Color(0xFF0F172A) else Color(0xFFF1EFEB)).clickable { onClick() }.padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (filled) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
@@ -210,7 +210,7 @@ fun ChoiceSheet(
 ) {
     var picked by remember { mutableStateOf(selected.filter { it != -1 }.toSet()) }
     var query by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = { onDone(picked); onDismiss() }, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = { onDone(picked); onDismiss() }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))

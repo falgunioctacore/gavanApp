@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.users
 
 import com.example.gavanhomes.ui.common.PageDrawer
+import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import com.example.gavanhomes.ui.common.FabAction
@@ -159,11 +160,8 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
         if (all == null) {
             HeroBar(b, "Users", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { reload++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { reload++ })
             }
             return@Column
         }
@@ -257,7 +255,7 @@ fun UsersScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenUser: (In
 
     // ── ⋯ actions ──
     sheet?.let { u ->
-        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
                 Text(u.name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(u.role?.headline() ?: "No role", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
@@ -342,7 +340,7 @@ private fun Counter(value: String, label: String, modifier: Modifier, big: Boole
 @Composable
 private fun FilterChip(label: String, count: Int, dot: Color?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White)
+        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -359,7 +357,7 @@ private fun UserCard(u: U, b: Branding, onClick: () -> Unit, onMore: () -> Unit,
         chips = {
             if (u.role != null) { val c = if (u.admin) Color(0xFFC2410C) else Color(0xFF2F6FE4); Pill(u.role.headline(), c.copy(alpha = .14f), c) }
             Pill((u.status ?: "—").headline(), statusColor(u.status).copy(alpha = .14f), statusColor(u.status))
-            if (u.department != null) Pill(u.department, b.base.copy(alpha = .16f), b.dark)
+            if (u.department != null) Pill(u.department, b.base.copy(alpha = .16f), b.accentText)
         },
         footerLeft = { CardStat("${u.sites}", if (u.sites == 1) "site" else "sites") },
         footerRight = {
@@ -372,11 +370,11 @@ private fun UserCard(u: U, b: Branding, onClick: () -> Unit, onMore: () -> Unit,
 @Composable
 private fun CompactRow(u: U, b: Branding, onClick: () -> Unit, onMore: () -> Unit) {
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-            .background(Color.White).clickable { onClick() }.padding(12.dp),
+        Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Initials(u.name, 46.dp, statusColor(u.status))
+        Initials(u.name, 34.dp, statusColor(u.status))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(u.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(u.department ?: u.email ?: "", fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -396,7 +394,7 @@ private fun RoundAction(glyph: String, tint: Color, onClick: () -> Unit) {
 @Composable
 private fun SheetAction(glyph: String, label: String, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { onClick() }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) { Text(glyph, fontSize = 17.sp, color = KitInk) }
+        Box(Modifier.size(38.dp).clip(CircleShape).background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) { Text(glyph, fontSize = 17.sp, color = KitInk) }
         Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = KitInk, modifier = Modifier.padding(start = 14.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -405,7 +403,7 @@ private fun SheetAction(glyph: String, label: String, onClick: () -> Unit) {
 private fun RoleTile(r: JSONObject, maxPerms: Int, b: Branding, modifier: Modifier) {
     val frac = r.optInt("permissions_count").toFloat() / maxPerms
     Column(
-        modifier.shadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(Color.White).padding(10.dp),
+        modifier.shadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Box(

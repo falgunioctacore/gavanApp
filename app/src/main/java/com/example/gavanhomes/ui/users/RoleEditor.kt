@@ -132,16 +132,13 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
             )
             val list = all
             when {
-                error != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
-                list == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+                error != null -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
+                list == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
                 else -> {
                     val groups = list.map { it to splitPermission(it) }.groupBy({ it.second.first }, { it.first to it.second.second }).toSortedMap()
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                         Column(Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Input("Role name", name, { name = it; nameError = null }, nameError, readOnly = system)
                                 if (system) Text("This is a built-in role: it keeps every permission and can't be renamed or deleted.", color = KitMuted, fontSize = 12.sp)
                                 else if (editing && users > 0) Text("$users ${if (users == 1) "person has" else "people have"} this role, so it can't be deleted.", color = KitMuted, fontSize = 12.sp)
@@ -160,7 +157,7 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
                                 if (shown.isEmpty()) return@forEach
                                 val names = perms.map { it.first }
                                 val allOn = names.all { it in picked || system }
-                                Column(Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Column(Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(group.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                         if (!system) Text(
@@ -173,8 +170,8 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
                                             val on = system || perm in picked
                                             Text(
                                                 verb, color = if (on) Color.White else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                                                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (on) (if (system) KitMuted else KitGood) else Color(0xFFF1EFEB))
-                                                    .then(if (on) Modifier else Modifier.border(1.dp, Color(0xFFE0DDD6), RoundedCornerShape(14.dp)))
+                                                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (on) (if (system) KitMuted else KitGood) else com.example.gavanhomes.ui.common.KitSoft)
+                                                    .then(if (on) Modifier else Modifier.border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(14.dp)))
                                                     .clickable(enabled = !system) { picked = if (perm in picked) picked - perm else picked + perm }.padding(horizontal = 14.dp, vertical = 8.dp),
                                             )
                                         }
@@ -184,7 +181,7 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
                             Spacer(Modifier.height(8.dp))
                         }
                     }
-                    Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Box(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
                         Text(
                             if (saving) "Saving…" else if (editing) "Save role" else "Create role", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),

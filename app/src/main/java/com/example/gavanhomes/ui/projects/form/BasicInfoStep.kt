@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.projects.form
 
 import android.content.Context
+import com.example.gavanhomes.ui.common.accentText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,7 +55,7 @@ fun BasicInfoStep(
             PickerField("Team leader", people.firstOrNull { it.id == leaderId }?.label, err["leader_id"]) { openPicker("leader") }
             PickerField("Members", if (form.memberIds.isEmpty()) null else "${form.memberIds.size} selected", err["member_ids"]) { openPicker("members") }
             if (form.memberIds.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                people.filter { it.id in form.memberIds }.forEach { Pill(it.label, b.base.copy(alpha = .16f), b.dark) }
+                people.filter { it.id in form.memberIds }.forEach { Pill(it.label, b.base.copy(alpha = .16f), b.accentText) }
             }
         }
 
@@ -111,7 +112,7 @@ fun BasicInfoStep(
             }
             Text(
                 "+ Add partner", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).clickable { form.partners.add(PartnerState()) }.padding(16.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { form.partners.add(PartnerState()) }.padding(16.dp),
             )
         }
 
@@ -143,7 +144,7 @@ fun BasicInfoStep(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Total consideration", fontWeight = FontWeight.SemiBold, color = KitInk, modifier = Modifier.weight(1f))
-                Text(total?.let { "₹" + String.format(java.util.Locale.US, "%,.2f", it) } ?: "—", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = b.dark)
+                Text(total?.let { "₹" + String.format(java.util.Locale.US, "%,.2f", it) } ?: "—", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = b.accentText)
             }
         }
 

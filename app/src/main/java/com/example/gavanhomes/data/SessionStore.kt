@@ -37,6 +37,11 @@ class SessionStore(context: Context) {
         get() = prefs.getInt("unread", 0)
         set(value) { prefs.edit().putInt("unread", value).apply() }
 
+    /** Light / dark choice: "light", "dark" or "system" (just a setting — not secret). */
+    var theme: String
+        get() = prefs.getString("theme", "system") ?: "system"
+        set(value) { prefs.edit().putString("theme", value).apply() }
+
     /** If this phone's Keystore can't encrypt (some budget phones), nothing is stored — the app works, it just asks for a sign-in next time — rather than crashing. */
     private fun write(key: String, value: String?) {
         val sealed = value?.let { runCatching { seal(it) }.getOrNull() }

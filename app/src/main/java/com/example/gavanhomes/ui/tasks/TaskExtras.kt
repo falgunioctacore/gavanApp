@@ -109,7 +109,7 @@ internal fun RemoteImage(url: String, modifier: Modifier, contentScale: ContentS
     }
     val b = bmp
     if (b != null) Image(b.asImageBitmap(), null, modifier, contentScale = contentScale)
-    else Box(modifier.background(Color(0xFFE6E3DD)), contentAlignment = Alignment.Center) { Text("🖼", fontSize = 20.sp) }
+    else Box(modifier.background(com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { Text("🖼", fontSize = 20.sp) }
 }
 
 // ───────────────────────────── discussion ─────────────────────────────
@@ -182,20 +182,20 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
 
     when (allowed) {
         null -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base) else Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base) else Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
         }
         false -> Card("Discussion", "Private") { Text("Only the task's creator and the people it is assigned to can see this discussion.", color = KitMuted, fontSize = 14.sp) }
         else -> Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color.White).border(1.dp, Color(0xFFE8E5DE), RoundedCornerShape(22.dp)),
+            Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(22.dp)),
         ) {
             // head
-            Row(Modifier.fillMaxWidth().background(Color(0xFFFAF9F7)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitSoft).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(b.base.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text("💬", fontSize = 18.sp) }
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(header?.optString("title").orEmpty(), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(header?.optString("subtitle").orEmpty(), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
-                Text("Gallery", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(10.dp)).clickable { galleryOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
+                Text("Gallery", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(10.dp)).clickable { galleryOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
             }
 
             // messages
@@ -209,16 +209,16 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
                     if (date != lastDate) {
                         lastDate = date
                         Text(date.uppercase(), color = KitMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp,
-                            modifier = Modifier.align(Alignment.CenterHorizontally).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF2F0EB)).padding(horizontal = 14.dp, vertical = 4.dp))
+                            modifier = Modifier.align(Alignment.CenterHorizontally).clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 14.dp, vertical = 4.dp))
                     }
                     Bubble(m, b, onOpen = { openLink(context, it) }, onLong = { if (m.optBoolean("can_edit") || m.optBoolean("can_delete")) actions = m })
                 }
             }
 
             // composer
-            Column(Modifier.fillMaxWidth().background(Color(0xFFFAF9F7)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 picked?.let { f ->
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFF2F0EB)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("📎 ${f.name}", color = KitInk, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text("✕", color = KitMuted, modifier = Modifier.clickable { picked = null }.padding(4.dp))
                     }
@@ -237,7 +237,7 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
 
     // message actions
     actions?.let { m ->
-        ModalBottomSheet(onDismissRequest = { actions = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { actions = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (m.optBoolean("can_edit")) SheetAction("Edit message", KitInk) { editing = m; actions = null }
                 if (m.optBoolean("can_delete")) SheetAction("Delete message", KitDanger) { askDelete = m; actions = null }
@@ -246,7 +246,7 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
     }
     editing?.let { m ->
         var draft by remember(m.optInt("id")) { mutableStateOf(m.optString("body")) }
-        ModalBottomSheet(onDismissRequest = { editing = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { editing = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Edit message", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Input("Message", draft, { draft = it }, singleLine = false)
@@ -266,7 +266,7 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
 
 @Composable
 private fun SheetAction(label: String, tint: Color, onClick: () -> Unit) {
-    Text(label, color = tint, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(16.dp))
+    Text(label, color = tint, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(16.dp))
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -275,7 +275,7 @@ private fun Bubble(m: JSONObject, b: Branding, onOpen: (String) -> Unit, onLong:
     val self = m.optBoolean("self"); val deleted = m.optBoolean("deleted")
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (self) Alignment.End else Alignment.Start) {
         Column(
-            Modifier.widthIn(max = 270.dp).clip(RoundedCornerShape(14.dp)).background(if (self) b.base.copy(alpha = .16f) else Color(0xFFF2F0EB))
+            Modifier.widthIn(max = 270.dp).clip(RoundedCornerShape(14.dp)).background(if (self) b.base.copy(alpha = .16f) else com.example.gavanhomes.ui.common.KitSoft)
                 .combinedClickable(onClick = {}, onLongClick = onLong).padding(horizontal = 12.dp, vertical = 9.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -314,7 +314,7 @@ private fun Gallery(api: ApiClient, id: Int, base: String, onClose: () -> Unit) 
         val o = data?.optJSONObject(key) ?: return emptyList()
         return o.keys().asSequence().map { month -> month to (o.optJSONArray(month)?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList()) }.toList()
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
             Text("Shared content", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             com.example.gavanhomes.ui.common.SegTabs(listOf("Media", "Docs", "Links"), tab) { tab = it }
@@ -349,7 +349,7 @@ private fun Gallery(api: ApiClient, id: Int, base: String, onClose: () -> Unit) 
 
 @Composable
 private fun GalleryRow(icon: String, title: String, date: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(icon, fontSize = 18.sp)
         Column(Modifier.padding(start = 10.dp)) {
             Text(title, color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -386,7 +386,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
     }
     val d = info
     if (d == null) {
-        Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { if (error == null) CircularProgressIndicator(color = b.base) else Text(error ?: "", color = KitMuted) }
+        Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base) else Text(error ?: "", color = KitMuted) }
         return
     }
     val everyone = listOf("Staff" to d.objs("users"), "Suppliers" to d.objs("suppliers"), "Professionals" to d.objs("professionals"))
@@ -443,7 +443,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
         }
     }
 
-    if (picker) ModalBottomSheet(onDismissRequest = { picker = false }, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    if (picker) ModalBottomSheet(onDismissRequest = { picker = false }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
@@ -456,7 +456,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
                     rows.forEach { p ->
                         val key = p.optString("key"); val on = key in sel
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1))
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft)
                                 .clickable { chosen = if (on) sel - key else sel + key }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

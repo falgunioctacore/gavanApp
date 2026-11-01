@@ -1,6 +1,8 @@
 package com.example.gavanhomes.ui.leads
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.combinedClickable
@@ -130,11 +132,8 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -145,7 +144,7 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     }
 
     when (view) {
-        0 -> LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 }
+        0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "leads", version); LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 } }
         1 -> LeadList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ })
         2 -> FollowupList(api, b, uuid, version, options, onOpen, pickLead0 = pickFollowup) { pickFollowup = false }
         3 -> LeadLists(api, b, uuid, version, onOpenList = { id -> sel = mapOf("list_id" to setOf(id.toString())); query = ""; view = 1 }, onChanged = { attempt++ })
@@ -292,13 +291,10 @@ private fun LeadList(
     if (rows.isNotEmpty() && selected.isEmpty() && (canEdit || canDelete)) Text("Press and hold a lead to select several", color = KitMuted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No leads match.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
-        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         var more by remember(page) { mutableStateOf(false) }
@@ -332,51 +328,44 @@ internal fun LeadCard(r: JSONObject, options: JSONObject?, flat: Boolean = false
     val sc = statusTintOf(options, r.str("status"))
     val lc = r.str("label")?.let { labelTintOf(options, it) }
     val phone = r.str("phone")
+    val next = runCatching { java.time.LocalDateTime.parse(r.optString("next_followup").take(16).replace(' ', 'T')) }.getOrNull()
+    val late = next != null && next.isBefore(java.time.LocalDateTime.now())
+    val shape = RoundedCornerShape(18.dp)
     Column(
-        Modifier.padding(horizontal = if (flat) 0.dp else 16.dp, vertical = if (flat) 4.dp else 7.dp).fillMaxWidth()
-            .then(if (flat) Modifier else Modifier.shadow(6.dp, RoundedCornerShape(22.dp)))
-            .clip(RoundedCornerShape(22.dp)).background(if (selected == true) b0(sc) else if (flat) Color(0xFFF7F5F1) else Color.White)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.padding(horizontal = if (flat) 0.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
+            .then(if (flat) Modifier else Modifier.shadow(2.dp, shape))
+            .clip(shape).background(if (selected == true) b0(sc) else if (flat) com.example.gavanhomes.ui.common.KitSoft else com.example.gavanhomes.ui.common.KitCard)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selected != null) Box(Modifier.padding(end = 10.dp).size(24.dp).clip(CircleShape).background(if (selected) KitInk else Color(0xFFE6E3DD)), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
-            Box(Modifier.size(46.dp).clip(CircleShape).background(sc.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
-                Text(r.optString("name").trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }, color = sc, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+            if (selected != null) Box(Modifier.padding(end = 8.dp).size(22.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) }
+            Box(Modifier.size(38.dp).clip(CircleShape).background(sc.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
+                Text(r.optString("name").trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }, color = sc, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(phone ?: r.str("email") ?: "No contact", color = KitMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(phone ?: r.str("email") ?: "No contact", color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (lc != null) Chip(r.optString("label"), lc)
+            if (lc != null) { Chip(r.optString("label"), lc); Spacer(Modifier.size(6.dp)) }
+            if (phone != null) {
+                Box(Modifier.size(32.dp).clip(CircleShape).background(KitGood.copy(alpha = .14f)).clickable {
+                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:" + phone.filter { c -> c.isDigit() || c == '+' }))) }
+                }, contentAlignment = Alignment.Center) { Text("✆", color = KitGood, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.size(6.dp))
+                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF25A244).copy(alpha = .14f)).clickable {
+                    val d = phone.filter { c -> c.isDigit() }.trimStart('0'); val n = if (d.length == 10) "91$d" else d
+                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://wa.me/$n"))) }
+                }, contentAlignment = Alignment.Center) { Text("W", color = Color(0xFF25A244), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
+            }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Chip(status, sc)
             if (r.optBoolean("converted")) Chip("Converted", KitGood)
             r.str("source")?.let { Chip(it, KitMuted) }
             r.str("list")?.let { Chip(it, Blue) }
-        }
-        whenLabel(r.str("next_followup"))?.let {
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Amber.copy(alpha = .1f)).padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("◷", color = Amber, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("${r.str("next_type") ?: "Follow-up"} · $it", color = Amber, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val owner = r.str("assignee")
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                if (owner != null) { com.example.gavanhomes.ui.common.Initials(owner, size = 26.dp); Text(owner, color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp)) }
-                else Text("Unassigned", color = KitMuted, fontSize = 12.sp)
-            }
-            if (phone != null) {
-                Text("Call", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitGood)
-                    .clickable { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:" + phone.filter { c -> c.isDigit() || c == '+' }))) } }.padding(horizontal = 16.dp, vertical = 8.dp))
-                Spacer(Modifier.size(8.dp))
-                Text("WhatsApp", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF25A244)).clickable {
-                    val d = phone.filter { c -> c.isDigit() }.trimStart('0'); val n = if (d.length == 10) "91$d" else d
-                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://wa.me/$n"))) }
-                }.padding(horizontal = 14.dp, vertical = 8.dp))
-            }
+            whenLabel(r.str("next_followup"))?.let { Chip("◷ ${r.str("next_type") ?: "Follow-up"} · $it", if (late) KitDanger else Amber) }
+            Chip("◉ " + (r.str("assignee") ?: "Unassigned"), KitMuted)
         }
     }
 }
@@ -422,7 +411,7 @@ private fun typeStyle(type: String?): Pair<Color, String> = when (type?.lowercas
 private fun FilterPill(label: String, active: Boolean, accent: Color, onClick: () -> Unit) {
     Text(
         label + " ▾", color = if (active) Color.White else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-        modifier = Modifier.shadow(if (active) 0.dp else 2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(if (active) accent else Color.White).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier = Modifier.shadow(if (active) 0.dp else 2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(if (active) accent else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 10.dp),
     )
 }
 
@@ -487,11 +476,8 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     }
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No follow-ups here.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 30.dp))
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
@@ -521,32 +507,43 @@ internal fun FollowupCard(
     val st = f.optString("status")
     val sc = tint(options?.objs("followup_statuses")?.firstOrNull { it.optString("slug") == st }?.str("color"), when (st) { "completed" -> KitGood; "missed" -> KitDanger; "rescheduled" -> Amber; else -> Blue })
     val (tc, glyph) = typeStyle(f.str("type"))
-    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
-        Box(Modifier.padding(top = 4.dp).size(40.dp).clip(CircleShape).background(tc.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text(glyph, color = tc, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold) }
-        Column(
-            Modifier.padding(start = 10.dp).weight(1f).shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)
-                .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier).padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text((f.str("type") ?: "Follow-up").uppercase(), color = tc, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.5.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(tc.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 5.dp))
-                if (showLead) Text("👤 " + (f.str("lead_name") ?: "Lead"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(vertical = 3.dp))
-            }
-            Text(listOfNotNull(whenLabel(f.str("created_at")), f.str("created_by")?.uppercase()).joinToString(" · "), color = KitMuted, fontSize = 11.sp)
-            f.str("remarks")?.let { Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 20.sp) }
-            f.str("status_remarks")?.let { Text(it, color = KitMuted, fontSize = 12.sp, lineHeight = 17.sp) }
-            whenLabel(f.str("at"))?.let {
-                Text("⏰ Next: $it", color = KitGood, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(KitGood.copy(alpha = .1f)).padding(horizontal = 10.dp, vertical = 6.dp))
-            }
-            f.str("assignee")?.let { Text("Assigned to $it", color = KitMuted, fontSize = 12.sp) }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // a pending follow-up whose time has passed is overdue
+    val next = runCatching { java.time.LocalDateTime.parse(f.optString("at").take(16).replace(' ', 'T')) }.getOrNull()
+    val overdue = next != null && st == "pending" && next.isBefore(java.time.LocalDateTime.now())
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)
+            .shadow(2.dp, shape).clip(shape).background(com.example.gavanhomes.ui.common.KitCard)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+    ) {
+        // the type's colour as a stripe down the left edge
+        Box(Modifier.width(4.dp).fillMaxHeight().background(if (overdue) KitDanger else tc))
+        Column(Modifier.weight(1f).padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp).clip(CircleShape).background(tc.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text(glyph, color = tc, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold) }
+                Column(Modifier.weight(1f).padding(horizontal = 9.dp)) {
+                    Text(if (showLead) f.str("lead_name") ?: "Lead" else (f.str("type") ?: "Follow-up").replaceFirstChar { it.uppercase() },
+                        color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(listOfNotNull(if (showLead) f.str("type")?.replaceFirstChar { it.uppercase() } else null, whenLabel(f.str("created_at")), f.str("created_by")?.let { "by $it" }).joinToString(" · "),
+                        color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 Text(
-                    st.uppercase() + if (onStatus != null) " ▾" else "", color = sc, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(sc.copy(alpha = .12f)).then(if (onStatus != null) Modifier.clickable { onStatus() } else Modifier).padding(horizontal = 14.dp, vertical = 8.dp),
+                    st.replaceFirstChar { it.uppercase() } + if (onStatus != null) " ▾" else "", color = sc, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, maxLines = 1,
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(sc.copy(alpha = .12f)).then(if (onStatus != null) Modifier.clickable { onStatus() } else Modifier).padding(horizontal = 9.dp, vertical = 5.dp),
                 )
+            }
+            f.str("remarks")?.let { Text(it, color = KitInk, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            f.str("status_remarks")?.let { Text(it, color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                whenLabel(f.str("at"))?.let {
+                    val c = if (overdue) KitDanger else KitGood
+                    Text((if (overdue) "⏰ Overdue · " else "⏰ Next · ") + it, color = c, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(c.copy(alpha = .1f)).padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+                f.str("assignee")?.let { Text("◉ $it", color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)) }
                 Spacer(Modifier.weight(1f))
-                if (onEdit != null) Text("✎", color = KitInk, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFF1EFEA)).clickable { onEdit() }.padding(horizontal = 11.dp, vertical = 6.dp))
-                if (onDelete != null) Text("🗑", fontSize = 15.sp, modifier = Modifier.clip(CircleShape).background(KitDanger.copy(alpha = .1f)).clickable { onDelete() }.padding(horizontal = 9.dp, vertical = 6.dp))
+                if (onEdit != null) Box(Modifier.size(30.dp).clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onEdit() }, contentAlignment = Alignment.Center) { Text("✎", color = KitInk, fontSize = 13.sp) }
+                if (onDelete != null) Box(Modifier.size(30.dp).clip(CircleShape).background(KitDanger.copy(alpha = .1f)).clickable { onDelete() }, contentAlignment = Alignment.Center) { Text("🗑", fontSize = 12.sp) }
             }
             trailing?.invoke()
         }
@@ -561,13 +558,13 @@ internal class Choice(val value: String, val label: String, val tint: Color? = n
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChoiceSheet(title: String, choices: List<Choice>, current: String?, b: Branding, allowNone: Boolean = false, noneLabel: String = "None", onClose: () -> Unit, onPick: (String) -> Unit) {
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             (if (allowNone) listOf(Choice("", noneLabel)) else emptyList<Choice>()).plus(choices).forEach { c ->
                 val on = current == c.value
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { onPick(c.value) }.padding(14.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { onPick(c.value) }.padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     c.tint?.let { Box(Modifier.size(10.dp).clip(CircleShape).background(it)); Spacer(Modifier.size(12.dp)) }
@@ -585,7 +582,7 @@ internal fun ChoiceSheet(title: String, choices: List<Choice>, current: String?,
 private fun FollowupDetailSheet(b: Branding, options: JSONObject?, f: JSONObject, onClose: () -> Unit, onOpenLead: () -> Unit, onStatus: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     val st = f.optString("status")
     val sc = tint(options?.objs("followup_statuses")?.firstOrNull { it.optString("slug") == st }?.str("color"), when (st) { "completed" -> KitGood; "missed" -> KitDanger; "rescheduled" -> Amber; else -> Blue })
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -596,8 +593,8 @@ private fun FollowupDetailSheet(b: Branding, options: JSONObject?, f: JSONObject
             }
             f.str("lead_phone")?.let { com.example.gavanhomes.ui.tasks.PhoneActions(it) }
             f.str("assignee")?.let { Text("👤 Assigned to $it", color = KitMuted, fontSize = 13.sp) }
-            f.str("remarks")?.let { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp)) { Text("Remarks", color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold); Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 20.sp) } }
-            f.str("status_remarks")?.let { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp)) { Text("Status notes", color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold); Text(it, color = KitInk, fontSize = 13.sp, lineHeight = 19.sp) } }
+            f.str("remarks")?.let { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp)) { Text("Remarks", color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold); Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 20.sp) } }
+            f.str("status_remarks")?.let { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp)) { Text("Status notes", color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold); Text(it, color = KitInk, fontSize = 13.sp, lineHeight = 19.sp) } }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (f.optBoolean("can_status")) com.example.gavanhomes.ui.leads.SmallAction("Change status", b.base, onStatus)
                 if (f.optBoolean("can_edit")) com.example.gavanhomes.ui.leads.SmallAction("Edit", KitInk, onEdit)
@@ -620,7 +617,7 @@ internal fun SettingsEntry(open: Boolean, title: String, accent: Color, onToggle
             Spacer(Modifier.weight(1f))
             Text(
                 "⚙  Settings", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(Color.White).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

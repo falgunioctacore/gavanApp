@@ -116,7 +116,7 @@ fun InventoryStep(
                     val on = t == current
                     Text(
                         "$t · ${form.unitsOf(t).size}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1,
-                        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White)
+                        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
                             .clickable { current = t; query = "" }.padding(horizontal = 14.dp, vertical = 9.dp),
                     )
                 }
@@ -138,11 +138,11 @@ fun InventoryStep(
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     "↓ Sample CSV", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color.White).clickable { saveSample.launch(sampleName) }.padding(vertical = 12.dp),
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { saveSample.launch(sampleName) }.padding(vertical = 12.dp),
                 )
                 Text(
                     "↑ Import CSV", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color.White).clickable { csv = null; importing = true }.padding(vertical = 12.dp),
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { csv = null; importing = true }.padding(vertical = 12.dp),
                 )
             }
         }
@@ -191,7 +191,7 @@ private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean,
     )
     Row(
         Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
-            .background(if (hasError) KitDanger.copy(alpha = .08f) else Color.White).clickable { onClick() }.padding(14.dp),
+            .background(if (hasError) KitDanger.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -214,7 +214,7 @@ private fun UnitEditor(
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val prefix = "inventory.${slugOf(type)}.$index."
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -246,7 +246,7 @@ private fun UnitEditor(
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "Duplicate", fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1EFEB)).clickable { onDuplicate() }.padding(vertical = 14.dp),
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onDuplicate() }.padding(vertical = 14.dp),
                     )
                     Text(
                         "Delete unit", fontWeight = FontWeight.Bold, color = KitDanger, textAlign = TextAlign.Center,
@@ -268,6 +268,6 @@ private fun UnitEditor(
 private fun OptionChip(label: String, on: Boolean, onClick: () -> Unit) {
     Text(
         label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color(0xFFF1EFEB)).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
     )
 }

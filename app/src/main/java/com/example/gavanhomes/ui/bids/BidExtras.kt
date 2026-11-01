@@ -122,7 +122,7 @@ internal fun TaskBidList(api: ApiClient, b: Branding, uuid: String, version: Int
     rows.forEach { r ->
         val st = r.optString("status")
         val bid = r.optJSONObject("bid")
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(r.optString("task"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -132,7 +132,7 @@ internal fun TaskBidList(api: ApiClient, b: Branding, uuid: String, version: Int
                 Chip(taskBidLabel(st), taskBidTint(st))
             }
             if (bid != null) {
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onOpen(bid.optInt("id")) }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onOpen(bid.optInt("id")) }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(bid.optString("title"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text("◷ " + listOfNotNull(bidDay(bid.str("start_date")), bidDay(bid.str("end_date"))).joinToString(" → "), color = KitMuted, fontSize = 12.sp)
                     val sup = bid.optJSONArray("suppliers")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
@@ -146,11 +146,8 @@ internal fun TaskBidList(api: ApiClient, b: Branding, uuid: String, version: Int
         }
     }
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No tasks are waiting on a bid.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 30.dp))
     }
 }
@@ -201,7 +198,7 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
     rows.forEach { t ->
         val id = t.optInt("id"); val active = t.optBoolean("active"); val open = openId == id
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White)
+            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .clickable { openId = if (open) 0 else id }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -214,18 +211,15 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(bidDay(t.str("created_at")) ?: "", color = KitMuted, fontSize = 11.sp, modifier = Modifier.weight(1f))
                 if (canManage) {
-                    Text("✎", color = KitInk, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFF1EFEA)).clickable { editing = t }.padding(horizontal = 11.dp, vertical = 6.dp))
+                    Text("✎", color = KitInk, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable { editing = t }.padding(horizontal = 11.dp, vertical = 6.dp))
                     Text("🗑", fontSize = 15.sp, modifier = Modifier.clip(CircleShape).background(KitDanger.copy(alpha = .1f)).clickable { deleting = t }.padding(horizontal = 9.dp, vertical = 6.dp))
                 }
             }
         }
     }
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No bid terms yet.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 30.dp))
     }
 
@@ -247,7 +241,7 @@ private fun TermSheet(t: JSONObject, onClose: () -> Unit, onSave: (String, Strin
     var title by remember { mutableStateOf(t.optString("title")) }
     var content by remember { mutableStateOf(t.optString("content")) }
     var active by remember { mutableStateOf(if (t.has("active")) t.optBoolean("active") else true) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (t.has("id")) "Edit terms" else "New terms", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Input("Title", title, { title = it })

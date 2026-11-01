@@ -115,10 +115,10 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
             }
 
             if (onAppSettings != null) Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).clickable { onAppSettings() }.padding(16.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onAppSettings() }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                com.example.gavanhomes.ui.common.BrandMark(b, 44.dp, Modifier.border(1.dp, Color(0xFFE4E1DB), RoundedCornerShape(13.dp)))
+                com.example.gavanhomes.ui.common.BrandMark(b, 44.dp, Modifier.border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(13.dp)))
                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
                     Text("App settings", fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp)
                     Text("Logo, name and theme colour", color = KitMuted, fontSize = 12.sp)
@@ -139,7 +139,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = KitInk)

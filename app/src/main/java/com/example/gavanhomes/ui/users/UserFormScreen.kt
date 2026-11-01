@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.users
 
 import android.app.TimePickerDialog
+import com.example.gavanhomes.ui.common.accentText
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -213,11 +214,8 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
         HeroBar(b, if (editing) "Edit user" else "New user", back, compact = true)
 
         when {
-            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
             else -> {
                 val tabs = listOf("Details", "Work & pay") + if (fullAccess) emptyList() else listOf("Permissions · ${form.perms.size}")
                 SegTabs(tabs, tab.coerceAtMost(tabs.size - 1)) { tab = it }
@@ -258,7 +256,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                                     PickerField("Department", departments.firstOrNull { it.id.toString() == form.get("department_id") }?.label, err["department_id"]) { picker = "department" }
                                     PickerField("Assigned sites", if (form.sites.isEmpty()) null else "${form.sites.size} selected", err["site_ids"]) { picker = "sites" }
                                     if (form.sites.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        projects.filter { it.id in form.sites }.forEach { Pill(it.label, b.base.copy(alpha = .16f), b.dark) }
+                                        projects.filter { it.id in form.sites }.forEach { Pill(it.label, b.base.copy(alpha = .16f), b.accentText) }
                                     }
                                 }
                                 FormCard("Attendance & pay") {
@@ -280,7 +278,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                                             val on = i in form.weekend
                                             Text(
                                                 label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (on) Color.White else KitInk.copy(alpha = if (form.customWeekend) 1f else .4f),
-                                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Color(0xFF0F172A).copy(alpha = if (form.customWeekend) 1f else .45f) else Color(0xFFF1EFEB))
+                                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Color(0xFF0F172A).copy(alpha = if (form.customWeekend) 1f else .45f) else com.example.gavanhomes.ui.common.KitSoft)
                                                     .clickable(enabled = form.customWeekend) { form.weekend = if (on) form.weekend - i else form.weekend + i }.padding(horizontal = 14.dp, vertical = 10.dp),
                                             )
                                         }
@@ -299,7 +297,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                                     val names = g.actions.map { it.second }
                                     val all = names.all { it in form.perms }
                                     Column(
-                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(14.dp),
+                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp),
                                         verticalArrangement = Arrangement.spacedBy(10.dp),
                                     ) {
                                         Row(
@@ -314,7 +312,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                                                 val on = full in form.perms
                                                 Text(
                                                     action.replaceFirstChar { it.uppercase() }, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (on) Color.White else KitInk,
-                                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Color(0xFF0F172A) else Color(0xFFF1EFEB))
+                                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitSoft)
                                                         .clickable { form.perms = if (on) form.perms - full else form.perms + full }.padding(horizontal = 12.dp, vertical = 8.dp),
                                                 )
                                             }
@@ -327,7 +325,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
                     }
                 }
 
-                Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Box(
                         Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(b.base, b.deep))).clickable(enabled = !saving) { save() },
                         contentAlignment = Alignment.Center,

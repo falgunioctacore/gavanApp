@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun BrandMark(b: Branding, size: Dp = 46.dp, modifier: Modifier = Modifier) {
     val logo = b.logo ?: return
-    Box(modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(Color.White), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(KitCard), contentAlignment = Alignment.Center) {
         Image(logo, contentDescription = b.name, modifier = Modifier.size(size * 0.76f), contentScale = ContentScale.Fit)
     }
 }

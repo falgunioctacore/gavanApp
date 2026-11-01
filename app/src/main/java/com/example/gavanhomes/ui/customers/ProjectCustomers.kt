@@ -129,11 +129,8 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -151,10 +148,10 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
         Page("issues", "Issues").takeIf { can.optBoolean("issues") }, Page("loans", "Loans").takeIf { can.optBoolean("loans") },
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("Customers", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Bookings & customers", pages.map { it.label }, index) { view = pages[it].key }
 
     when (pages[index].key) {
-        "dashboard" -> Dashboard(o, onOpen) { view = it }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "customers", version); Dashboard(o, onOpen) { view = it } }
         "bookings" -> BookingList(api, b, uuid, version) { onOpen("booking", it) }
         "payments" -> PaymentList(api, b, uuid, version) { onOpen("booking", it) }
         "customers" -> CustomerList(api, b, uuid, version) { onOpen("customer", it) }

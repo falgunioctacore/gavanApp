@@ -80,11 +80,8 @@ private fun JSONObject.list(key: String): List<JSONObject> = optJSONArray(key)?.
 fun ProjectDashboard(data: JSONObject?, error: String?, b: Branding, onRetry: () -> Unit) {
     if (data == null) {
         Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error, color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = onRetry) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = onRetry)
         }
         return
     }
@@ -167,7 +164,7 @@ fun ProjectDashboard(data: JSONObject?, error: String?, b: Branding, onRetry: ()
     fun rupees(key: String) = "₹" + Rupees.format(m.optDouble(key))
     val pin = m.optDouble("payment_in"); val pout = m.optDouble("payment_out"); val net = pin - pout
     DashCard("Money", "Approved payments, expenses and what customers still owe") {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFF7F5F1)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("NET CASH", color = KitMuted, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp)
             Text((if (net < 0) "−" else "") + "₹" + Rupees.format(kotlin.math.abs(net)), color = if (net < 0) KitDanger else KitGood, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
             val top = maxOf(pin, pout, 1.0)
@@ -204,7 +201,7 @@ private class Kpi(val label: String, val value: String, val sub: String, val tin
 
 @Composable
 private fun KpiTile(k: Kpi, modifier: Modifier) {
-    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)) {
+    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
         Box(Modifier.fillMaxWidth().height(4.dp).background(k.tint))
         Column(Modifier.padding(14.dp)) {
             Text(k.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.5.sp, maxLines = 1)
@@ -280,7 +277,7 @@ private fun MoneyRow(label: String, value: String, tint: Color) {
 private fun DashCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp)).background(Color.White).padding(18.dp),
+            .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
@@ -404,7 +401,7 @@ private fun MoreSections(data: JSONObject, more: JSONObject, k: JSONObject, tab:
             val total = r.optInt("total").coerceAtLeast(1)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row { Text(r.optString("type"), color = KitInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f)); Text("${r.optInt("total")} units", color = KitMuted, fontSize = 12.sp) }
-                Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFEDEBE7)), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(com.example.gavanhomes.ui.common.KitSoft), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                     listOf(r.optInt("available") to KitGood, r.optInt("booked") to Amber, r.optInt("sold") to KitDanger).filter { it.first > 0 }.forEach { (n, c) -> Box(Modifier.weight(n.toFloat()).fillMaxHeight().background(c)) }
                 }
                 Chips(listOf("${r.optInt("available")} available" to KitGood, "${r.optInt("booked")} booked" to Amber, "${r.optInt("sold")} sold" to KitDanger))

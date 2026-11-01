@@ -108,7 +108,7 @@ private fun act(context: android.content.Context, scope: kotlinx.coroutines.Coro
 
 @Composable
 private fun LineRow(title: String, sub: String?, right: String, rightTint: Color = KitInk, extra: (@Composable () -> Unit)? = null) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -263,7 +263,7 @@ internal fun ActionButton(label: String, c: Color, onClick: () -> Unit) {
 private fun ReasonSheet(title: String, label: String, button: String, c: Color, onClose: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input(label, text, { text = it; error = null }, error, singleLine = false)
@@ -293,10 +293,10 @@ internal fun DeliverySheet(api: ApiClient, b: Branding, id: Int, onClose: () -> 
         if (type == "rejected") body.put("rejection_reason", reason.trim())
         act(context, scope, "Delivery processed", { api.send("POST", "/procurement-center/deliveries/$id/accept", body) }) { mode = null; attempt++; onChanged() }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val x = d
-            if (x == null) { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }; return@Column }
+            if (x == null) { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }; return@Column }
             val can = x.optJSONObject("can") ?: JSONObject()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -366,7 +366,7 @@ fun SupplierDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onB
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             x.str("phone")?.let { com.example.gavanhomes.ui.tasks.PhoneActions(it) }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White).then(if (can.optBoolean("edit_supplier")) Modifier.clickable { statusSheet = true } else Modifier).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).then(if (can.optBoolean("edit_supplier")) Modifier.clickable { statusSheet = true } else Modifier).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Approval", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 Chip(sl + if (can.optBoolean("edit_supplier")) " ▾" else "", sc)
             }
@@ -473,7 +473,7 @@ fun IndentFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Un
             Card("Materials", "What is needed, and how much") {
                 errors["materials"]?.let { Text(it, color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                 lines.forEachIndexed { i, l ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(l.m.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
                             RemoveX { lines.removeAt(i) }
@@ -568,7 +568,7 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
             Card("Items", "Quantity, rate (before tax) and GST % for each") {
                 errors["items"]?.let { Text(it, color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                 lines.forEachIndexed { i, l ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(l.m.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
                             Text(rupees(l.base() + l.tax()), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
@@ -658,12 +658,12 @@ fun ReceiveFormScreen(api: ApiClient, b: Branding, uuid: String, poId: Int, onBa
                 if (poId <= 0 && pos.isEmpty()) Text("No purchase order has anything left to receive.", color = KitMuted, fontSize = 12.sp)
             }
             if (po > 0) Card("What arrived", "Prefilled with everything still to come") {
-                if (detail == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+                if (detail == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
                 else if (open.isEmpty()) Text("Everything on this PO has been received.", color = KitMuted, fontSize = 13.sp)
                 open.forEach { l ->
                     val mid = l.optInt("material_id")
                     val over = (got[mid]?.toDoubleOrNull() ?: 0.0) > l.optDouble("left", 0.0) + 0.0001
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(l.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text("Ordered ${qty(l.optDouble("qty", 0.0))} · received ${qty(l.optDouble("received", 0.0))} · ${qty(l.optDouble("left", 0.0))} to come", color = KitMuted, fontSize = 12.sp)
                         Input("Received now (${l.optString("unit")})", got[mid].orEmpty(), { got[mid] = it.filter { c -> c.isDigit() || c == '.' } }, if (over) "More than is still to come" else null, keyboard = KeyboardType.Decimal)

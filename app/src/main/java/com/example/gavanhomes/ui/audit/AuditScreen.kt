@@ -108,12 +108,22 @@ private class Filters {
     var type by mutableStateOf<String?>(null)
     var from by mutableStateOf<LocalDate?>(null)
     var to by mutableStateOf<LocalDate?>(null)
-    var url by mutableStateOf("")
+    var url by mutableStateOf("")          // the search box: email / IP / record / page address
+    var date by mutableStateOf<String?>(null)
+    var sort by mutableStateOf(0)          // 0 newest first · 1 oldest first
     val active get() = listOf(event, guard, user, type, from, to).any { it != null } || url.isNotBlank()
-    fun clear() { event = null; guard = null; user = null; type = null; from = null; to = null; url = "" }
+    fun clear() { event = null; guard = null; user = null; type = null; from = null; to = null; date = null; url = "" }
+    /** The Date choice → from / to, the same choices as every other list. */
+    fun pickDate(key: String?) {
+        val now = LocalDate.now()
+        date = key
+        from = when (key) { null -> null; "today" -> now; "week" -> now.minusDays(6); "quarter" -> now.minusMonths(3); "year" -> now.withDayOfYear(1); else -> now.withDayOfMonth(1) }
+        to = if (key == null) null else now
+    }
     fun query(): String = buildString {
         fun add(k: String, v: Any?) { if (v != null && v.toString().isNotBlank()) append("&").append(k).append("=").append(URLEncoder.encode(v.toString(), "UTF-8")) }
-        add("event", event); add("guard", guard); add("user", user); add("type", type); add("from", from); add("to", to); add("url_search", url.trim())
+        add("event", event); add("guard", guard); add("user", user); add("type", type); add("from", from); add("to", to); add("search", url.trim())
+        if (sort == 1) add("sort", "oldest")
     }
 }
 
@@ -158,14 +168,14 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
         } catch (e: Exception) { error = e.message ?: "Could not load" }
         loading = false
     }
-    LaunchedEffect(section, query, reload) { load(1) }
+    LaunchedEffect(section, query, reload) { if (filters.url.isNotBlank()) kotlinx.coroutines.delay(350); load(1) }   // a short pause while typing a search
 
     fun choices(key: String): List<JSONObject> = options?.objects(key).orEmpty()
 
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+            ModalDrawerSheet(drawerContainerColor = com.example.gavanhomes.ui.common.KitCard, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
@@ -188,14 +198,14 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                                 .clickable { onSection(i); scope.launch { drawer.close() } }.padding(horizontal = 14.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(38.dp).clip(CircleShape).background(if (on) b.base else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(38.dp).clip(CircleShape).background(if (on) b.base else com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
                                 Text(t.glyph, color = if (on) Color.White else KitInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f).padding(start = 14.dp)) {
                                 Text(t.label, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = KitInk, fontSize = 15.sp)
                                 Text(t.blurb, color = KitMuted, fontSize = 12.sp)
                             }
-                            count?.let { Text(it.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else Color(0xFFF3F2F0)).padding(horizontal = 9.dp, vertical = 3.dp)) }
+                            count?.let { Text(it.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 9.dp, vertical = 3.dp)) }
                         }
                     }
                 }
@@ -221,38 +231,39 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                     }
                 }
 
-                // ── filters ──
+                // ── filters: the shared filter bar (search · Sort · Filter page), like every other list ──
                 item {
-                    Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (tab.slug == "visits") SearchBox(filters.url, { filters.url = it }, "Search the page address…")
-                        val events = choices("events")
-                        if (events.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ProFilterChip("All", null, null, filters.event == null) { filters.event = null }
-                            events.forEach { e -> ProFilterChip(e.optString("label"), null, eventColor(e.optString("value")), filters.event == e.optString("value")) { filters.event = if (filters.event == e.optString("value")) null else e.optString("value") } }
-                        }
-                        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            FilterButton("Portal: " + (choices("guards").firstOrNull { it.optString("value") == filters.guard }?.optString("label") ?: "All"), filters.guard != null) { picker = "guard" }
-                            FilterButton("Person: " + (choices("people").firstOrNull { it.optString("value") == filters.user }?.optString("label") ?: "All"), filters.user != null) { picker = "user" }
-                            if (tab.slug == "changes") FilterButton("Record: " + (choices("types").firstOrNull { it.optString("value") == filters.type }?.optString("label") ?: "All"), filters.type != null) { picker = "type" }
-                            FilterButton("From " + (filters.from?.format(Shown) ?: "any"), filters.from != null) {
-                                val d = filters.from ?: LocalDate.now()
-                                DatePickerDialog(context, { _, y, m, day -> filters.from = LocalDate.of(y, m + 1, day) }, d.year, d.monthValue - 1, d.dayOfMonth).show()
-                            }
-                            FilterButton("To " + (filters.to?.format(Shown) ?: "any"), filters.to != null) {
-                                val d = filters.to ?: LocalDate.now()
-                                DatePickerDialog(context, { _, y, m, day -> filters.to = LocalDate.of(y, m + 1, day) }, d.year, d.monthValue - 1, d.dayOfMonth).show()
-                            }
-                            if (filters.active) Text("✕ Clear", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { filters.clear() }.padding(horizontal = 12.dp, vertical = 9.dp))
-                        }
-                        Text(if (loading && rows.isEmpty()) "Loading…" else "$total ${if (total == 1) "record" else "records"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp))
+                    val sel = buildMap {
+                        filters.event?.let { put("event", setOf(it)) }; filters.guard?.let { put("guard", setOf(it)) }
+                        filters.user?.let { put("user", setOf(it)) }; filters.type?.let { put("type", setOf(it)) }; filters.date?.let { put("date", setOf(it)) }
+                    }
+                    val opt = { k: String -> choices(k).map { com.example.gavanhomes.ui.common.FilterOption(it.optString("value"), it.optString("label")) } }
+                    val groups = listOfNotNull(
+                        choices("events").takeIf { it.isNotEmpty() }?.let { ev -> com.example.gavanhomes.ui.common.FilterGroup("event", "Event", ev.map { com.example.gavanhomes.ui.common.FilterOption(it.optString("value"), it.optString("label"), color = eventColor(it.optString("value"))) }) },
+                        opt("guards").takeIf { it.isNotEmpty() }?.let { com.example.gavanhomes.ui.common.FilterGroup("guard", "Portal", it) },
+                        opt("people").takeIf { it.isNotEmpty() }?.let { com.example.gavanhomes.ui.common.FilterGroup("user", "Person", it) },
+                        if (tab.slug == "changes") opt("types").takeIf { it.isNotEmpty() }?.let { com.example.gavanhomes.ui.common.FilterGroup("type", "Record type", it) } else null,
+                        com.example.gavanhomes.ui.inventory.dateGroup(),
+                    )
+                    Column(Modifier.padding(top = 10.dp)) {
+                        com.example.gavanhomes.ui.common.FilterBar(
+                            filters.url, { filters.url = it },
+                            when (tab.slug) { "visits" -> "Search the page address…"; "changes" -> "Search record, type or IP…"; else -> "Search email or IP…" },
+                            groups = groups, selected = sel,
+                            onApply = { m ->
+                                filters.event = m["event"]?.firstOrNull(); filters.guard = m["guard"]?.firstOrNull()
+                                filters.user = m["user"]?.firstOrNull(); filters.type = m["type"]?.firstOrNull(); filters.pickDate(m["date"]?.firstOrNull())
+                            },
+                            countWith = { m -> if (m == sel) total else -1 },
+                            sortOptions = listOf("Newest first", "Oldest first"), sortIndex = filters.sort, onSort = { filters.sort = it },
+                        )
+                        Text(if (loading && rows.isEmpty()) "Loading…" else "$total ${if (total == 1) "record" else "records"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
                     }
                 }
 
                 if (error != null && rows.isEmpty()) item {
-                    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { reload++ }) { Text("Retry") }
-                    }
-                } else if (loading && rows.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) } }
+                    com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(32.dp), onRetry = { reload++ })
+                } else if (loading && rows.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) } }
                 else if (rows.isEmpty()) item {
                     Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Nothing recorded", fontWeight = FontWeight.Bold, color = KitInk)
@@ -271,7 +282,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                 if (rows.isNotEmpty() && page < lastPage) item {
                     Text(
                         if (loading) "Loading…" else "Load more  (${rows.size} of $total)", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),
+                        modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),
                     )
                 }
             }
@@ -298,7 +309,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
 private fun FilterButton(text: String, on: Boolean, onClick: () -> Unit) {
     Text(
         text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
     )
 }
 
@@ -306,7 +317,7 @@ private fun FilterButton(text: String, on: Boolean, onClick: () -> Unit) {
 private fun Card(modifier: Modifier = Modifier, flagged: Boolean = false, content: @Composable () -> Unit) {
     Column(
         Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-            .background(if (flagged) Color(0xFFFFF4F2) else Color.White).then(modifier).padding(14.dp),
+            .background(if (flagged) Color(0xFFFFF4F2) else com.example.gavanhomes.ui.common.KitCard).then(modifier).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) { content() }
 }
@@ -324,8 +335,8 @@ private fun LoginCard(r: JSONObject) {
             Pill(e.headline(), eventColor(e).copy(alpha = .14f), eventColor(e))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            r.str("portal")?.let { Pill(it, Color(0xFFEDEBE7), KitInk) }
-            r.str("ip")?.let { Pill(it, Color(0xFFEDEBE7), KitMuted) }
+            r.str("portal")?.let { Pill(it, com.example.gavanhomes.ui.common.KitSoft, KitInk) }
+            r.str("ip")?.let { Pill(it, com.example.gavanhomes.ui.common.KitSoft, KitMuted) }
             if (r.optBoolean("suspicious")) Pill("Suspicious", KitDanger.copy(alpha = .14f), KitDanger)
         }
         r.str("device")?.let { Text(it, color = KitMuted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
@@ -347,7 +358,7 @@ private fun ChangeCard(r: JSONObject, open: Boolean, onToggle: () -> Unit) {
         }
         if (changes.isNotEmpty()) Text(changes.joinToString(", ") { it.optString("field") }, color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = if (open) 10 else 1, overflow = TextOverflow.Ellipsis)
         if (open) changes.forEach { c ->
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(c.optString("field"), fontWeight = FontWeight.Bold, color = KitInk, fontSize = 12.sp)
                 Text("Before: ${c.str("old") ?: "—"}", color = KitDanger, fontSize = 12.sp)
                 Text("After: ${c.str("new") ?: "—"}", color = KitGood, fontSize = 12.sp)

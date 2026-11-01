@@ -52,10 +52,10 @@ class FilterOption(val value: String, val label: String, val count: Int? = null,
 /** A category of filters (e.g. Status, Role); any number of its options can be chosen. */
 class FilterGroup(val key: String, val title: String, val options: List<FilterOption>)
 
-private val Ink = Color(0xFF0F172A)
+private val Ink: Color get() = KitInk
 private val Blue = Color(0xFF2874F0)       // the "apply" blue
-private val Rail = Color(0xFFF1F3F6)       // the grey category rail
-private val Line = Color(0xFFE0E0E0)
+private val Rail: Color get() = if (AppTheme.dark) Color(0xFF2A2926) else Color(0xFFF1F3F6)       // the grey category rail
+private val Line: Color get() = KitLine
 
 /**
  * The app's filter experience, modelled on Flipkart's:
@@ -87,16 +87,16 @@ fun FilterBar(
             trailingIcon = if (query.isNotEmpty()) ({ Text("✕", color = KitMuted, fontSize = 15.sp, modifier = Modifier.clip(CircleShape).clickable { onQuery("") }.padding(10.dp)) }) else null,
             shape = RoundedCornerShape(16.dp),
             colors = androidx.compose.material3.TextFieldDefaults.colors(
-                focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
+                focusedContainerColor = KitCard, unfocusedContainerColor = KitCard,
                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
                 focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk,
             ),
             modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)),
         )
 
-        // the split Sort | Filter bar
-        Row(
-            Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(50.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(Color.White),
+        // the split Sort | Filter bar (only what the screen has: a search-only list shows just the search box)
+        if (groups.isNotEmpty() || sortOptions.isNotEmpty()) Row(
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(50.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(KitCard),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (sortOptions.isNotEmpty()) {
@@ -107,7 +107,7 @@ fun FilterBar(
                 }
                 Box(Modifier.width(1.dp).height(26.dp).background(Line))
             }
-            Row(Modifier.weight(1f).fillMaxHeight().clickable { filterOpen = true }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            if (groups.isNotEmpty()) Row(Modifier.weight(1f).fillMaxHeight().clickable { filterOpen = true }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 Text("⚲", color = KitInk, fontSize = 17.sp)
                 Text("  Filter", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 if (badge > 0) Box(Modifier.padding(start = 8.dp).size(20.dp).clip(CircleShape).background(Blue), contentAlignment = Alignment.Center) {
@@ -119,7 +119,7 @@ fun FilterBar(
         if (applied.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             applied.forEach { (g, o) ->
                 Row(
-                    Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White).border(1.dp, Line, RoundedCornerShape(20.dp))
+                    Modifier.clip(RoundedCornerShape(20.dp)).background(KitCard).border(1.dp, Line, RoundedCornerShape(20.dp))
                         .clickable { onApply(selected + (g.key to (selected[g.key].orEmpty() - o.value))) }.padding(start = 12.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -132,7 +132,7 @@ fun FilterBar(
     }
 
     // ── Sort ──
-    if (sortOpen) ModalBottomSheet(onDismissRequest = { sortOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = Color.White) {
+    if (sortOpen) ModalBottomSheet(onDismissRequest = { sortOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = KitCard) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 12.dp)) {
             Text("SORT BY", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.8.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
             sortOptions.forEachIndexed { i, label ->
@@ -161,7 +161,7 @@ private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<Stri
     val total = draft.values.sumOf { it.size }
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Column(Modifier.fillMaxSize().background(Color.White).statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().background(KitCard).statusBarsPadding()) {
             // top bar
             Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) { Text("←", fontSize = 22.sp, color = KitInk) }
@@ -235,7 +235,7 @@ private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<Stri
 @Composable
 fun ViewToggle(compact: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.height(36.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).border(1.dp, Line, RoundedCornerShape(12.dp)).padding(3.dp),
+        Modifier.height(36.dp).clip(RoundedCornerShape(12.dp)).background(KitCard).border(1.dp, Line, RoundedCornerShape(12.dp)).padding(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         @Composable

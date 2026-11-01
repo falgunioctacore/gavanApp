@@ -163,11 +163,8 @@ fun HrFormScreen(api: ApiClient, b: Branding, slug: String, id: Int?, onBack: ()
         HeroBar(b, if (s == null) "Form" else (if (editing) "Edit " else "New ") + s.singular.lowercase(), back, compact = true)
 
         when {
-            loading || s == null && loadError == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            loadError != null || s == null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading || s == null && loadError == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            loadError != null || s == null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
             else -> {
                 if (banner.isNotEmpty()) Column(
                     Modifier.padding(horizontal = 16.dp).padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(KitDanger.copy(alpha = .1f)).padding(12.dp),
@@ -200,7 +197,7 @@ fun HrFormScreen(api: ApiClient, b: Branding, slug: String, id: Int?, onBack: ()
                     }
                 }
 
-                Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Box(
                         Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(b.base, b.deep))).clickable(enabled = !saving) { save() },
                         contentAlignment = Alignment.Center,

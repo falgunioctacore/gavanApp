@@ -144,11 +144,8 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         HeroBar(b, "App settings", back, compact = true)
         when {
-            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
             else -> {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                     Column(Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -156,7 +153,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                         FormCard("App logo", "Shown on the sign-in screen and in the menus. PNG, JPG or WebP, up to 2 MB.") {
                             val picked = logo?.let { runCatching { BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size)?.asImageBitmap() }.getOrNull() }
                             Box(
-                                Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFFF7F5F1)).border(1.dp, Color(0xFFE4E1DB), RoundedCornerShape(18.dp)),
+                                Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitSoft).border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(18.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 val shown = picked ?: b.logo
@@ -185,7 +182,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                         FormCard("Theme colour", "The colour of the headers, buttons and highlights across the app.") {
                             val v = text["theme_color"].orEmpty()
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(hexOrNull(v) ?: Color(0xFFEDEBE7)).border(1.dp, Color(0xFFD9D6D0), RoundedCornerShape(14.dp)))
+                                Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(hexOrNull(v) ?: com.example.gavanhomes.ui.common.KitSoft).border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(14.dp)))
                                 Box(Modifier.weight(1f)) { Input("Colour", v, { text["theme_color"] = it.take(7) }, errors["theme_color"]) }
                             }
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -193,7 +190,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                                     val on = v.equals(hex, true)
                                     Box(
                                         Modifier.size(34.dp).clip(CircleShape).background(hexOrNull(hex)!!)
-                                            .border(if (on) 3.dp else 1.dp, if (on) KitInk else Color(0xFFD9D6D0), CircleShape).clickable { text["theme_color"] = hex },
+                                            .border(if (on) 3.dp else 1.dp, if (on) KitInk else com.example.gavanhomes.ui.common.KitLine, CircleShape).clickable { text["theme_color"] = hex },
                                     )
                                 }
                             }
@@ -201,7 +198,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-                Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Box(
                         Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(b.base, b.deep))).clickable(enabled = !saving) { save() },
                         contentAlignment = Alignment.Center,

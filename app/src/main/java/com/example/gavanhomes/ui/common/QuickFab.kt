@@ -61,7 +61,7 @@ fun BoxScope.QuickFab(b: Branding, actions: List<FabAction>, onPick: (String) ->
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 actions.forEach { a ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(indication = null, interactionSource = quiet) { open = false; onPick(a.key) }) {
-                        Text(a.label, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.shadow(4.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(horizontal = 14.dp, vertical = 9.dp))
+                        Text(a.label, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.shadow(4.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(KitCard).padding(horizontal = 14.dp, vertical = 9.dp))
                         Spacer(Modifier.size(10.dp))
                         Box(Modifier.size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(a.color), contentAlignment = Alignment.Center) {
                             Text(a.glyph, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)

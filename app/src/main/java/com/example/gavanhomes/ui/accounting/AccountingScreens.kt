@@ -113,7 +113,7 @@ private fun Detail(api: ApiClient, b: Branding, title: String, path: String, ver
 private fun TextSheet(title: String, label: String, button: String, c: Color, required: Boolean, onClose: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input(label, text, { text = it; error = null }, error, singleLine = false)
@@ -265,7 +265,7 @@ private fun PaySheet(due: Double, onClose: () -> Unit, onDone: (JSONObject) -> U
     var ref by remember { mutableStateOf("") }
     var remarks by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Record payment", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Text("${rupees(due)} still due", color = KitMuted, fontSize = 13.sp)
@@ -458,7 +458,7 @@ fun ExpenseFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBac
             Card("Items") {
                 errors["items"]?.let { Text(it, color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                 lines.forEachIndexed { i, l ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f)) { Input("Item", l.desc, { l.desc = it }) }
                             Text(rupees(l.total(gst)), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp))
@@ -493,12 +493,12 @@ fun ExpenseFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBac
 @Composable
 private fun CategorySheet(cats: List<JSONObject>, current: String?, b: Branding, onClose: () -> Unit, onPick: (String) -> Unit, onAdd: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Category", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             cats.forEach { c ->
                 val on = current == c.optInt("id").toString()
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { onPick(c.optInt("id").toString()) }.padding(14.dp)) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { onPick(c.optInt("id").toString()) }.padding(14.dp)) {
                     Text(c.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f)); if (on) Text("✓", color = b.base, fontWeight = FontWeight.ExtraBold)
                 }
             }

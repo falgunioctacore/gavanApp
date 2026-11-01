@@ -39,9 +39,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-internal val KitInk = Color(0xFF1F2A44)
-internal val KitMuted = Color(0xFF8A8F9C)
-internal val KitPage = Color(0xFFF3F2F0)
+internal val KitInk: Color get() = if (AppTheme.dark) Color(0xFFEDEBE6) else Color(0xFF1F2A44)
+internal val KitMuted: Color get() = if (AppTheme.dark) Color(0xFFA19E97) else Color(0xFF8A8F9C)
+internal val KitPage: Color get() = if (AppTheme.dark) Color(0xFF121211) else Color(0xFFF3F2F0)
 internal val KitDanger = Color(0xFFD03B3B)
 internal val KitGood = Color(0xFF0E8A50)
 
@@ -139,7 +139,7 @@ internal fun SegTabs(tabs: List<String>, selected: Int, onSelect: (Int) -> Unit)
     Column(Modifier.padding(top = 6.dp, bottom = 12.dp).fillMaxWidth()) {
         if (tabs.size <= 3) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { tabs.forEachIndexed { i, t -> Tab(i, t, Modifier.weight(1f)) } }
         else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp)) { tabs.forEachIndexed { i, t -> Tab(i, t, Modifier) } }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE4E1DB)))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(KitLine))
     }
 }
 
@@ -152,7 +152,7 @@ internal fun Initials(name: String, size: Dp = 46.dp, dot: Color? = null) {
             Modifier.size(size).clip(CircleShape).background(AvatarColors[Math.floorMod(name.hashCode(), AvatarColors.size)]),
             contentAlignment = Alignment.Center,
         ) { Text(text.ifEmpty { "?" }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size.value * .34f).sp) }
-        if (dot != null) Box(Modifier.size(12.dp).align(Alignment.BottomEnd).clip(CircleShape).background(Color.White).padding(2.dp).clip(CircleShape).background(dot))
+        if (dot != null) Box(Modifier.size(12.dp).align(Alignment.BottomEnd).clip(CircleShape).background(KitCard).padding(2.dp).clip(CircleShape).background(dot))
     }
 }
 
@@ -170,7 +170,7 @@ internal fun SearchBox(value: String, onChange: (String) -> Unit, placeholder: S
         value = value, onValueChange = onChange, singleLine = true, placeholder = { Text(placeholder, color = KitMuted) },
         shape = RoundedCornerShape(16.dp),
         colors = androidx.compose.material3.TextFieldDefaults.colors(
-            focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
+            focusedContainerColor = KitCard, unfocusedContainerColor = KitCard,
             focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk,
         ),
@@ -209,9 +209,9 @@ internal fun DeleteButton(onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(width = 7.dp, height = 2.dp).clip(RoundedCornerShape(1.dp)).background(Color.White))        // lid handle
-            Box(Modifier.size(width = 16.dp, height = 2.5.dp).clip(RoundedCornerShape(1.dp)).background(Color.White))      // lid
-            Box(Modifier.padding(top = 1.5.dp).size(width = 12.dp, height = 13.dp).clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 3.dp)).background(Color.White)) {
+            Box(Modifier.size(width = 7.dp, height = 2.dp).clip(RoundedCornerShape(1.dp)).background(KitCard))        // lid handle
+            Box(Modifier.size(width = 16.dp, height = 2.5.dp).clip(RoundedCornerShape(1.dp)).background(KitCard))      // lid
+            Box(Modifier.padding(top = 1.5.dp).size(width = 12.dp, height = 13.dp).clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 3.dp)).background(KitCard)) {
                 Row(Modifier.fillMaxWidth().height(13.dp).padding(horizontal = 2.5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                     repeat(2) { Box(Modifier.padding(vertical = 2.5.dp).size(width = 1.5.dp, height = 8.dp).background(Color(0xFFE5393F))) }
                 }

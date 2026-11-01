@@ -154,11 +154,8 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
         if (d == null) {
             HeroBar(b, "Target", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
             }
             return@Column
         }
@@ -272,7 +269,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                     "files" -> Card("Files", if (files.isEmpty()) "Documents for this target" else "${files.size} attached") {
                         if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
                         files.forEach { f ->
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Blue.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
                                     Text((f.str("name")?.substringAfterLast('.', "") ?: "").take(4).uppercase().ifEmpty { "FILE" }, color = Blue, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
                                 }
@@ -280,7 +277,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                                     Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
                                 }
-                                Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable {
+                                Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable {
                                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(f.optString("url")))) }.onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
                                 }.padding(horizontal = 14.dp, vertical = 8.dp))
                                 if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))
@@ -305,7 +302,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                                 Row(Modifier.height(IntrinsicSize.Min)) {
                                     Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                                         Box(Modifier.padding(top = 5.dp).size(12.dp).clip(CircleShape).background(tint))
-                                        if (i < history.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(Color(0xFFE6E3DD)))
+                                        if (i < history.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
                                     }
                                     Column(Modifier.padding(start = 10.dp, bottom = if (i < history.lastIndex) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                         Text(h.optString("label"), color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp,
@@ -313,7 +310,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                                         Text("${h.optString("user")} · ${h.optString("at").ifBlank { h.optString("ago") }}", color = KitMuted, fontSize = 12.sp)
                                         h.objs("changes").forEach { c ->
                                             val old = c.str("old"); val new = c.str("new")
-                                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFF7F5F1)).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
                                                 Text(c.optString("field"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                 if (old != null && new != null) {
                                                     Text(old, color = KitMuted, fontSize = 12.sp, textDecoration = TextDecoration.LineThrough, lineHeight = 16.sp)
@@ -332,14 +329,14 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
             ScrollTopButton(pageScroll)
         }
 
-        if (departmentSheet) ModalBottomSheet(onDismissRequest = { departmentSheet = false }, containerColor = Color.White) {
+        if (departmentSheet) ModalBottomSheet(onDismissRequest = { departmentSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Department", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 (options?.objs("departments").orEmpty()).forEach { dep ->
                     val on = dep.optInt("id") == d.optInt("department_id")
                     Text(
                         dep.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1))
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft)
                             .clickable { departmentSheet = false; quick("department_id" to dep.optInt("id")) }.padding(14.dp),
                     )
                 }
@@ -454,11 +451,8 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
         HeroBar(b, if (editing) "Edit target" else "New target", back, compact = true)
         val o = options
         when {
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
-            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
+            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             else -> {
                 val peopleAll = o.objs("people")
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
@@ -520,7 +514,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                         Spacer(Modifier.height(12.dp))
                     }
                 }
-                Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
+                Box(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
                     Text(
                         if (saving) "Saving…" else if (editing) "Save target" else "Create target", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),
@@ -529,13 +523,13 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
 
                 // single-choice dropdowns
                 fun single(title: String, current: Int, rows: List<Pair<Int, String>>, set: (Int) -> Unit): @Composable () -> Unit = {
-                    ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+                    ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
                         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                             (listOf(0 to "None") + rows).forEach { (rid, label) ->
                                 val on = current == rid
                                 Row(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { set(rid); sheet = null }.padding(14.dp),
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { set(rid); sheet = null }.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(label, color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -549,7 +543,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                     "category" -> single("Category", categoryId, o.objs("categories").map { it.optInt("id") to it.optString("name") }) { categoryId = it }()
                     "department" -> single("Department", departmentId, o.objs("departments").map { it.optInt("id") to it.optString("name") }) { departmentId = it }()
                     "lead" -> single("Lead employee", leadId, peopleAll.map { it.optInt("id") to it.optString("name") }) { leadId = it }()
-                    "people" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                    "people" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
@@ -560,7 +554,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                                 peopleAll.forEach { p ->
                                     val pid = p.optInt("id"); val on = pid in people
                                     Row(
-                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { people = if (on) people - pid else people + pid }.padding(12.dp),
+                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { people = if (on) people - pid else people + pid }.padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Initials(p.optString("name"), size = 34.dp)
@@ -582,7 +576,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
 
 @Composable
 private fun Flag(label: String, on: Boolean, tint: Color, set: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { set(!on) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { set(!on) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Box(Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)).background(if (on) tint else Color.Transparent).border(2.dp, if (on) tint else Color(0xFF9E9E9E), RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) {
             if (on) Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)

@@ -146,11 +146,8 @@ fun ProjectProcurement(api: ApiClient, b: Branding, uuid: String, version: Int, 
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -168,11 +165,11 @@ fun ProjectProcurement(api: ApiClient, b: Branding, uuid: String, version: Int, 
         Page("comparison", "Supplier comparison"), Page("approvals", "Approvals"),
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("Procurements", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Purchasing", pages.map { it.label }, index) { view = pages[it].key }
     val v = version + local
 
     when (pages[index].key) {
-        "dashboard" -> Dashboard(o, onOpen, onDelivery = { delivery = it }, onPage = { view = it })
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "procurements", version); Dashboard(o, onOpen, onDelivery = { delivery = it }, onPage = { view = it }) }
         "indents" -> IndentList(api, b, uuid, v) { onOpen("indent", it) }
         "pos" -> PoList(api, b, uuid, v, options) { onOpen("po", it) }
         "deliveries" -> DeliveryList(api, b, uuid, v, options) { delivery = it }
@@ -254,7 +251,7 @@ private fun Dashboard(o: JSONObject, onOpen: (String, Int) -> Unit, onDelivery: 
 /** A compact tappable row: title, sub-line, an optional amount, a status chip. */
 @Composable
 internal fun MiniRow(title: String, sub: String, amount: String?, status: Pair<String, Color>, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (sub.isNotBlank()) Text(sub, color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -422,8 +419,8 @@ private fun Loaded(api: ApiClient, b: Branding, path: String, version: Int, cont
     val d = data
     if (d == null) {
         Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(error ?: "", color = KitMuted); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, onRetry = { attempt++ })
         }
         return
     }

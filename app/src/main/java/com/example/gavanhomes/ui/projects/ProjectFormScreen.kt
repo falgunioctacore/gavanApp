@@ -170,11 +170,8 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
         HeroBar(b, if (editing) "Edit project" else "New project", back, compact = true)
 
         when {
-            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
             else -> {
                 SegTabs(listOf("Basic information", "Inventory · ${form.unitCount}"), step) { step = it }
 
@@ -195,12 +192,12 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
 
                 // bottom bar: switch step + save
                 Row(
-                    Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+                    Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         if (step == 0) "Inventory →" else "← Details", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFF1EFEB)).clickable { step = 1 - step }.padding(top = 17.dp),
+                        modifier = Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { step = 1 - step }.padding(top = 17.dp),
                     )
                     Box(
                         Modifier.weight(2f).height(54.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(b.base, b.deep))).clickable(enabled = !saving) { save() },

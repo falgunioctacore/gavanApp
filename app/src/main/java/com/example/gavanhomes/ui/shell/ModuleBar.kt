@@ -35,8 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Ink = Color(0xFF0F172A)
-private val Muted = Color(0xFF8A8F9C)
+private val Ink: Color get() = com.example.gavanhomes.ui.common.KitInk
+private val Muted: Color get() = com.example.gavanhomes.ui.common.KitMuted
 
 /** The modules that earn a place on the bar, most important first; whatever else a user can open goes under "More". */
 private val BarPriority = listOf("dashboard", "projects", "hr", "users", "professionals", "hod", "audit", "account")
@@ -61,7 +61,7 @@ fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0x
 
     Column(
         Modifier.fillMaxWidth().shadow(16.dp, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp), ambientColor = Color(0x1A0F172A), spotColor = Color(0x1A0F172A))
-            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)).background(Color.White).navigationBarsPadding(),
+            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)).background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding(),
     ) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp)) {
             tabs.forEach { m ->
@@ -86,7 +86,7 @@ fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0x
     }
 
     // ── More: everything that isn't on the bar ──
-    if (sheet) ModalBottomSheet(onDismissRequest = { sheet = false }, containerColor = Color.White, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
+    if (sheet) ModalBottomSheet(onDismissRequest = { sheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
             Text("More", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Ink)
             Text("The rest of your modules", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 14.dp))
@@ -99,12 +99,12 @@ fun ModuleBar(modules: List<Module>, activeKey: String, accent: Color = Color(0x
                         val on = !out && m.key == activeKey
                         val tint = if (out) Color(0xFFD03B3B) else accent
                         Column(
-                            Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(if (out) Color(0xFFFEF2F2) else if (on) accent.copy(alpha = .12f) else Color(0xFFF7F5F1))
-                                .border(1.dp, if (out) Color(0xFFFBD5D5) else if (on) accent.copy(alpha = .5f) else Color(0xFFEFECE6), RoundedCornerShape(20.dp))
+                            Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).background(if (out) Color(0xFFFEF2F2) else if (on) accent.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft)
+                                .border(1.dp, if (out) Color(0xFFFBD5D5) else if (on) accent.copy(alpha = .5f) else com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(20.dp))
                                 .clickable { sheet = false; if (out) onLogout?.invoke() else onSelect(m) }.padding(vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(if (on) accent else Color.White), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(if (on) accent else com.example.gavanhomes.ui.common.KitCard), contentAlignment = Alignment.Center) {
                                 ModuleIcon(m.key, if (on) Color.White else tint, 24.dp)
                             }
                             Text(m.label, fontSize = 12.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (out) tint else Ink, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 8.dp, start = 6.dp, end = 6.dp))

@@ -141,11 +141,8 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
         if (x == null) {
             HeroBar(b, "Lead", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
             }
             return@Column
         }
@@ -215,7 +212,7 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
                         tasks.forEach { t ->
                             val tc = statusTint(t.optString("status"))
                             Row(
-                                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).clickable { onOpenTask(t.optInt("id")) }.padding(14.dp),
+                                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpenTask(t.optInt("id")) }.padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(Modifier.weight(1f)) {
@@ -287,7 +284,7 @@ internal fun FollowupSheet(b: Branding, options: JSONObject?, f: JSONObject, onC
     var remarks by remember { mutableStateOf(f.optString("remarks").takeIf { it != "null" }.orEmpty()) }
     var assignee by remember { mutableIntStateOf(f.optInt("assigned_to")) }
     var pickAssignee by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (f.has("id")) "Edit follow-up" else "Add follow-up", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Label("Type")
@@ -314,7 +311,7 @@ internal fun FollowupSheet(b: Branding, options: JSONObject?, f: JSONObject, onC
 internal fun StatusSheet(b: Branding, options: JSONObject?, f: JSONObject, onClose: () -> Unit, onSave: (String, String) -> Unit) {
     var status by remember { mutableStateOf(f.optString("status", "pending")) }
     var note by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Change status", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -338,7 +335,7 @@ private fun ActivitySheet(onClose: () -> Unit, onSave: (JSONObject) -> Unit) {
     var type by remember { mutableStateOf("Call") }
     var at by remember { mutableStateOf(LocalDate.now().toString() + " 00:00") }
     var note by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Log an activity", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { ActivityTypes.forEach { t -> Pick(t, type == t, Blue) { type = t } } }
@@ -376,13 +373,13 @@ private fun LeadActivity(api: ApiClient, b: Branding, id: Int, version: Int, can
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitInk).clickable { onLog() }.padding(vertical = 14.dp),
     )
     Card("Activity", "Who did what, and when") {
-        if (loading && rows.isEmpty()) Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+        if (loading && rows.isEmpty()) Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
         error?.let { Text(it, color = KitDanger, fontSize = 13.sp) }
         if (!loading && rows.isEmpty() && error == null) Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
         rows.forEach { a ->
             val manual = a.optString("kind") == "activity"
             val tintC = if (manual) Blue else when (a.optString("event")) { "created", "followup_created" -> KitGood; "deleted", "followup_deleted" -> KitDanger; else -> Color(0xFFC47A1A) }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Chip(if (manual) a.optString("activity_type") else a.optString("event").replace('_', ' ').replaceFirstChar { it.uppercase() }, tintC)
                     a.str("tag")?.let { Spacer(Modifier.size(6.dp)); Chip(it, KitMuted) }
@@ -484,11 +481,8 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         HeroBar(b, if (editing) "Edit lead" else "New lead", back, compact = true)
         val o = options
         when {
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
-            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
+            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             else -> {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                     Column(Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(vertical = 8.dp)) {
@@ -525,7 +519,7 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                         Spacer(Modifier.height(12.dp))
                     }
                 }
-                Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
+                Box(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
                     Text(
                         if (saving) "Saving…" else if (editing) "Save lead" else "Create lead", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),

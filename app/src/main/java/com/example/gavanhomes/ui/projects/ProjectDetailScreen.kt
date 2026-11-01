@@ -100,24 +100,34 @@ private val UnitLabels = listOf(
     "land_area" to "Land area", "undivided_share" to "Undivided share", "east" to "East", "west" to "West", "north" to "North", "south" to "South",
 )
 private val UnitDocs = listOf("unit_plan" to "Unit plan", "vastu_report" to "Vastu report", "statement" to "Statement", "plan_copy" to "Plan copy")
-/** A page of the project drawer; [key] is the module it lists (null for the two built-in pages). */
-private class Section(val label: String, val blurb: String, val glyph: String, val key: String? = null)
+/** A page of the project drawer; [key] is the module it lists (null for the two built-in pages); [group] is its heading in the drawer. */
+private class Section(val label: String, val blurb: String, val glyph: String, val key: String? = null, val group: String = "Overview")
 private val Sections = listOf(
-    Section("Dashboard", "Numbers and charts at a glance", "▦"),
-    Section("Details", "Overview, units, developer and pricing", "ⓘ"),
+    Section("Dashboard", "Sales, collections and site progress at a glance", "▦"),
+    Section("Project & units", "Overview, flats / units, developer and pricing", "ⓘ"),
 )
-/** The website's project tabs (commonTabs.blade.php), in its order — each one a native list (ProjectModule). */
+/**
+ * Every project module, arranged the way a real estate developer works: selling the units (Sales & customers), building them
+ * (Construction), the money (Finance), and the people and paperwork around it (Team & documents).
+ */
 private val ModuleSections = listOf(
-    Section("Tasks", "Work items and their progress", "✔", "tasks"), Section("Targets", "Goals and how far they are", "◎", "targets"),
-    Section("Bids", "Bids and their status", "▤", "bids"), Section("Leads", "Leads and follow-ups", "⚑", "leads"),
-    Section("Inventory", "Materials and stock", "▣", "inventory"), Section("Procurements", "Purchase orders, indents, suppliers", "⛟", "procurements"),
-    Section("Customers", "Bookings and customers", "◍", "customers"), Section("Attendance", "Workers and today's attendance", "◷", "attendance"),
-    Section("Assets", "Equipment and its value", "◈", "assets"), Section("Accounting", "Payments and expenses", "₹", "accounting"),
-    Section("Communications", "Send WhatsApp, SMS and email", "✉", "communications"), Section("Files", "Project documents", "▥", "files"),
-    Section("Discussion", "Project chats", "☰", "discussion"), Section("General", "Contractors, workers, engineers, parties", "⚙", "general"),
-    Section("Reports", "Headline numbers per area", "▮", "reports"),
+    Section("Leads", "Enquiries, follow-ups and the sales pipeline", "⚑", "leads", "Sales & customers"),
+    Section("Bookings & customers", "Bookings, payments, site visits, issues, loans", "◍", "customers", "Sales & customers"),
+    Section("Communications", "WhatsApp, SMS and email to buyers", "✉", "communications", "Sales & customers"),
+    Section("Tasks", "Site work and its progress", "✔", "tasks", "Construction"),
+    Section("Milestones & targets", "Goals and how far they are", "◎", "targets", "Construction"),
+    Section("Tenders & bids", "Quotes from suppliers and contractors", "▤", "bids", "Construction"),
+    Section("Purchasing", "Indents, purchase orders, deliveries, suppliers", "⛟", "procurements", "Construction"),
+    Section("Materials", "Building material stock, issues and returns", "▣", "inventory", "Construction"),
+    Section("Labour attendance", "Workers, daily attendance and wages", "◷", "attendance", "Construction"),
+    Section("Equipment & assets", "Machinery, maintenance and transfers", "◈", "assets", "Construction"),
+    Section("Accounts", "Payments in / out, expenses, supplier invoices", "₹", "accounting", "Finance"),
+    Section("Reports", "Every report: sales, site, stock and money", "▮", "reports", "Finance"),
+    Section("Contractors & partners", "Contractors, workers, engineers, parties", "⚙", "general", "Team & documents"),
+    Section("Documents", "Plans, approvals and project files", "▥", "files", "Team & documents"),
+    Section("Team chat", "Project discussions", "☰", "discussion", "Team & documents"),
 )
-private val Tabs = listOf("Overview", "Inventory", "Developer", "Pricing")
+private val Tabs = listOf("Overview", "Units", "Developer", "Pricing")
 
 private fun JSONObject.strings(key: String): List<String> = optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
 private fun JSONObject.objects(key: String): List<JSONObject> = optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList()
@@ -214,7 +224,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         drawerState = drawer,
         gesturesEnabled = drawer.isOpen,                       // opened with ☰ — a left-edge swipe means "go back"
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+            ModalDrawerSheet(drawerContainerColor = com.example.gavanhomes.ui.common.KitCard, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(
                         Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(b.deep, b.base), start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(700f, 700f)))
@@ -228,12 +238,17 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp)) {
                     sections.forEachIndexed { i, s ->
                         val on = i == section
+                        // a heading where a new group of modules starts
+                        if (i == 0 || sections[i - 1].group != s.group) Text(
+                            s.group.uppercase(), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp,
+                            modifier = Modifier.padding(start = 26.dp, end = 20.dp, top = if (i == 0) 6.dp else 16.dp, bottom = 4.dp),
+                        )
                         Row(
                             Modifier.padding(horizontal = 12.dp, vertical = 3.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (on) b.base.copy(alpha = .16f) else Color.Transparent)
                                 .clickable { section = i; scope.launch { drawer.close() } }.padding(horizontal = 14.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (on) b.base else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (on) b.base else com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
                                 Text(s.glyph, color = if (on) Color.White else KitInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f).padding(start = 14.dp)) {
@@ -252,11 +267,8 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         if (d == null) {
             HeroBar(b, "Project", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
             }
             return@Column
         }
@@ -317,7 +329,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     Tile(d.optJSONArray("members")?.length()?.toString() ?: "0", "Members", Modifier.weight(1f))
                 }
 
-                com.example.gavanhomes.ui.common.ModulePages("Details", Tabs, tab) { tab = it }
+                com.example.gavanhomes.ui.common.ModulePages("Project & units", Tabs, tab) { tab = it }
 
                 when (tab) {
                     0 -> Overview(d, b, ::launch)
@@ -520,7 +532,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
 
     unit?.let { (type, u) ->
         val sheet = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = { unit = null }, sheetState = sheet, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { unit = null }, sheetState = sheet, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -584,7 +596,7 @@ private fun Inventory(d: JSONObject, units: List<Pair<String, JSONObject>>, coun
         return
     }
     Card("Availability", "${units.size} unit${if (units.size == 1) "" else "s"}") {
-        Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFFEDEBE7))) {
+        Row(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(com.example.gavanhomes.ui.common.KitSoft)) {
             UnitColors.forEach { (s, c) -> val n = counts[s] ?: 0; if (n > 0) Box(Modifier.weight(n.toFloat()).fillMaxSize().background(c)) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -692,7 +704,7 @@ private fun Pricing(d: JSONObject, b: Branding) {
 private fun Card(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp)).background(Color.White).padding(18.dp),
+            .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
@@ -706,7 +718,7 @@ private fun Card(title: String, sub: String? = null, content: @Composable Column
 @Composable
 private fun Tile(value: String, label: String, modifier: Modifier, tint: Color = KitInk) {
     Column(
-        modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(vertical = 12.dp),
+        modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = tint)
@@ -734,14 +746,14 @@ private fun Doc(label: String, path: String?, view: (String) -> Unit) {
         Text(label, color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Text(
             "View", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = KitInk,
-            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFF1EFEB)).clickable { view(path) }.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { view(path) }.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
 
 @Composable
 private fun Bar(fraction: Float, color: Color) {
-    Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFEDEBE7))) {
+    Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(com.example.gavanhomes.ui.common.KitSoft)) {
         Box(Modifier.fillMaxWidth(fraction).fillMaxSize().background(color))
     }
 }
@@ -771,7 +783,7 @@ private fun UnitRow(u: JSONObject, onClick: () -> Unit) {
     ).joinToString(" · ")
     Row(
         Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp)).background(Color.White).clickable { onClick() }.padding(16.dp),
+            .clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

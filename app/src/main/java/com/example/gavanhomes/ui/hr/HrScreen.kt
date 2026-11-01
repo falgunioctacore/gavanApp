@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.hr
 
 import com.example.gavanhomes.ui.professionals.ProDonutCard
+import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import com.example.gavanhomes.ui.common.FabAction
@@ -241,7 +242,7 @@ fun HrScreen(
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+            ModalDrawerSheet(drawerContainerColor = com.example.gavanhomes.ui.common.KitCard, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                     Box(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
@@ -267,7 +268,7 @@ fun HrScreen(
                                 .clickable { onSection(i); scope.launch { drawer.close() } }.padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) b.base else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(if (on) b.base else com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
                                 Text(s.glyph, color = if (on) Color.White else KitInk, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -276,7 +277,7 @@ fun HrScreen(
                             }
                             counts[i]?.let { n ->
                                 Text(n.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else Color(0xFFF3F2F0)).padding(horizontal = 9.dp, vertical = 3.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 9.dp, vertical = 3.dp))
                             }
                         }
                     }
@@ -292,11 +293,8 @@ fun HrScreen(
             if (d == null) {
                 HeroBar(b, sec.label, onBack, leading = toggle)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (error == null) CircularProgressIndicator(color = b.base)
-                    else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                        Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { refresh() }) { Text("Retry") }
-                    }
+                    if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                    else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { refresh() })
                 }
                 return@Column
             }
@@ -376,7 +374,7 @@ fun HrScreen(
     // ── ⋯ actions on a record ──
     sheet?.let { r ->
         val slug = r.schema.slug
-        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
                 Text(r.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(r.sub.ifEmpty { r.reference.orEmpty() }, color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
@@ -538,7 +536,7 @@ private fun RowCard(r: Row_, schema: HrSchema, b: Branding, onClick: () -> Unit,
 private fun RowCompact(r: Row_, schema: HrSchema, onClick: () -> Unit, onMore: () -> Unit) {
     val badgeField = schema.field(schema.badge)
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).clickable { onClick() }.padding(12.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Initials(r.title, 46.dp, hrStatusColor(r.badge))
@@ -556,9 +554,9 @@ private fun RowCompact(r: Row_, schema: HrSchema, onClick: () -> Unit, onMore: (
 @Composable
 private fun MonthBar(month: String, onShift: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        Text("‹", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(Color.White).clickable { onShift(-1) }.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text("‹", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onShift(-1) }.padding(horizontal = 16.dp, vertical = 6.dp))
         Text(monthLabel(month), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = KitInk, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 140.dp))
-        Text("›", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(Color.White).clickable { onShift(1) }.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text("›", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onShift(1) }.padding(horizontal = 16.dp, vertical = 6.dp))
     }
 }
 
@@ -570,7 +568,7 @@ private fun LazyListScope.attendance(d: JSONObject, month: String, onShift: (Int
         val today = r.optJSONObject("today")
         val inToday = today != null && !today.isNull("check_in_at")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -614,7 +612,7 @@ private fun LazyListScope.leaves(d: JSONObject, b: Branding, onAction: (Int, Str
     items(rows, key = { it.optInt("id") }) { l ->
         val status = l.optString("status")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -646,7 +644,7 @@ private fun LazyListScope.payroll(d: JSONObject, month: String, onShift: (Int) -
         val slip = r.optJSONObject("slip")
         val tone = when { slip == null -> ProAmber; !slip.isNull("emailed_at") -> ProBlue; else -> KitGood }
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).clickable { onOpen(r) }.padding(16.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(r) }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Initials(r.str("name") ?: "?", 44.dp)
@@ -665,7 +663,7 @@ private fun LazyListScope.payroll(d: JSONObject, month: String, onShift: (Int) -
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PayrollSheet(r: JSONObject, month: String, canEdit: Boolean, onDismiss: () -> Unit, onSlip: (String) -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(r.str("name") ?: "—", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
             Text(monthLabel(month), color = KitMuted, fontSize = 13.sp)
@@ -677,7 +675,7 @@ private fun PayrollSheet(r: JSONObject, month: String, canEdit: Boolean, onDismi
                 Text("Net pay", fontWeight = FontWeight.SemiBold, color = KitInk, modifier = Modifier.weight(1f)); Text(money(r.optDouble("net")), fontWeight = FontWeight.ExtraBold, color = KitGood)
             }
             if (canEdit) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Generate slip", color = KitInk, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1EFEB)).clickable { onSlip("generate") }.padding(vertical = 14.dp))
+                Text("Generate slip", color = KitInk, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onSlip("generate") }.padding(vertical = 14.dp))
                 Text("Email slip", color = Color.White, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F172A)).clickable { onSlip("send") }.padding(vertical = 14.dp))
             }
         }
@@ -692,7 +690,7 @@ private fun LazyListScope.suppliers(d: JSONObject, b: Branding, onOpen: (JSONObj
     if (rows.isEmpty()) item { Text("No suppliers yet.", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(40.dp)) }
     items(rows, key = { it.optInt("id") }) { s ->
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).clickable { onOpen(s) }.padding(14.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(s) }.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Initials(s.str("name") ?: s.str("company_name") ?: "?", 46.dp)
@@ -700,7 +698,7 @@ private fun LazyListScope.suppliers(d: JSONObject, b: Branding, onOpen: (JSONObj
                 Text(s.str("name") ?: s.str("company_name") ?: "Supplier", fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(listOfNotNull(s.str("company_name"), s.str("city")).joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            s.str("business_type")?.let { Pill(it.headline(), b.base.copy(alpha = .16f), b.dark) }
+            s.str("business_type")?.let { Pill(it.headline(), b.base.copy(alpha = .16f), b.accentText) }
         }
     }
 }
@@ -708,7 +706,7 @@ private fun LazyListScope.suppliers(d: JSONObject, b: Branding, onOpen: (JSONObj
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InfoSheet(s: JSONObject, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(s.str("name") ?: s.str("company_name") ?: "Supplier", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
             s.keys().asSequence().filter { it != "id" && it != "name" }.forEach { k -> ProFact(k.headline(), s.str(k)) }
@@ -722,7 +720,7 @@ private fun InfoSheet(s: JSONObject, onDismiss: () -> Unit) {
 @Composable
 private fun RemarksSheet(title: String, hint: String, confirm: String, onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Input(hint, text, { text = it }, singleLine = false)
@@ -748,7 +746,7 @@ private fun LeaveSheet(api: ApiClient, onDismiss: () -> Unit, onDone: () -> Unit
     var pickType by remember { mutableStateOf(false) }
     val shown = DateTimeFormatter.ofPattern("d MMM yyyy")
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Apply for leave", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             PickerField("Leave type", hrStatusLabel(type)) { pickType = true }

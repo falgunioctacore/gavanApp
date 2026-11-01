@@ -126,6 +126,9 @@ private class P(val json: JSONObject) {
     val detailsPath = json.str("details_path")
     val editPath = json.str("edit_path")
     val uuid = json.str("uuid")
+    val units = json.optInt("units")
+    val unitsFree = json.optInt("units_available")
+    val unitsSold = json.optInt("units_sold")
     val banner = Banners[(id % Banners.size + Banners.size) % Banners.size]
     fun matches(q: String) = q.isEmpty() || listOfNotNull(name, code, status).any { it.lowercase().contains(q) } || types.any { it.lowercase().contains(q) }
 }
@@ -168,11 +171,8 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
         if (all == null) {
             HeroBar(b, "Projects", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { reload++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { reload++ })
             }
             return@Column
         }
@@ -196,15 +196,13 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
             // ── header: title, add / refresh, and live counters ──
+            // ── header: the original big hero with live counters ──
             item {
-                HeroBar(
-                    b, "Projects", onBack,
-                ) {
+                HeroBar(b, "Projects", onBack) {
                     HeroSummary(listOf(all.size.toString() to (if (all.size == 1) "project" else "projects"), inProgress.toString() to "In progress", pending.toString() to "Pending", done.toString() to "Done"), bar = true)
                 }
             }
-
-            item { Spacer(Modifier.height(14.dp)) }
+            item { Spacer(Modifier.height(10.dp)) }
             item {
                 FilterBar(
                     query, { query = it }, "Search projects…",
@@ -215,12 +213,11 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                 )
             }
             item {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${shown.size} project${if (shown.size == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${shown.size} shown", color = KitMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
                     com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                 }
             }
-            item { Spacer(Modifier.height(8.dp)) }
 
             if (shown.isEmpty()) item {
                 Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -230,9 +227,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
             }
             items(shown, key = { it.id }) { p ->
                 if (compact) CompactRow(p, onClick = { p.uuid?.let(onOpenDetails) }, onMore = { sheet = p })
-                else ProjectCard(p, b, onClick = { p.uuid?.let(onOpenDetails) }, onMore = { sheet = p },
-                    onCall = { p.phone?.let { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$it"))) } },
-                    onMail = { p.email?.let { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$it"))) } })
+                else ProjectCard(p, b, onClick = { p.uuid?.let(onOpenDetails) }, onMore = { sheet = p })
             }
         }
         ScrollTopButton(listState, lift = if (canCreate) FabLift else 0.dp)
@@ -242,7 +237,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
 
     // ── ⋯ actions ──
     sheet?.let { p ->
-        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
                 Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(p.code ?: "No code", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
@@ -271,7 +266,7 @@ private fun Counter(value: String, label: String, modifier: Modifier, big: Boole
 @Composable
 private fun FilterChip(label: String, count: Int, dot: Color?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else Color.White)
+        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -303,82 +298,92 @@ private fun TimelineRing(p: P, tint: Color) {
     }
 }
 
-/**
- * A project card, in three bands: who it is (avatar, name, code, status), where it stands (property types, the timeline as a bar with the days left),
- * and the numbers with the quick actions (tasks, members, call, mail, more).
- */
+/** A count in the strip under the header: the number in its colour, the word after it. */
 @Composable
-private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Unit, onCall: () -> Unit, onMail: () -> Unit) {
-    val shape = RoundedCornerShape(24.dp)
+private fun StripCount(value: String, label: String, c: Color) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(value, color = c, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+        Text(" $label", color = KitMuted, fontSize = 12.sp, maxLines = 1)
+    }
+}
+
+/** A small rounded tag: a sign, then words, tinted. */
+@Composable
+private fun Tag(text: String, c: Color) {
+    Text(text, color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(c.copy(alpha = .1f)).padding(horizontal = 7.dp, vertical = 3.dp))
+}
+
+/**
+ * A project, kept tight: its letter tile, name, code and types, status and ⋯ on one line; then the numbers that matter for
+ * selling and building it — units free / total and % sold, days left (or late), tasks, team — and a thin line along the bottom
+ * showing how far through its timeline it is.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
     val left = p.left
     val late = left != null && left < 0
     val tone = if (late) KitDanger else b.base
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(4.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
-            .clip(shape).background(Color.White).clickable { onClick() },
+        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
+            .clip(shape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() },
     ) {
-        // ── who ──
-        Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(p.banner.first, p.banner.second))), contentAlignment = Alignment.Center) {
-                Text(p.name.take(1).uppercase().ifEmpty { "?" }, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+        Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(p.banner.first, p.banner.second))), contentAlignment = Alignment.Center) {
+                Text(p.name.take(1).uppercase().ifEmpty { "?" }, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 21.sp)
-                Text(p.code ?: "No code", fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(listOfNotNull(p.code, p.types.takeIf { it.isNotEmpty() }?.joinToString(", ")).joinToString("  ·  ").ifEmpty { "No code" },
+                    fontSize = 11.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (p.status != null) Pill(p.status, statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
+            if (p.status != null) Tag(p.status, statusColor(p.status))
+            if (!p.active) { Spacer(Modifier.size(4.dp)); Tag("Inactive", KitMuted) }
+            Box(Modifier.size(34.dp).clip(CircleShape).clickable { onMore() }, contentAlignment = Alignment.Center) { Text("⋯", color = KitMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
         }
-
-        // ── where it stands ──
-        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (p.types.isNotEmpty()) Text(p.types.joinToString("  ·  "), fontSize = 12.5.sp, color = b.dark, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (p.start != null || p.end != null) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${p.start.pretty()}  →  ${p.end.pretty()}", fontSize = 12.sp, color = KitMuted, modifier = Modifier.weight(1f))
-                    if (left != null) Text(if (late) "${-left} days late" else "$left days left", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = tone)
-                }
-                if (p.progress != null) Box(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)).background(tone.copy(alpha = .16f))) {
-                    Box(Modifier.fillMaxWidth(p.progress.coerceIn(0f, 1f)).fillMaxHeight().background(tone))
-                }
+        androidx.compose.foundation.layout.FlowRow(
+            Modifier.padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            if (p.units > 0) {
+                Tag("▦ ${p.unitsFree}/${p.units} free", KitGood)
+                Tag("${p.unitsSold * 100 / p.units}% sold", Blue)
             }
+            if (left != null) Tag(if (late) "◷ ${-left}d late" else "◷ ${left}d left", if (late) KitDanger else Amber)
+            Tag("✔ ${p.tasks}", KitInk)
+            Tag("◉ ${p.members}", KitInk)
         }
-
-        // ── numbers and actions ──
-        Row(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                CardStat("${p.tasks}", if (p.tasks == 1) "task" else "tasks")
-                CardStat("${p.members}", if (p.members == 1) "member" else "members")
-                if (!p.active) Text("Inactive", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF5F6B76), modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFEDEBE7)).padding(horizontal = 8.dp, vertical = 3.dp))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (p.phone != null) CardAction("✆", b.base, onCall)
-                if (p.email != null) CardAction("✉", b.base, onMail)
-                Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF3F2F0)).clickable { onMore() }, contentAlignment = Alignment.Center) { Text("⋯", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
-            }
+        // how far through its timeline
+        if (p.progress != null) Box(Modifier.fillMaxWidth().height(3.dp).background(tone.copy(alpha = .14f))) {
+            Box(Modifier.fillMaxWidth(p.progress.coerceIn(0f, 1f)).fillMaxHeight().background(tone))
         }
     }
 }
 
+/** The compact view: one short line per project. */
 @Composable
 private fun CompactRow(p: P, onClick: () -> Unit, onMore: () -> Unit) {
     val (c1, c2) = p.banner
+    val late = (p.left ?: 0) < 0
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-            .background(Color.White).clickable { onClick() }.padding(12.dp),
+        Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(c1, c2))), contentAlignment = Alignment.Center) {
-            Text(p.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(c1, c2))), contentAlignment = Alignment.Center) {
+            Text(p.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
         }
-        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
             Text(p.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(p.code, p.left?.let { if (it < 0) "${-it}d late" else "${it}d left" }, "${p.tasks} tasks").joinToString(" · "),
-                fontSize = 12.sp, color = if ((p.left ?: 0) < 0) KitDanger else KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                listOfNotNull(p.units.takeIf { it > 0 }?.let { "${p.unitsFree}/$it free" }, p.left?.let { if (it < 0) "${-it}d late" else "${it}d left" }, "${p.tasks} tasks").joinToString(" · "),
+                fontSize = 11.sp, color = if (late) KitDanger else KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        if (p.status != null) Pill(p.status, statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
-        Text("⋯", fontSize = 22.sp, color = KitMuted, modifier = Modifier.clip(CircleShape).clickable { onMore() }.padding(horizontal = 10.dp))
+        if (p.status != null) Box(Modifier.size(9.dp).clip(CircleShape).background(statusColor(p.status)))
+        Text("⋯", fontSize = 18.sp, color = KitMuted, modifier = Modifier.clip(CircleShape).clickable { onMore() }.padding(horizontal = 10.dp))
     }
 }
 
@@ -400,7 +405,7 @@ private fun RoundAction(glyph: String, tint: Color, onClick: () -> Unit) {
 @Composable
 private fun SheetAction(glyph: String, label: String, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { onClick() }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) { Text(glyph, fontSize = 17.sp, color = KitInk) }
+        Box(Modifier.size(38.dp).clip(CircleShape).background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) { Text(glyph, fontSize = 17.sp, color = KitInk) }
         Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = KitInk, modifier = Modifier.padding(start = 14.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,9 +66,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.Calendar
 
-private val Ink = Color(0xFF1F2A44)
-private val Muted = Color(0xFF8A8F9C)
-private val PageBg = Color(0xFFF3F2F0)
+private val Ink: Color get() = com.example.gavanhomes.ui.common.KitInk
+private val Muted: Color get() = com.example.gavanhomes.ui.common.KitMuted
+private val PageBg: Color get() = com.example.gavanhomes.ui.common.KitPage
 private val Danger = Color(0xFFD03B3B)
 
 // ───────────────────────────── JSON / format helpers ─────────────────────────────
@@ -127,6 +128,7 @@ fun DashboardScreen(
     cachedJson: String? = null,
     onCache: (String) -> Unit = {},
     onUnauthorized: () -> Unit = {},
+    onOpenProject: (String) -> Unit = {},
 ) {
     // the last dashboard is painted immediately; the fresh one replaces it when it arrives
     var data by remember { mutableStateOf<JSONObject?>(cachedJson?.let { runCatching { JSONObject(it) }.getOrNull() }) }
@@ -149,25 +151,26 @@ fun DashboardScreen(
     Box(Modifier.fillMaxSize().background(PageBg), contentAlignment = Alignment.TopCenter) {
         val d = data
         when {
-            d == null && error == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = branding.base) }
-            d == null -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(error ?: "", color = Muted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { reload++ }) { Text("Retry") }
-            }
-            else -> Content(d, user, branding, modules, onOpenModule, onOpenPath, onLogout, onRefresh = { reload++ })
+            d == null && error == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(branding.base) }
+            d == null -> com.example.gavanhomes.ui.common.EstateError(error, color = branding.base, modifier = Modifier.fillMaxSize().padding(24.dp), onRetry = { reload++ })
+            else -> Content(d, user, branding, modules, onOpenModule, onOpenPath, onLogout, onRefresh = { reload++ }, onOpenProject = onOpenProject)
         }
     }
 }
 
-private val TabNames = listOf("Overview", "Work", "Sales", "Stock & Buying", "Finance", "People")
+/** Tabs of a real estate business: the overview, selling the units, the projects, building them, the money, the people. */
+private val TabNames = listOf("Overview", "Sales & buyers", "Projects", "Site & stock", "Finance", "People")
 
 @Composable
 private fun Content(
     d: JSONObject, user: User, b: Branding, modules: List<Module>,
     onOpenModule: (Module) -> Unit, onOpenPath: (String) -> Unit, onLogout: () -> Unit, onRefresh: () -> Unit,
+    onOpenProject: (String) -> Unit = {},
 ) {
     val w = d.optJSONObject("full") ?: JSONObject()
+    val estate = d.optJSONObject("estate") ?: JSONObject()
+    val units = estate.optJSONObject("units")
+    val sales = estate.optJSONObject("sales")
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when { hour < 12 -> "Good morning,"; hour < 17 -> "Good afternoon,"; else -> "Good evening," }
     val taskStats = w.optJSONObject("taskStats")
@@ -209,19 +212,27 @@ private fun Content(
                     Spacer(Modifier.height(18.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(num(headValue), color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold)
-                            Text(
-                                headLabel + (leadStats?.let { " · +${it.optInt("new_month")} this month" } ?: ""),
-                                color = Color.White.copy(alpha = .85f), fontSize = 13.sp,
-                            )
+                            if (units != null && units.optInt("total") > 0) {
+                                Text("${num(units.optInt("sold") + units.optInt("booked"))} / ${num(units.optInt("total"))}", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("units sold or booked · ${num(units.optInt("available"))} still available", color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
+                            } else {
+                                Text(num(headValue), color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(
+                                    headLabel + (leadStats?.let { " · +${it.optInt("new_month")} this month" } ?: ""),
+                                    color = Color.White.copy(alpha = .85f), fontSize = 13.sp,
+                                )
+                            }
                         }
-                        if (taskStats != null) Ring(taskStats.optInt("completion"))
+                        if (units != null && units.optInt("total") > 0) Ring(units.optInt("sold_rate"))
+                        else if (taskStats != null) Ring(taskStats.optInt("completion"))
                     }
 
                     Spacer(Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (w.has("projectCount")) HeroChip("${w.optInt("projectCount")} projects")
-                        if ((taskStats?.optInt("overdue") ?: 0) > 0) HeroChip("${taskStats!!.optInt("overdue")} overdue", Danger.copy(alpha = .55f))
+                        if (sales != null) HeroChip("${inr(sales.optDouble("value"))} booked")
+                        if (sales != null && sales.optDouble("due") > 0) HeroChip("${inr(sales.optDouble("due"))} to collect", Danger.copy(alpha = .55f))
+                        else if ((taskStats?.optInt("overdue") ?: 0) > 0) HeroChip("${taskStats!!.optInt("overdue")} overdue", Danger.copy(alpha = .55f))
                         if (leadStats != null) HeroChip("${leadStats.optInt("hot")} hot leads")
                     }
                 }
@@ -231,12 +242,17 @@ private fun Content(
         item { SegTabs(TabNames, tab) { tab = it } }
 
         when (tab) {
-            0 -> overview(w, b, onOpenPath)
-            1 -> work(w, b)
-            2 -> sales(w, b)
-            3 -> buying(w, b)
-            4 -> finance(w, b)
-            else -> people(w, b)
+            0 -> {
+                estateOverview(estate, b, onTab = { tab = it }, onOpenProject = onOpenProject)
+                if (estate.length() > 0) item { SectionTitle("More at a glance") }
+                overview(w, b, onOpenPath)
+            }
+            1 -> { estateSales(estate); sales(w, b) }
+            2 -> estateProjects(estate, onOpenProject)
+            3 -> { work(w, b); buying(w, b) }
+            // the new Finance and People views; the older lists only when the new data is not there
+            4 -> { estateFinance(estate, w); if (estate.optJSONObject("finance") == null && w.optJSONObject("acctStats") == null) finance(w, b) }
+            else -> { estatePeople(estate, w); if (estate.optJSONObject("people") == null && w.optJSONObject("labourStats") == null && w.optJSONObject("fileStats") == null) people(w, b) }
         }
         item { Spacer(Modifier.navigationBarsPadding()) }
     }
@@ -484,7 +500,7 @@ private fun LazyListScope.listCard(title: String, rows: List<Row3>, b: Branding,
             if (rows.isEmpty()) Text(empty ?: "", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp))
             rows.forEachIndexed { i, r ->
                 val tone = statusColor(r.badge, b.base)
-                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF0EEEA)))
+                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(com.example.gavanhomes.ui.common.KitLine))
                 Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(38.dp).clip(CircleShape).background(tone.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
                         Text(r.title.trim().take(1).uppercase().ifEmpty { "•" }, color = tone, fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -509,7 +525,7 @@ private fun LazyListScope.listCard(title: String, rows: List<Row3>, b: Branding,
 @Composable
 private fun KpiCard(k: Kpi, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(Color.White)
+        modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard)
             .then(if (k.path != null) Modifier.clickable { onClick() } else Modifier).padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Text(k.label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.2.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -531,7 +547,7 @@ private fun KpiCard(k: Kpi, modifier: Modifier, onClick: () -> Unit) {
 private fun Card(title: String, sub: String? = null, content: @Composable () -> Unit) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).shadow(3.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+            .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink, modifier = Modifier.weight(1f))
@@ -551,7 +567,7 @@ private fun SectionTitle(text: String, top: Int = 20) {
 private fun AlertChip(text: String, color: Color) {
     Text(
         text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
 

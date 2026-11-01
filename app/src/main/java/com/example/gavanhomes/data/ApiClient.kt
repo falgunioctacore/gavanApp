@@ -145,9 +145,30 @@ class ApiClient(private val tokenProvider: () -> String?) {
         return execute("POST", path, true, "multipart/form-data; boundary=$boundary", { out -> out.write(bytes) }, readTimeoutMs = 120_000)
     }
 
+    /**
+     * One request. A read (GET) that times out or can't connect is tried once more before giving up — a busy server often
+     * answers the second time; a change (POST / PUT / DELETE) is never sent twice. The error then says what happened in words.
+     */
     private fun execute(
         method: String, path: String, auth: Boolean = true, contentType: String? = null,
-        write: ((java.io.OutputStream) -> Unit)? = null, readTimeoutMs: Int = 20_000,
+        write: ((java.io.OutputStream) -> Unit)? = null, readTimeoutMs: Int = 45_000,
+    ): JSONObject {
+        val tries = if (method == "GET") 2 else 1
+        for (attempt in 1..tries) {
+            try { return executeOnce(method, path, auth, contentType, write, readTimeoutMs) }
+            catch (e: java.net.SocketTimeoutException) {
+                if (attempt == tries) throw IOException("The server is taking too long to answer. Please try again in a moment.", e)
+            } catch (e: java.net.ConnectException) {
+                if (attempt == tries) throw IOException("Can't reach the server. Check that it is running and you are connected.", e)
+            }
+            Thread.sleep(800)
+        }
+        error("unreachable")
+    }
+
+    private fun executeOnce(
+        method: String, path: String, auth: Boolean, contentType: String?,
+        write: ((java.io.OutputStream) -> Unit)?, readTimeoutMs: Int,
     ): JSONObject {
         val conn = URL(ApiConfig.BASE_URL + ApiConfig.PREFIX + path).openConnection() as HttpURLConnection
         try {

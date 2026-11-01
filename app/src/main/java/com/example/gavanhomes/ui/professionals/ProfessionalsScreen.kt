@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
 import com.example.gavanhomes.ui.common.HeroSummary
+import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import com.example.gavanhomes.ui.common.FabAction
 import com.example.gavanhomes.ui.common.FabLift
@@ -192,7 +193,7 @@ fun ProfessionalsScreen(
     ModalNavigationDrawer(
         drawerState = drawer,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
+            ModalDrawerSheet(drawerContainerColor = com.example.gavanhomes.ui.common.KitCard, windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(
                         Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(700f, 700f)))
@@ -215,7 +216,7 @@ fun ProfessionalsScreen(
                                 .clickable { onSection(i); scope.launch { drawer.close() } }.padding(horizontal = 14.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(38.dp).clip(CircleShape).background(if (on) b.base else Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(38.dp).clip(CircleShape).background(if (on) b.base else com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
                                 Text(s.glyph, color = if (on) Color.White else KitInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f).padding(start = 14.dp)) {
@@ -224,7 +225,7 @@ fun ProfessionalsScreen(
                             }
                             sidebarCounts[i]?.let { n ->
                                 Text(n.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else Color(0xFFF3F2F0)).padding(horizontal = 10.dp, vertical = 4.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                     }
@@ -240,11 +241,8 @@ fun ProfessionalsScreen(
             if (!ready) {
                 HeroBar(b, title, onBack, leading = toggle)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (error == null) CircularProgressIndicator(color = b.base)
-                    else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                        Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(12.dp)); androidx.compose.material3.OutlinedButton(onClick = { refresh() }) { Text("Retry") }
-                    }
+                    if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                    else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { refresh() })
                 }
                 return@Column
             }
@@ -291,7 +289,7 @@ fun ProfessionalsScreen(
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${shown.size} ${if (shown.size == 1) "professional" else "professionals"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                                 Text("⇪ Import", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { importOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { importOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
                                 Spacer(Modifier.size(8.dp))
                                 com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                             }
@@ -326,7 +324,7 @@ fun ProfessionalsScreen(
 
     // ── ⋯ actions on a professional ──
     sheet?.let { p ->
-        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
                 Text(p.name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(listOfNotNull(p.code, p.type).joinToString(" · "), color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
@@ -452,7 +450,7 @@ private fun ProCard(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit
         chips = {
             Pill(statusLabel(p.status), statusColor(p.status).copy(alpha = .14f), statusColor(p.status))
             p.type?.let { Pill(it, ProBlue.copy(alpha = .14f), ProBlue) }
-            p.city?.let { Pill(it, b.base.copy(alpha = .16f), b.dark) }
+            p.city?.let { Pill(it, b.base.copy(alpha = .16f), b.accentText) }
             licence?.let { (t, c) -> Pill(t, c.copy(alpha = .14f), c) }
         },
         footerLeft = { Text(p.phone ?: p.email ?: "No contact", fontSize = 13.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -467,7 +465,7 @@ private fun ProCard(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit
 private fun ProCompact(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit) {
     Row(
         Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-            .background(Color.White).clickable { onClick() }.padding(12.dp),
+            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Initials(p.name, 46.dp, statusColor(p.status))
@@ -475,7 +473,7 @@ private fun ProCompact(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> U
             Text(p.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(listOfNotNull(p.code, p.city).joinToString(" · "), fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (p.type != null) Pill(p.type, b.base.copy(alpha = .16f), b.dark)
+        if (p.type != null) Pill(p.type, b.base.copy(alpha = .16f), b.accentText)
         Text("⋯", fontSize = 22.sp, color = KitMuted, modifier = Modifier.clip(CircleShape).clickable { onMore() }.padding(horizontal = 10.dp))
     }
 }
@@ -488,11 +486,11 @@ private fun LazyListScope.types(types: List<JSONObject>, b: Branding, onOpen: (J
     items(types, key = { it.optInt("id") }) { t ->
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-                .background(Color.White).clickable { onOpen(t) }.padding(16.dp),
+                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(t) }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(b.base.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
-                Text(t.optString("name").take(1).uppercase(), color = b.dark, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                Text(t.optString("name").take(1).uppercase(), color = b.accentText, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
             }
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(t.optString("name"), fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -500,7 +498,7 @@ private fun LazyListScope.types(types: List<JSONObject>, b: Branding, onOpen: (J
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("${t.optInt("professionals")}", fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 16.sp)
-                if (t.optBoolean("system")) Pill("System", Color(0xFFEDEBE7), KitMuted)
+                if (t.optBoolean("system")) Pill("System", com.example.gavanhomes.ui.common.KitSoft, KitMuted)
                 else Pill(if (t.optBoolean("active")) "Active" else "Inactive", (if (t.optBoolean("active")) KitGood else KitMuted).copy(alpha = .14f), if (t.optBoolean("active")) KitGood else KitMuted)
             }
         }
@@ -522,7 +520,7 @@ private fun TypeSheet(api: ApiClient, type: JSONObject, onDismiss: () -> Unit, o
     var saving by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (id == 0) "New type" else if (system) type.optString("name") else "Edit type", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             if (system) {
@@ -580,7 +578,7 @@ private fun LazyListScope.reviews(r: JSONObject, b: Branding, onOpen: (Int) -> U
     items(rows, key = { it.optInt("id") }) { a ->
         Column(
             Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
-                .background(Color.White).clickable { onOpen(a.optInt("id")) }.padding(16.dp),
+                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(a.optInt("id")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -618,7 +616,7 @@ private fun LazyListScope.performance(rows: List<JSONObject>, b: Branding, onOpe
         val onTime = if (r.isNull("on_time_pct")) null else r.optInt("on_time_pct")
         Column(
             Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
-                .background(Color.White).clickable { onOpenPro(r.optString("uuid")) }.padding(16.dp),
+                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpenPro(r.optString("uuid")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -649,7 +647,7 @@ private fun LazyListScope.performance(rows: List<JSONObject>, b: Branding, onOpe
 
 @Composable
 private fun Metric(label: String, value: String, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk)
         Text(label, fontSize = 10.sp, color = KitMuted, maxLines = 1)
     }
@@ -681,14 +679,14 @@ private fun ImportSheet(api: ApiClient, onDone: (Boolean) -> Unit) {
         }
     }
 
-    ModalBottomSheet(onDismissRequest = { onDone(result != null && !failed) }, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = { onDone(result != null && !failed) }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Import professionals", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Text("A CSV or Excel file with these columns. A type that doesn't exist yet is created; rows with a duplicate email are skipped; each account gets a random password.", color = KitMuted, fontSize = 13.sp)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("name *", "type *", "email", "phone", "city", "state", "license_number").forEach {
                     Text(it, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (it.endsWith("*")) KitDanger else KitInk,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (it.endsWith("*")) KitDanger.copy(alpha = .1f) else Color(0xFFF1EFEB)).padding(horizontal = 8.dp, vertical = 4.dp))
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (it.endsWith("*")) KitDanger.copy(alpha = .1f) else com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
             Box(

@@ -137,11 +137,8 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
         if (x == null) {
             HeroBar(b, "Bid", onBack)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (error == null) CircularProgressIndicator(color = b.base)
-                else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
+                if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+                else com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
             }
             return@Column
         }
@@ -194,7 +191,7 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
                         if (items.isEmpty()) Text("No items.", color = KitMuted, fontSize = 14.sp)
                         items.forEach { i ->
                             val service = i.optString("kind") == "service"
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Chip(if (service) "Service" else "Material", if (service) Amber else Blue)
                                 Text(i.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f).padding(horizontal = 10.dp))
                                 Text(listOfNotNull(i.str("quantity")?.removeSuffix(".00"), i.str("unit")).joinToString(" "), color = KitMuted, fontSize = 13.sp)
@@ -221,7 +218,7 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
                         subs.forEach { s ->
                             val st = s.optString("status")
                             val (label, c) = when (st) { "approved" -> "Accepted" to KitGood; "rejected" -> "Rejected" to KitDanger; else -> "Pending" to Amber }
-                            Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(s.optString("supplier"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
@@ -231,7 +228,7 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
                                 }
                                 Text(rupees(s.optDouble("amount")), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
                                 s.objs("lines").forEach { l ->
-                                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Column(Modifier.weight(1f)) {
                                             Text(l.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                             Text("${l.str("quantity")?.removeSuffix(".00") ?: "—"} × ${rupees(l.optDouble("rate"))}" + (l.str("gst")?.let { " + $it% GST" } ?: ""), color = KitMuted, fontSize = 12.sp)
@@ -277,7 +274,7 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
 @Composable
 private fun RejectSheet(supplier: String, onClose: () -> Unit, onSave: (String) -> Unit) {
     var reason by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Reject $supplier's quote", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Input("Reason (shown to the supplier)", reason, { reason = it }, singleLine = false)
@@ -384,11 +381,8 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
         HeroBar(b, if (editing) "Edit bid" else "New bid", back, compact = true)
         val o = options
         when {
-            loadError != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(loadError ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
-            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+            loadError != null -> com.example.gavanhomes.ui.common.EstateError(loadError, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
+            o == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             else -> {
                 val supplierList = o.objs("suppliers")
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
@@ -412,7 +406,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                         Card("Items", if (rows.isEmpty()) "Services and materials to quote" else "${rows.size} added") {
                             errors["new_items"]?.let { Text(it, color = KitDanger, fontSize = 12.sp) }
                             rows.forEachIndexed { i, r ->
-                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Chip(if (r.kind == "service") "Service" else "Material", if (r.kind == "service") Amber else Blue)
                                         Text(r.name, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f).padding(horizontal = 10.dp))
@@ -431,7 +425,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                         Spacer(Modifier.height(12.dp))
                     }
                 }
-                Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         if (saving) "Saving…" else if (editing) "Save draft" else "Create draft", color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).border(1.5.dp, b.base, RoundedCornerShape(16.dp)).clickable(enabled = !saving) { save(false) }.padding(vertical = 14.dp),
@@ -447,7 +441,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                 )
 
                 if (sheet == "terms") ChoiceSheet("Terms & conditions", o.objs("terms").map { Choice(it.optInt("id").toString(), it.optString("title")) }, termsId.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) { sheet = null; termsId = it.toIntOrNull() ?: 0 }
-                if (sheet == "suppliers") ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                if (sheet == "suppliers") ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                     Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Invite suppliers", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
@@ -458,7 +452,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                             supplierList.forEach { s ->
                                 val sid = s.optInt("id"); val on = sid in suppliers
                                 Row(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { suppliers = if (on) suppliers - sid else suppliers + sid }.padding(12.dp),
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { suppliers = if (on) suppliers - sid else suppliers + sid }.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Initials(s.optString("name"), size = 34.dp)
@@ -471,7 +465,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                         }
                     }
                 }
-                if (sheet == "items") ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                if (sheet == "items") ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                     var q by remember { mutableStateOf("") }
                     Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("Add an item or service", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
@@ -482,7 +476,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
                             if (shown.isEmpty()) Text("Nothing to add.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
                             shown.forEach { (k, i, j) ->
                                 Row(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { rows.add(BidRow(k, i, j.optString("name"), "", j.str("unit").orEmpty())); sheet = null }.padding(14.dp),
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { rows.add(BidRow(k, i, j.optString("name"), "", j.str("unit").orEmpty())); sheet = null }.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Chip(if (k == "service") "Service" else "Material", if (k == "service") Amber else Blue)

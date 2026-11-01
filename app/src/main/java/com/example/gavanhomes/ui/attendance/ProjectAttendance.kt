@@ -101,10 +101,8 @@ fun ProjectAttendance(api: ApiClient, b: Branding, uuid: String, version: Int, o
     val h = head
     if (h == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -112,10 +110,10 @@ fun ProjectAttendance(api: ApiClient, b: Branding, uuid: String, version: Int, o
     ProvideFab(listOfNotNull(FabAction("worker", "Add worker", KitInk, "☺").takeIf { can.optBoolean("create_worker") })) { onNew() }
     val pages = listOf(Page("day", "Day sheet"), Page("month", "Month"))
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("Attendance", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Labour attendance", pages.map { it.label }, index) { view = pages[it].key }
     when (pages[index].key) {
         "day" -> DaySheet(api, b, uuid, version + local, date, { date = it }, h, can.optBoolean("mark"), onOpen, onMarked = { tick++ }) { local++ }
-        else -> MonthView(api, b, uuid, version + local, onOpen)
+        else -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "attendance", version + local); MonthView(api, b, uuid, version + local, onOpen) }
     }
 }
 
@@ -139,7 +137,7 @@ private fun DaySheet(api: ApiClient, b: Branding, uuid: String, version: Int, da
     }
 
     // the day: ‹ date ›, tap the date to pick one
-    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("‹", color = KitInk, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable { setDate(date.minusDays(1)) }.padding(horizontal = 16.dp, vertical = 4.dp))
         Column(Modifier.weight(1f).clickable { android.app.DatePickerDialog(context, { _, y, m, d -> LocalDate.of(y, m + 1, d).let { if (!it.isAfter(today)) setDate(it) } }, date.year, date.monthValue - 1, date.dayOfMonth).apply { datePicker.maxDate = System.currentTimeMillis() }.show() }, horizontalAlignment = Alignment.CenterHorizontally) {
             Text(date.format(Shown), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
@@ -199,11 +197,11 @@ private fun DaySheet(api: ApiClient, b: Branding, uuid: String, version: Int, da
                 val aid = w.optInt("attendance_id")
                 if (aid > 0 && status != "absent" && marks[id] == null) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("OT", color = KitMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text("−", color = KitInk, fontSize = 18.sp, modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(Color(0xFFF1EFEA)).clickable(enabled = hours > 0) {
+                    Text("−", color = KitInk, fontSize = 18.sp, modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable(enabled = hours > 0) {
                         ot[id] = hours - 1; call(null, { api.send("PUT", "/attendance-center/$aid/overtime", JSONObject().put("overtime_hours", hours - 1)) })
                     }.padding(horizontal = 11.dp, vertical = 2.dp))
                     Text("${hours}h", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 8.dp))
-                    Text("+", color = KitInk, fontSize = 18.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFF1EFEA)).clickable(enabled = hours < 24) {
+                    Text("+", color = KitInk, fontSize = 18.sp, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable(enabled = hours < 24) {
                         ot[id] = hours + 1; call(null, { api.send("PUT", "/attendance-center/$aid/overtime", JSONObject().put("overtime_hours", hours + 1)) })
                     }.padding(horizontal = 10.dp, vertical = 2.dp))
                 }
@@ -222,14 +220,14 @@ private fun MonthView(api: ApiClient, b: Branding, uuid: String, version: Int, o
     var data by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(month, version) { data = null; error = null; try { data = withContext(Dispatchers.IO) { api.detail("/projects/$uuid/attendance-center/month?month=$month") } } catch (e: Exception) { error = e.message } }
-    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("‹", color = KitInk, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable { month = month.minusMonths(1) }.padding(horizontal = 16.dp, vertical = 4.dp))
         Text(month.format(MonthName), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
         val next = month < YearMonth.now()
         Text("›", color = if (next) KitInk else KitMuted.copy(alpha = .4f), fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(enabled = next) { month = month.plusMonths(1) }.padding(horizontal = 16.dp, vertical = 4.dp))
     }
     val d = data
-    if (d == null) { Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { if (error == null) CircularProgressIndicator(color = b.base) else Text(error ?: "", color = KitMuted) }; return }
+    if (d == null) { Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base) else Text(error ?: "", color = KitMuted) }; return }
     val workers = d.objs("workers")
     Card("Wages earned", "Present + half days + overtime this month") { Text(rupees(d.optDouble("earned", 0.0)), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp) }
     val days = d.objs("days")
@@ -239,7 +237,7 @@ private fun MonthView(api: ApiClient, b: Branding, uuid: String, version: Int, o
             days.forEach { day ->
                 val p = day.optInt("present") + day.optInt("half_day") / 2f
                 Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.Bottom) {
-                    Box(Modifier.fillMaxWidth().height((80 * (p / most)).dp.coerceAtLeast(2.dp)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(if (p > 0) KitGood else Color(0xFFE6E3DD)))
+                    Box(Modifier.fillMaxWidth().height((80 * (p / most)).dp.coerceAtLeast(2.dp)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(if (p > 0) KitGood else com.example.gavanhomes.ui.common.KitLine))
                 }
             }
         }
@@ -248,7 +246,7 @@ private fun MonthView(api: ApiClient, b: Branding, uuid: String, version: Int, o
     Card("Workers", "${workers.size} on this project") {
         if (workers.isEmpty()) Text("No workers yet.", color = KitMuted, fontSize = 13.sp)
         workers.forEach { w ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onOpen(w.optInt("id")) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onOpen(w.optInt("id")) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(w.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("P ${w.optInt("present")} · ½ ${w.optInt("half_day")} · A ${w.optInt("absent")} · OT ${w.optInt("overtime")}h", color = KitMuted, fontSize = 12.sp)

@@ -146,7 +146,7 @@ fun ReviewDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit,
         }
 
         if (canReview) Row(
-            Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
@@ -169,7 +169,7 @@ fun ReviewDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit,
     if (reworkOpen) {
         var comments by remember { mutableStateOf("") }
         var problem by remember { mutableStateOf<String?>(null) }
-        ModalBottomSheet(onDismissRequest = { reworkOpen = false }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { reworkOpen = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Send back for rework", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text("Tell the professional what to fix. This is required.", color = KitMuted, fontSize = 13.sp)

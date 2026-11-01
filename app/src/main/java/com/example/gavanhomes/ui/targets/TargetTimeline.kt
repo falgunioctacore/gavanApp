@@ -77,11 +77,8 @@ private fun TimelineLoader(api: ApiClient, b: Branding, uuid: String, version: I
     val all = rows
     if (all == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -190,7 +187,7 @@ fun TargetGantt(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
                 Box(Modifier.width(trackWidth).height(28.dp)) {
                     for (d in 0..total step 7) {
                         Text(from.plusDays(d.toLong()).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)), fontSize = 10.sp, color = KitMuted, modifier = Modifier.offset(PerDay * d + 3.dp, 6.dp))
-                        Box(Modifier.offset(PerDay * d, 0.dp).width(1.dp).height(28.dp).background(Color(0xFFE6E3DD)))
+                        Box(Modifier.offset(PerDay * d, 0.dp).width(1.dp).height(28.dp).background(com.example.gavanhomes.ui.common.KitLine))
                     }
                     val t = ChronoUnit.DAYS.between(from, today).toInt()
                     if (t in 0..total) Box(Modifier.offset(PerDay * t, 0.dp).width(2.dp).height(28.dp).background(Color(0xFF60A5FA)))

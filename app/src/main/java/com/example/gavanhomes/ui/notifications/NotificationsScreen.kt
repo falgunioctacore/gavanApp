@@ -93,6 +93,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var unreadOnly by remember { mutableStateOf(false) }
+    var search by remember { mutableStateOf("") }
     var reload by remember { mutableIntStateOf(0) }
 
     suspend fun load(p: Int) {
@@ -114,7 +115,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
         scope.launch { runCatching { withContext(Dispatchers.IO) { api.markNotificationRead(n.optString("id")) } } }
     }
 
-    val shown = rows.withIndex().filter { !unreadOnly || !it.value.optBoolean("read") }
+    val shown = rows.withIndex().filter { (!unreadOnly || !it.value.optBoolean("read")) && (search.isBlank() || it.value.toString().contains(search.trim(), true)) }
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
         LazyColumn(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -144,17 +145,20 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
                 }
             }
             item {
-                Row(Modifier.padding(horizontal = 16.dp).padding(top = 14.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ProFilterChip("All", null, null, !unreadOnly) { unreadOnly = false }
-                    ProFilterChip("Unread", NotificationCenter.unread.takeIf { it > 0 }, Color(0xFFD03B3B), unreadOnly) { unreadOnly = true }
+                Column(Modifier.padding(top = 12.dp, bottom = 4.dp)) {
+                    com.example.gavanhomes.ui.common.FilterBar(
+                        search, { search = it }, "Search notifications…",
+                        groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("show", "Show", listOf(com.example.gavanhomes.ui.common.FilterOption("unread", "Unread only", NotificationCenter.unread, Color(0xFFD03B3B))))),
+                        selected = if (unreadOnly) mapOf("show" to setOf("unread")) else emptyMap(),
+                        onApply = { m -> unreadOnly = "unread" in m["show"].orEmpty() },
+                        countWith = { m -> rows.count { r -> ("unread" !in m["show"].orEmpty() || !r.optBoolean("read")) } },
+                    )
                 }
             }
 
             if (error != null && rows.isEmpty()) item {
-                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { reload++ }) { Text("Retry") }
-                }
-            } else if (loading && rows.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) } }
+                com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(32.dp), onRetry = { reload++ })
+            } else if (loading && rows.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) } }
             else if (shown.isEmpty()) item {
                 Column(Modifier.fillMaxWidth().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("🔔", fontSize = 34.sp)
@@ -167,7 +171,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
                 val unread = !n.optBoolean("read")
                 Row(
                     Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(if (unread) 4.dp else 1.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-                        .background(if (unread) Color.White else Color(0xFFFAF9F7)).clickable { markRead(index, n) }.padding(14.dp),
+                        .background(if (unread) Color.White else com.example.gavanhomes.ui.common.KitSoft).clickable { markRead(index, n) }.padding(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     Box(Modifier.padding(top = 5.dp).size(10.dp).clip(CircleShape).background(if (unread) b.base else Color.Transparent))
@@ -182,7 +186,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
             if (rows.isNotEmpty() && page < lastPage) item {
                 Text(
                     if (loading) "Loading…" else "Load older", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),
+                    modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),
                 )
             }
         }

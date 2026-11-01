@@ -72,11 +72,7 @@ fun Loading() {
 
 @Composable
 private fun ErrorBox(message: String, onRetry: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text(message, color = Muted)
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onRetry) { Text("Retry") }
-    }
+    com.example.gavanhomes.ui.common.EstateError(message, modifier = Modifier.fillMaxSize().padding(24.dp), onRetry = onRetry)
 }
 
 @Composable

@@ -115,8 +115,8 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -132,10 +132,10 @@ fun ProjectGeneral(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
         Page("engineers", "Engineers").takeIf { can.optBoolean("engineers") }, Page("parties", "Parties").takeIf { can.optBoolean("parties") },
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("General", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Contractors & partners", pages.map { it.label }, index) { view = pages[it].key }
     val v = version + local
     when (pages[index].key) {
-        "dashboard" -> Dashboard(o) { view = it }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "general", version); Dashboard(o) { view = it } }
         "contractors" -> FilteredList(
             api, b, "/projects/$uuid/general-center/contractors", v, "Search name, company, phone or email…",
             groups = listOf(FilterGroup("type", "Type", o.strings("types").map { FilterOption(it, it) })), sorts = NewestOldest + ("name" to "Name A–Z"),
@@ -225,7 +225,7 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
             saving = false
         }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text((if (id > 0) "Edit " else "New ") + noun, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             fields.forEach { (k, label) ->

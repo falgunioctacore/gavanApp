@@ -262,7 +262,7 @@ fun VisitDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack
 private fun TextSheet(title: String, label: String, button: String, c: Color, required: Boolean = true, onClose: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input(label, text, { text = it; error = null }, error, singleLine = false)
@@ -280,7 +280,7 @@ private fun VisitApproveSheet(b: Branding, v: JSONObject, onClose: () -> Unit, o
     var at by remember { mutableStateOf(v.str("at") ?: (LocalDate.now().toString() + " 10:00")) }
     var notes by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Approve visit", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input("Staff meeting the customer", staff, { staff = it; error = null }, error)
@@ -299,7 +299,7 @@ private fun VisitTrackSheet(b: Branding, onClose: () -> Unit, onDone: (JSONObjec
     var follow by remember { mutableStateOf(false) }
     var followDate by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Record outcome", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -376,7 +376,7 @@ fun IssueDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, versio
             val comments = x.objs("comments")
             Card("Updates & comments", "${comments.size} so far") {
                 comments.forEach { c ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (c.str("type") == "status_update") InvBlue.copy(alpha = .08f) else Color(0xFFF7F5F1)).padding(12.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (c.str("type") == "status_update") InvBlue.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitSoft).padding(12.dp)) {
                         Text(listOfNotNull(c.str("by"), whenLabel(c.str("at"))).joinToString(" · "), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Text(c.optString("text"), color = KitInk, fontSize = 14.sp, lineHeight = 20.sp)
                     }
@@ -402,7 +402,7 @@ private fun FeedbackSheet(onClose: () -> Unit, onDone: (Int, String) -> Unit) {
     var rating by remember { mutableIntStateOf(5) }
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Customer feedback", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Text("4★ or more closes the issue; lower sends it back to work.", color = KitMuted, fontSize = 12.sp)
@@ -470,13 +470,13 @@ private fun FormPage(b: Branding, title: String, back: () -> Unit, banner: Strin
 @Composable
 private fun SearchPick(title: String, rows: List<JSONObject>, sub: (JSONObject) -> String?, b: Branding, onClose: () -> Unit, onPick: (JSONObject) -> Unit) {
     var q by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.padding(horizontal = 20.dp))
             com.example.gavanhomes.ui.common.SearchBox(q, { q = it }, "Search…")
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 rows.filter { q.isBlank() || it.optString("name").contains(q, true) || sub(it).orEmpty().contains(q, true) }.take(200).forEach { r ->
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onPick(r) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onPick(r) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         com.example.gavanhomes.ui.common.Initials(r.optString("name"), size = 30.dp)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

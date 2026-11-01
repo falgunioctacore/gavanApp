@@ -189,7 +189,7 @@ fun HrRecordScreen(api: ApiClient, b: Branding, slug: String, id: Int, onBack: (
 
     if (reject) {
         var remarks by remember { mutableStateOf("") }
-        ModalBottomSheet(onDismissRequest = { reject = false }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { reject = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Reject request", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Input("Remarks for the employee (optional)", remarks, { remarks = it }, singleLine = false)

@@ -151,11 +151,8 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -163,7 +160,7 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     ProvideFab(if (canCreate) listOf(FabAction("task", "New task")) else emptyList()) { onNew() }
 
     when (view) {
-        0 -> TaskDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 }
+        0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "tasks", version); TaskDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 } }
         1 -> TaskList(api, b, uuid, version, o, pickers, sel, { sel = it }, query, { query = it }, sort, { sort = it }, onOpen, canCreate, onNew, onChanged = { attempt++ }, onEdit = onEdit, onOpenAt = onOpenAt)
         2 -> TaskBoard(api, b, uuid, version, o.optJSONObject("can")?.optBoolean("edit") == true, onChanged = { attempt++ }, onOpen = onOpen)
         else -> TaskHistory(api, b, uuid, version, onOpen)
@@ -182,7 +179,7 @@ private fun TaskDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, n, c) ->
                     Column(
-                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(vertical = 12.dp),
+                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(n.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = c)
@@ -229,7 +226,7 @@ private fun TaskDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { f ->
                         Row(
-                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onQuick(f.key) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onQuick(f.key) }.padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(f.label, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -422,13 +419,10 @@ private fun TaskList(
     if (rows.isNotEmpty() && selected.isEmpty() && (canEdit || canDelete)) Text("Press and hold a task to select several", color = KitMuted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No tasks match.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
-        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         var more by remember(page) { mutableStateOf(false) }
@@ -440,7 +434,7 @@ private fun TaskList(
     rowMenu?.let { t ->
         val tid = t.optInt("id")
         val done = t.optString("status") == "Completed"
-        ModalBottomSheet(onDismissRequest = { rowMenu = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { rowMenu = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Choose what to do with this task", color = KitMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -455,12 +449,12 @@ private fun TaskList(
                 if (canEdit) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
                 MenuRow("◷", "View history") { rowMenu = null; onOpenAt(tid, "activity") }
                 if (canEdit) MenuRow("⇄", "Assign") { rowMenu = null; onOpenAt(tid, "assign") }
-                if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFEFECE6))); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
+                if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(com.example.gavanhomes.ui.common.KitLine)); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
             }
         }
     }
     noteFor?.let { t ->
-        ModalBottomSheet(onDismissRequest = { noteFor = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { noteFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Add a note", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(t.optString("name"), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -479,7 +473,7 @@ private fun TaskList(
     ) }
 
     when (sheet) {
-        "export" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "export" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Export tasks", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 Text("Exports the $total task${if (total == 1) "" else "s"} that match your search and filters.", color = KitMuted, fontSize = 13.sp)
@@ -488,19 +482,19 @@ private fun TaskList(
                     listOfNotNull(query.trim().takeIf { it.isNotEmpty() }?.let { "Search: “$it”" })
                 if (applied.isEmpty()) Text("No filters — every task will be exported.", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 else Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    applied.forEach { Text(it, color = KitInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1EFEB)).padding(horizontal = 12.dp, vertical = 7.dp)) }
+                    applied.forEach { Text(it, color = KitInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 12.dp, vertical = 7.dp)) }
                 }
                 SheetRow("Excel sheet (.xlsx)", KitGood) { sheet = null; export("excel") }
                 SheetRow("PDF report", KitDanger) { sheet = null; export("pdf") }
             }
         }
-        "bulk-status" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "bulk-status" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Set status of ${selected.size}", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 o.objs("statuses").forEach { s -> SheetRow(s.optString("name"), statusTint(s.optString("name"))) { sheet = null; bulk("status", s.optInt("id")) } }
             }
         }
-        "bulk-priority" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "bulk-priority" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Set priority of ${selected.size}", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 listOf("Urgent", "High", "Medium", "Low").forEach { p -> SheetRow(p, priorityTint(p)) { sheet = null; bulk("priority", p) } }
@@ -524,7 +518,7 @@ private fun ActionPill(label: String, icon: ActionIcon, filled: Boolean, accent:
     val fg = if (filled) Color.White else accent
     Row(
         Modifier.then(if (filled) Modifier.shadow(6.dp, RoundedCornerShape(16.dp), ambientColor = accent, spotColor = accent) else Modifier)
-            .clip(RoundedCornerShape(16.dp)).background(if (filled) accent else Color.White)
+            .clip(RoundedCornerShape(16.dp)).background(if (filled) accent else com.example.gavanhomes.ui.common.KitCard)
             .then(if (filled) Modifier else Modifier.border(1.5.dp, accent.copy(alpha = .55f), RoundedCornerShape(16.dp)))
             .clickable(enabled = enabled) { onClick() }.padding(start = 12.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -560,7 +554,7 @@ private fun BulkButton(text: String, tint: Color = Color.White, onClick: () -> U
 
 @Composable
 private fun SheetRow(label: String, tint: Color, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(tint))
         Text(label, color = KitInk, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 12.dp))
     }
@@ -597,7 +591,7 @@ private fun TaskHistory(api: ApiClient, b: Branding, uuid: String, version: Int,
             Row(Modifier.height(IntrinsicSize.Min).clip(RoundedCornerShape(12.dp)).clickable(enabled = h.optInt("task_id") > 0) { onOpen(h.optInt("task_id")) }) {
                 Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.padding(top = 5.dp).size(12.dp).clip(CircleShape).background(tint))
-                    if (i < rows.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(Color(0xFFE6E3DD)))
+                    if (i < rows.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
                 }
                 Column(Modifier.padding(start = 10.dp, bottom = if (i < rows.lastIndex) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(h.optString("task"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -606,7 +600,7 @@ private fun TaskHistory(api: ApiClient, b: Branding, uuid: String, version: Int,
                     Text("${h.optString("user")} · ${h.optString("at")}", color = KitMuted, fontSize = 12.sp)
                     h.objs("changes").forEach { c ->
                         val old = c.str("old"); val new = c.str("new")
-                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFF7F5F1)).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
                             Text(c.optString("field"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             if (old != null && new != null) {
                                 Text(old, color = KitMuted, fontSize = 12.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough, lineHeight = 16.sp)
@@ -618,17 +612,15 @@ private fun TaskHistory(api: ApiClient, b: Branding, uuid: String, version: Int,
             }
         }
         when {
-            loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth(), onRetry = { attempt++ })
             rows.isEmpty() -> Text("Nothing has happened yet.", color = KitMuted, fontSize = 14.sp)
         }
         if (rows.isNotEmpty() && page < lastPage) {
             var more by remember(page) { mutableStateOf(false) }
             LaunchedEffect(more) { if (more) load(page + 1) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (loading) CircularProgressIndicator(color = b.base) else OutlinedButton(onClick = { more = true }) { Text("Load more") }
+                if (loading) com.example.gavanhomes.ui.common.EstateLoader(b.base) else OutlinedButton(onClick = { more = true }) { Text("Load more") }
             }
         }
     }
@@ -715,8 +707,8 @@ private fun TaskBoard(api: ApiClient, b: Branding, uuid: String, version: Int, c
     val c = cols
     if (c == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(error ?: "", color = KitMuted); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, onRetry = { attempt++ })
         }
         return
     }
@@ -787,31 +779,29 @@ internal fun TaskCard(
     val overdue = r.optBoolean("overdue")
     val people = r.names("assignees")
     val due = prettyDay(r.str("due_date"))
-    val box = modifier.alpha(if (dim) .35f else 1f).padding(horizontal = if (flat) 0.dp else if (narrow) 10.dp else 16.dp, vertical = 5.dp).fillMaxWidth()
-        .then(if (flat) Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFFF7F5F1)) else Modifier.shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White))
+    val box = modifier.alpha(if (dim) .35f else 1f).padding(horizontal = if (flat) 0.dp else if (narrow) 8.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
+        .then(if (flat) Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft) else Modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard))
     Column(
-        box.then(if (selected == true) Modifier.border(2.dp, KitInk, RoundedCornerShape(18.dp)) else Modifier)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        box.then(if (selected == true) Modifier.border(2.dp, KitInk, RoundedCornerShape(16.dp)) else Modifier)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(start = 12.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
             if (selected != null) Box(
-                Modifier.padding(end = 10.dp, top = 1.dp).size(22.dp).clip(CircleShape).background(if (selected) KitInk else Color(0xFFE6E3DD)),
+                Modifier.padding(end = 10.dp, top = 1.dp).size(22.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine),
                 contentAlignment = Alignment.Center,
             ) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
-            Text(r.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            if (!narrow && status != null) { Spacer(Modifier.width(8.dp)); val c = statusTint(status); Pill(status, c.copy(alpha = .14f), c) }
-            if (onMore != null) Text("⋮", color = KitInk, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp).size(30.dp).clip(CircleShape).background(Color(0xFFF3F2F0)).clickable { onMore() }.wrapContentSize(Alignment.Center))
+            Text(r.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = KitInk, maxLines = if (narrow) 2 else 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (!narrow && status != null) { Spacer(Modifier.width(6.dp)); Tiny(status, statusTint(status)) }
+            if (onMore != null) Text("⋮", color = KitMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp).size(28.dp).clip(CircleShape).clickable { onMore() }.wrapContentSize(Alignment.Center))
         }
-        Text(
-            if (people.isEmpty()) "Unassigned" else people.take(2).joinToString(", ") + if (people.size > 2) " +${people.size - 2}" else "",
-            color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (priority != null) { val c = priorityTint(priority); Pill(priority, c.copy(alpha = .14f), c) }
-            if (narrow && status != null) { val c = statusTint(status); Pill(status, c.copy(alpha = .14f), c) }
-            if (due != null) Text("Due $due", color = if (overdue) KitDanger else KitMuted, fontSize = 12.sp, fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal)
-            if (r.optInt("subtasks") > 0) Text("${r.optInt("subtasks")} subtasks", color = KitMuted, fontSize = 12.sp)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (priority != null) Tiny(priority, priorityTint(priority))
+            if (narrow && status != null) Tiny(status, statusTint(status))
+            if (due != null) Tiny("◷ $due", if (overdue) KitDanger else KitMuted)
+            if (r.optInt("subtasks") > 0) Tiny("☰ ${r.optInt("subtasks")}", KitMuted)
+            Tiny("◉ " + if (people.isEmpty()) "Unassigned" else people.take(2).joinToString(", ") + if (people.size > 2) " +${people.size - 2}" else "", KitMuted)
+            if (r.optInt("progress") > 0) Tiny("${r.optInt("progress")}%", statusTint(status))
         }
         if (r.optInt("progress") > 0) Meter(r.optInt("progress") / 100f, statusTint(status))
     }
@@ -819,7 +809,7 @@ internal fun TaskCard(
 
 @Composable
 internal fun Meter(fraction: Float, color: Color) {
-    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFE6E3DD))) {
+    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(com.example.gavanhomes.ui.common.KitLine)) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(6.dp).background(color))
     }
 }
@@ -827,7 +817,7 @@ internal fun Meter(fraction: Float, color: Color) {
 @Composable
 private fun FilterChip(label: String, count: Int?, on: Boolean, tint: Color, onClick: () -> Unit) {
     Row(
-        Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) tint else Color.White).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 8.dp),
+        Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) tint else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = if (on) Color.White else KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -838,7 +828,7 @@ private fun FilterChip(label: String, count: Int?, on: Boolean, tint: Color, onC
 @Composable
 internal fun Card(title: String, sub: String? = null, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(18.dp),
+        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
@@ -847,4 +837,11 @@ internal fun Card(title: String, sub: String? = null, content: @Composable andro
         }
         content()
     }
+}
+
+/** A small rounded tag for the tight list cards: the words in the colour, on a faint wash of it. */
+@Composable
+internal fun Tiny(text: String, c: Color) {
+    Text(text, color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(c.copy(alpha = .1f)).padding(horizontal = 7.dp, vertical = 3.dp))
 }

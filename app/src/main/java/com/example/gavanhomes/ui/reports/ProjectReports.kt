@@ -101,8 +101,8 @@ fun ProjectReports(api: ApiClient, b: Branding, uuid: String, onOpen: (String, S
     val g = groups
     if (g == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -126,8 +126,15 @@ fun ProjectReports(api: ApiClient, b: Branding, uuid: String, onOpen: (String, S
         }
         1 -> {
             var q by remember { mutableStateOf("") }
-            SearchBox(q, { q = it }, "Search reports…")
-            val shown = all.filter { (grp, r) -> q.isBlank() || r.optString("label").contains(q, true) || grp.contains(q, true) }
+            var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+            val inGroup = { grp: String, m: Map<String, Set<String>> -> m["group"].orEmpty().let { it.isEmpty() || grp in it } }
+            com.example.gavanhomes.ui.common.FilterBar(
+                q, { q = it }, "Search reports…",
+                groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("group", "Group", g.map { com.example.gavanhomes.ui.common.FilterOption(it.optString("group"), it.optString("group").substringBefore(" ·"), it.objs("reports").size) })),
+                selected = sel, onApply = { sel = it },
+                countWith = { m -> all.count { (grp, r) -> inGroup(grp, m) && (q.isBlank() || r.optString("label").contains(q, true)) } },
+            )
+            val shown = all.filter { (grp, r) -> inGroup(grp, sel) && (q.isBlank() || r.optString("label").contains(q, true) || grp.contains(q, true)) }
             if (shown.isEmpty()) Text("No report matches “$q”.", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
             shown.groupBy { it.first }.forEach { (grp, rows) -> Card(grp, "${rows.size} report${if (rows.size == 1) "" else "s"}") { rows.forEach { (_, r) -> ReportRow(grp, r) { onOpen(r.optString("key"), r.optString("label")) } } } }
         }
@@ -156,7 +163,7 @@ private fun ReportLine(group: String, label: String, unavailable: Boolean = fals
 private fun ReportRow(group: String, r: JSONObject, onClick: () -> Unit) {
     val off = r.optBoolean("unavailable")
     val c = if (off) KitMuted else tint(group)
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(34.dp).clip(CircleShape).background(c.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text(GroupGlyph[group] ?: "▮", color = c, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp) }
         Text(r.optString("label"), color = if (off) KitMuted else KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f).padding(start = 12.dp))
         Text(if (off) "Not yet" else "›", color = KitMuted, fontSize = if (off) 11.sp else 20.sp)
@@ -265,7 +272,7 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
             )
             val m = meta
             m?.optString("unavailable")?.takeIf { it.isNotBlank() }?.let { why ->
-                Column(Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color.White).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("⌛", fontSize = 34.sp)
                     Text(why, color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
                 }
@@ -280,7 +287,7 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
                     if (rows.isNotEmpty() && rows.all { it.hasNumber() }) Card(label(k), "${rows.size} rows") {
                         rows.forEach { r ->
                             val cols = r.keys().asSequence().toList()
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(cols.firstOrNull()?.let { r.optString(it) } ?: "", color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                 Text(cols.drop(1).map { r.optString(it) }.filter { it.isNotBlank() && it != "null" }.joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.End, modifier = Modifier.padding(start = 8.dp))
                             }
@@ -288,7 +295,7 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
                     }
                 }
             }
-            if (m == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+            if (m == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             Paged(api, b, "/projects/$uuid/report-center/report", query, 0, if (m?.optString("unavailable").isNullOrBlank()) "Nothing in this report for the period." else "", "row", onMeta = { meta = it }) { r ->
                 val cols = r.keys().asSequence().toList()
                 RowCard(null) {

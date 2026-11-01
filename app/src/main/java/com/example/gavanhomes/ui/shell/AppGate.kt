@@ -130,15 +130,11 @@ fun AppGate() {
             store.token = newToken; store.userJson = user.toJson().toString(); token = newToken
             gate = Gate.Ready(user)
         }
-        Gate.Checking -> Box(Modifier.fillMaxSize().background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = branding.base)
+        Gate.Checking -> Box(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
+            com.example.gavanhomes.ui.common.EstateLoader(branding.base)
         }
-        is Gate.Failed -> Box(Modifier.fillMaxSize().background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(g.message, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { attempt++ }) { Text("Retry") }
-            }
+        is Gate.Failed -> Box(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
+            com.example.gavanhomes.ui.common.EstateError(g.message, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         is Gate.Ready -> Home(api, g, branding, store, onSignedOut = ::signOut, onBranding = { branding = it })
     }
@@ -174,6 +170,11 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var hrId by remember { mutableStateOf<Int?>(null) }        // that record (null on the form = new)
 
     fun goHome() { screen = "dashboard"; homeVersion++ }
+    var appearance by remember { mutableStateOf(false) }   // the light / dark sheet
+    val places = remember(modules) { placesFor(modules) }
+    val teamOnly = remember(modules) { modules.map { it.key }.filter { it in TeamKeys }.singleOrNull() }
+    /** Back from Users / HR / Professionals: to the Team hub, or home when that module is the whole of Team. */
+    fun backToTeam() { if (teamOnly != null) goHome() else screen = "team" }
 
     var notifFrom by remember { mutableStateOf("dashboard") }   // the screen the bell was pressed on, so Back returns there
     val openNotifications: () -> Unit = { if (screen != "notifications") notifFrom = screen; screen = "notifications" }
@@ -319,6 +320,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "hr" && hrSection != 0 -> hrSection = 0
             screen == "hod" && hodSection != 0 -> hodSection = 0
             screen == "audit" && auditSection != 0 -> auditSection = 0
+            screen in TeamKeys -> backToTeam()
+            screen == "account" || screen == "audit" -> screen = "me"
             screen != "dashboard" -> goHome()
             System.currentTimeMillis() - lastBack < 2000 -> activity?.finish()
             else -> { lastBack = System.currentTimeMillis(); Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show() }
@@ -338,7 +341,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
 
     androidx.compose.runtime.CompositionLocalProvider(LocalOpenNotifications provides openNotifications) {
     if (screen == "web") {
-        Box(Modifier.fillMaxSize().background(Color(0xFFF3F2F0))) {
+        Box(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage)) {
             webView?.let { wv ->
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
@@ -349,8 +352,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     },
                 )
             }
-            if (opening) Box(Modifier.fillMaxSize().background(Color(0xFFF3F2F0)), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = branding.base)
+            if (opening) Box(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
+                com.example.gavanhomes.ui.common.EstateLoader(branding.base)
             }
         }
     } else {
@@ -368,7 +371,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                     "users" -> androidx.compose.runtime.key(usersVersion) {
                         UsersScreen(
-                            api, branding, onBack = ::goHome,
+                            api, branding, onBack = ::backToTeam,
                             onOpenUser = { id -> userId = id; screen = "userDetail" },
                             onAdd = { userId = null; screen = "userForm" },
                             onEditUser = { id -> userId = id; screen = "userForm" },
@@ -376,7 +379,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                     "professionals" -> androidx.compose.runtime.key(proVersion) {
                         ProfessionalsScreen(
-                            api, branding, section = proSection, onSection = { proSection = it }, onBack = ::goHome,
+                            api, branding, section = proSection, onSection = { proSection = it }, onBack = ::backToTeam,
                             onOpenPro = { uuid -> proUuid = uuid; screen = "professionalDetail" },
                             onAddPro = { proUuid = null; screen = "professionalForm" },
                             onEditPro = { uuid -> proUuid = uuid; screen = "professionalForm" },
@@ -385,27 +388,32 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                     "hr" -> androidx.compose.runtime.key(hrVersion) {
                         HrScreen(
-                            api, branding, section = hrSection, onSection = { hrSection = it }, onBack = ::goHome,
+                            api, branding, section = hrSection, onSection = { hrSection = it }, onBack = ::backToTeam,
                             onOpen = { slug, id -> hrSlug = slug; hrId = id; screen = "hrRecord" },
                             onAdd = { slug -> hrSlug = slug; hrId = null; screen = "hrForm" },
                             onEdit = { slug, id -> hrSlug = slug; hrId = id; screen = "hrForm" },
                         )
                     }
-                    "audit" -> AuditScreen(api, branding, section = auditSection, onSection = { auditSection = it }, onBack = ::goHome)
+                    "audit" -> AuditScreen(api, branding, section = auditSection, onSection = { auditSection = it }, onBack = { screen = "me" })
                     "hod" -> HodScreen(api, branding, section = hodSection, onSection = { hodSection = it }, onBack = ::goHome)
-                    "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = ::goHome, onLogout = logout,
+                    "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = { screen = "me" }, onLogout = logout,
                         onAppSettings = if (user.roles.any { it.equals("superAdmin", true) }) ({ screen = "appSettings" }) else null)
+                    "team" -> TeamHub(modules, branding) { k -> screen = k }
+                    "me" -> MeHub(user, modules, branding, superAdmin = user.roles.any { it.equals("superAdmin", true) }, unread = NotificationCenter.unread) { k ->
+                        when (k) { "notifications" -> openNotifications(); "logout" -> logout(); "appearance" -> appearance = true; else -> screen = k }
+                    }
                     else -> androidx.compose.runtime.key(homeVersion) {
                         DashboardScreen(
                             api, user, branding, modules, onOpenModule = ::openModule, onOpenPath = ::openPath, onLogout = logout,
                             cachedJson = store.dashboardJson, onCache = { store.dashboardJson = it }, onUnauthorized = onSignedOut,
+                            onOpenProject = { uuid -> detailUuid = uuid; screen = "projectDetail" },
                         )
                     }
                 }
 
                 // details / form screens sit on top of their list
                 if (screen != base) Box(
-                    Modifier.fillMaxSize().background(Color(0xFFF3F2F0)).pointerInput(Unit) { detectTapGestures { } },   // taps never reach the list below
+                    Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage).pointerInput(Unit) { detectTapGestures { } },   // taps never reach the list below
                 ) {
                     when (screen) {
                         "notifications" -> NotificationsScreen(api, branding, onBack = { screen = notifFrom })
@@ -455,7 +463,17 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 }
             }
             if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings" && !com.example.gavanhomes.ui.common.Chrome.hideBar) {   // the forms have their own Save bar
-                ModuleBar(modules, base, accent = branding.base, onLogout = logout, onSelect = ::openModule)
+                if (appearance) AppearanceSheet(branding, onClose = { appearance = false }) { m -> com.example.gavanhomes.ui.common.AppTheme.mode = m; store.theme = m; appearance = false }
+                EstateNavBar(places, placeOf(base), branding) { key ->
+                    when (key) {
+                        "home" -> goHome()
+                        "sales" -> screen = "hod"
+                        "projects" -> screen = "projects"
+                        // Team opens the hub, or the one module straight away when there is only one
+                        "team" -> screen = teamOnly ?: "team"
+                        else -> screen = "me"
+                    }
+                }
             }
         }
     }

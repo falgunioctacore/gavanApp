@@ -132,16 +132,13 @@ fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     }
     LaunchedEffect(uuid) { pickers = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/target-center/options") } }.getOrNull() }
 
-    com.example.gavanhomes.ui.common.ModulePages("Targets", listOf("Dashboard", "List", "Board", "Calendar", "Gantt", "History"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Milestones & targets", listOf("Dashboard", "List", "Board", "Calendar", "Gantt", "History"), view) { view = it }
 
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -149,7 +146,7 @@ fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     ProvideFab(if (canCreate) listOf(FabAction("target", "New target")) else emptyList()) { onNew() }
 
     when (view) {
-        0 -> TargetDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 }
+        0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "targets", version); TargetDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 } }
         1 -> TargetList(api, b, uuid, version, o, pickers, sel, { sel = it }, query, { query = it }, sort, { sort = it }, onOpen, canCreate, onNew, onChanged = { attempt++ }, onEdit = onEdit, onOpenAt = onOpenAt)
         2 -> TargetBoard(api, b, uuid, version, o.optJSONObject("can")?.optBoolean("edit") == true, onChanged = { attempt++ }, onOpen = onOpen)
         3 -> TargetCalendar(api, b, uuid, version, onOpen)
@@ -170,7 +167,7 @@ private fun TargetDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, n, c) ->
                     Column(
-                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(vertical = 12.dp),
+                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(n.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = c)
@@ -230,7 +227,7 @@ private fun TargetDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { f ->
                         Row(
-                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onQuick(f.key) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onQuick(f.key) }.padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(f.label, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -425,13 +422,10 @@ private fun TargetList(
     if (rows.isNotEmpty() && selected.isEmpty() && (canEdit || canDelete)) Text("Press and hold a target to select several", color = KitMuted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No targets match.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
-        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         var more by remember(page) { mutableStateOf(false) }
@@ -443,7 +437,7 @@ private fun TargetList(
     rowMenu?.let { t ->
         val tid = t.optInt("id")
         val done = t.optString("status") == "Completed"
-        ModalBottomSheet(onDismissRequest = { rowMenu = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { rowMenu = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Choose what to do with this target", color = KitMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -458,12 +452,12 @@ private fun TargetList(
                 if (canEdit) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
                 MenuRow("◷", "View history") { rowMenu = null; onOpenAt(tid, "activity") }
                 if (canEdit) MenuRow("⇄", "Assign") { rowMenu = null; onOpenAt(tid, "assign") }
-                if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFEFECE6))); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
+                if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(com.example.gavanhomes.ui.common.KitLine)); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
             }
         }
     }
     noteFor?.let { t ->
-        ModalBottomSheet(onDismissRequest = { noteFor = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { noteFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Add a note", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(t.optString("name"), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -482,7 +476,7 @@ private fun TargetList(
     ) }
 
     when (sheet) {
-        "export" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "export" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Export targets", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 Text("Exports the $total target${if (total == 1) "" else "s"} that match your search and filters.", color = KitMuted, fontSize = 13.sp)
@@ -491,18 +485,18 @@ private fun TargetList(
                     listOfNotNull(query.trim().takeIf { it.isNotEmpty() }?.let { "Search: “$it”" })
                 if (applied.isEmpty()) Text("No filters — every target will be exported.", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 else Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    applied.forEach { Text(it, color = KitInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1EFEB)).padding(horizontal = 12.dp, vertical = 7.dp)) }
+                    applied.forEach { Text(it, color = KitInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 12.dp, vertical = 7.dp)) }
                 }
                 SheetRow("Excel sheet (.xlsx)", KitGood) { sheet = null; export("excel") }
             }
         }
-        "bulk-status" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "bulk-status" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Set status of ${selected.size}", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 o.objs("statuses").forEach { s -> SheetRow(s.optString("name"), statusTint(s.optString("name"))) { sheet = null; bulk("status", s.optInt("id")) } }
             }
         }
-        "bulk-priority" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = Color.White) {
+        "bulk-priority" -> ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Set priority of ${selected.size}", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
                 listOf("Urgent", "High", "Medium", "Low").forEach { p -> SheetRow(p, priorityTint(p)) { sheet = null; bulk("priority", p) } }
@@ -526,7 +520,7 @@ private fun ActionPill(label: String, icon: ActionIcon, filled: Boolean, accent:
     val fg = if (filled) Color.White else accent
     Row(
         Modifier.then(if (filled) Modifier.shadow(6.dp, RoundedCornerShape(16.dp), ambientColor = accent, spotColor = accent) else Modifier)
-            .clip(RoundedCornerShape(16.dp)).background(if (filled) accent else Color.White)
+            .clip(RoundedCornerShape(16.dp)).background(if (filled) accent else com.example.gavanhomes.ui.common.KitCard)
             .then(if (filled) Modifier else Modifier.border(1.5.dp, accent.copy(alpha = .55f), RoundedCornerShape(16.dp)))
             .clickable(enabled = enabled) { onClick() }.padding(start = 12.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -562,7 +556,7 @@ private fun BulkButton(text: String, tint: Color = Color.White, onClick: () -> U
 
 @Composable
 private fun SheetRow(label: String, tint: Color, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onClick() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onClick() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(tint))
         Text(label, color = KitInk, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 12.dp))
     }
@@ -599,7 +593,7 @@ private fun TargetHistory(api: ApiClient, b: Branding, uuid: String, version: In
             Row(Modifier.height(IntrinsicSize.Min).clip(RoundedCornerShape(12.dp)).clickable(enabled = h.optInt("task_id") > 0) { onOpen(h.optInt("task_id")) }) {
                 Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.padding(top = 5.dp).size(12.dp).clip(CircleShape).background(tint))
-                    if (i < rows.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(Color(0xFFE6E3DD)))
+                    if (i < rows.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
                 }
                 Column(Modifier.padding(start = 10.dp, bottom = if (i < rows.lastIndex) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(h.optString("task"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -608,7 +602,7 @@ private fun TargetHistory(api: ApiClient, b: Branding, uuid: String, version: In
                     Text("${h.optString("user")} · ${h.optString("at")}", color = KitMuted, fontSize = 12.sp)
                     h.objs("changes").forEach { c ->
                         val old = c.str("old"); val new = c.str("new")
-                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFF7F5F1)).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
                             Text(c.optString("field"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             if (old != null && new != null) {
                                 Text(old, color = KitMuted, fontSize = 12.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough, lineHeight = 16.sp)
@@ -620,17 +614,15 @@ private fun TargetHistory(api: ApiClient, b: Branding, uuid: String, version: In
             }
         }
         when {
-            loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-            error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+            error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth(), onRetry = { attempt++ })
             rows.isEmpty() -> Text("Nothing has happened yet.", color = KitMuted, fontSize = 14.sp)
         }
         if (rows.isNotEmpty() && page < lastPage) {
             var more by remember(page) { mutableStateOf(false) }
             LaunchedEffect(more) { if (more) load(page + 1) }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (loading) CircularProgressIndicator(color = b.base) else OutlinedButton(onClick = { more = true }) { Text("Load more") }
+                if (loading) com.example.gavanhomes.ui.common.EstateLoader(b.base) else OutlinedButton(onClick = { more = true }) { Text("Load more") }
             }
         }
     }
@@ -717,8 +709,8 @@ private fun TargetBoard(api: ApiClient, b: Branding, uuid: String, version: Int,
     val c = cols
     if (c == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(error ?: "", color = KitMuted); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, onRetry = { attempt++ })
         }
         return
     }
@@ -781,7 +773,7 @@ private fun TargetBoard(api: ApiClient, b: Branding, uuid: String, version: Int,
 @Composable
 private fun FilterChip(label: String, count: Int?, on: Boolean, tint: Color, onClick: () -> Unit) {
     Row(
-        Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) tint else Color.White).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 8.dp),
+        Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) tint else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = if (on) Color.White else KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)

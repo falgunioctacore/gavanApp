@@ -90,11 +90,8 @@ private fun runAct(scope: kotlinx.coroutines.CoroutineScope, context: android.co
 @Composable
 private fun Loading(loading: Boolean, empty: Boolean, error: String?, emptyText: String, b: Branding, retry: () -> Unit) {
     when {
-        loading && empty -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && empty -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error, color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = retry) { Text("Retry") }
-        }
+        loading && empty -> Box(Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && empty -> com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = retry)
         empty -> Text(emptyText, color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 30.dp))
     }
 }
@@ -113,7 +110,7 @@ private fun Header(title: String, sub: String, button: String?, accent: Color, o
 
 @Composable
 private fun IconBtns(onEdit: (() -> Unit)?, onDelete: (() -> Unit)?) {
-    if (onEdit != null) Text("✎", color = KitInk, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).background(Color(0xFFF1EFEA)).clickable { onEdit() }.padding(horizontal = 11.dp, vertical = 6.dp))
+    if (onEdit != null) Text("✎", color = KitInk, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onEdit() }.padding(horizontal = 11.dp, vertical = 6.dp))
     if (onDelete != null) Text("🗑", fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp).clip(CircleShape).background(KitDanger.copy(alpha = .1f)).clickable { onDelete() }.padding(horizontal = 9.dp, vertical = 6.dp))
 }
 
@@ -144,7 +141,7 @@ internal fun LeadLists(api: ApiClient, b: Branding, uuid: String, version: Int, 
     Header("Lead lists", "${rows.size} list${if (rows.size == 1) "" else "s"} of leads", if (canManage) "+  New list" else null, b.base) { editing = JSONObject() }
     rows.forEach { l ->
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White)
+            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .clickable { onOpenList(l.optInt("id")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -173,7 +170,7 @@ internal fun LeadLists(api: ApiClient, b: Branding, uuid: String, version: Int, 
         var name by remember { mutableStateOf(l.optString("name")) }
         var pinned by remember { mutableStateOf(l.optBoolean("pinned")) }
         var auto by remember { mutableStateOf(l.optBoolean("auto_distribute")) }
-        ModalBottomSheet(onDismissRequest = { editing = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { editing = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (l.has("id")) "Edit lead list" else "New lead list", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Input("Name", name, { name = it })
@@ -223,15 +220,19 @@ internal fun ExportRequests(api: ApiClient, b: Branding, uuid: String, version: 
         ProKpiTiles(listOf(ProKpi(c.optInt("total").toString(), "Total", KitInk), ProKpi(c.optInt("pending").toString(), "Pending", Amber), ProKpi(c.optInt("approved").toString(), "Approved", KitGood), ProKpi(c.optInt("denied").toString(), "Denied", KitDanger)), columns = 2)
     }
     Header("Export requests", if (canReview) "Review who asked to export leads" else "Ask an admin to let you export leads", "+  Request export", b.base) { request = true }
-    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf("all" to "All", "pending" to "Pending", "approved" to "Approved", "denied" to "Denied").forEach { (k, l) -> Pick(l, status == k, b.base) { status = k } }
-    }
-    Spacer(Modifier.height(8.dp))
+    var eq by remember { mutableStateOf("") }
+    com.example.gavanhomes.ui.common.FilterBar(
+        eq, { eq = it }, "Search person or reason…",
+        groups = listOf(com.example.gavanhomes.ui.common.FilterGroup("status", "Status", listOf("pending" to "Pending", "approved" to "Approved", "denied" to "Denied").map { (k, l) -> com.example.gavanhomes.ui.common.FilterOption(k, l, c?.optInt(k), when (k) { "approved" -> KitGood; "denied" -> KitDanger; else -> Amber }) })),
+        selected = if (status == "all") emptyMap() else mapOf("status" to setOf(status)),
+        onApply = { m -> status = m["status"]?.firstOrNull() ?: "all" }, countWith = { -1 },
+    )
+    Spacer(Modifier.height(6.dp))
 
-    rows.forEach { r ->
+    rows.filter { r -> eq.isBlank() || r.toString().contains(eq.trim(), true) }.forEach { r ->
         val st = r.optString("status")
         val sc = when (st) { "approved" -> KitGood; "denied" -> KitDanger; else -> Amber }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(r.str("requester") ?: "—", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
@@ -255,7 +256,7 @@ internal fun ExportRequests(api: ApiClient, b: Branding, uuid: String, version: 
         var reason by remember { mutableStateOf("") }
         var listId by remember { mutableIntStateOf(0) }
         var pickList by remember { mutableStateOf(false) }
-        ModalBottomSheet(onDismissRequest = { request = false }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { request = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Request a lead export", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 PickerField("Lead list", options?.objs("lists")?.firstOrNull { it.optInt("id") == listId }?.optString("name") ?: "All lists") { pickList = true }
@@ -270,7 +271,7 @@ internal fun ExportRequests(api: ApiClient, b: Branding, uuid: String, version: 
     }
     decide?.let { (r, action) ->
         var notes by remember { mutableStateOf("") }
-        ModalBottomSheet(onDismissRequest = { decide = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { decide = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text((if (action == "approve") "Approve " else "Deny ") + "${r.str("requester") ?: "this"}'s request", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Input("Notes (optional)", notes, { notes = it }, singleLine = false)
@@ -382,7 +383,7 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
         val tpl = kind.key == "email-template" || kind.key == "message-template"
         val open = tpl && openTpl == r.optInt("id")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White)
+            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .then(if (tpl) Modifier.clickable { openTpl = if (open) 0 else r.optInt("id") } else Modifier).padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -434,7 +435,7 @@ private fun SettingSheet(kind: Kind, r: JSONObject, onClose: () -> Unit, onSave:
     val template = !kind.colored
     val valid = name.isNotBlank() && (if (kind.colored) hexOk else body.isNotBlank() && (kind.key != "email-template" || subject.isNotBlank()))
 
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text((if (editing) "Edit " else "New ") + kind.noun, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Input("Name", name, { name = it })
@@ -483,7 +484,7 @@ internal fun LeadPickSheet(api: ApiClient, uuid: String, onClose: () -> Unit, on
         rows = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/lead-center/list?search=${URLEncoder.encode(query.trim(), "UTF-8")}").objs("data") } }.getOrDefault(emptyList())
         loading = false
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Which lead?", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Input("Search by name or phone", query, { query = it })
@@ -491,7 +492,7 @@ internal fun LeadPickSheet(api: ApiClient, uuid: String, onClose: () -> Unit, on
                 if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else if (rows.isEmpty()) Text("No leads match.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
                 rows.forEach { r ->
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onPick(r) }.padding(14.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onPick(r) }.padding(14.dp)) {
                         Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text(listOfNotNull(r.str("phone"), r.str("status")).joinToString(" · "), color = KitMuted, fontSize = 12.sp)
                     }

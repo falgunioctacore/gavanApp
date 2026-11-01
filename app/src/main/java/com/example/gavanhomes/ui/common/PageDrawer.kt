@@ -68,10 +68,31 @@ fun ModulePages(title: String, pages: List<String>, selected: Int, onSelect: (In
     }
 }
 
+/** A small sign for a page, from words in its name; anything else shows its first letter. */
+private fun pageGlyph(label: String): String {
+    val l = label.lowercase()
+    return when {
+        "dashboard" in l || "overview" in l -> "▦"
+        "setting" in l -> "⚙"
+        "trash" in l -> "✕"
+        "history" in l || "log" in l || "audit" in l || "activity" in l -> "⟲"
+        "calendar" in l || "timeline" in l || "month" in l || "day" in l -> "◷"
+        "board" in l -> "▥"
+        "report" in l || "performance" in l || "comparison" in l -> "▮"
+        "template" in l -> "❏"
+        "request" in l || "approval" in l -> "✓"
+        "shared" in l -> "⇄"
+        "recent" in l -> "↻"
+        "payment" in l || "invoice" in l || "expense" in l || "payout" in l -> "₹"
+        "list" in l || "all " in l || l.startsWith("all") -> "☰"
+        else -> label.trim().take(1).uppercase()
+    }
+}
+
 /**
- * The page menu, in the quick-action style of the + button but at the bottom-left: a pill showing the open page ("▤ Materials");
- * a tap fans every page out above it as labelled round buttons (the open one filled, with ✓) — pick one to go there. A tap
- * outside, or Back, folds them away. Nothing shows for fewer than two pages.
+ * The page menu at the bottom-left. A dark pill shows the open page and where it is ("Materials · 2/9"); a tap slides up one
+ * card — the module's name, then every page as a tile in two columns (the open one filled with the brand colour) — and a tap on
+ * a tile goes there. A tap outside, or Back, closes it. Nothing shows for fewer than two pages.
  */
 @Composable
 fun BoxScope.PageDrawer(b: Branding, spec: PageSpec?) {
@@ -79,34 +100,60 @@ fun BoxScope.PageDrawer(b: Branding, spec: PageSpec?) {
     var open by remember { mutableStateOf(false) }
     BackHandler(enabled = open) { open = false }
     val quiet = remember { MutableInteractionSource() }
+    val selected = spec.selected.coerceIn(0, spec.pages.lastIndex)
 
-    if (open) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .28f)).clickable(indication = null, interactionSource = quiet) { open = false })
-    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 22.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (open) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .32f)).clickable(indication = null, interactionSource = quiet) { open = false })
+    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 16.dp, bottom = 22.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         AnimatedVisibility(open, enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom), exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)) {
-            // a long list (Inventory has nine pages) scrolls instead of running off the top of the screen
-            Column(Modifier.heightIn(max = 470.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                spec.pages.forEachIndexed { i, label ->
-                    val on = i == spec.selected
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(indication = null, interactionSource = quiet) { open = false; spec.onSelect(i) }) {
-                        Box(Modifier.size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(if (on) b.base else Color.White), contentAlignment = Alignment.Center) {
-                            Text(if (on) "✓" else "${i + 1}", color = if (on) Color.White else KitInk, fontSize = if (on) 18.sp else 15.sp, fontWeight = FontWeight.ExtraBold)
+            Column(
+                Modifier.widthIn(max = 380.dp).shadow(16.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(KitCard)
+                    .clickable(indication = null, interactionSource = quiet) { }.padding(14.dp),
+            ) {
+                Row(Modifier.padding(start = 4.dp, end = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(spec.title, color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${spec.pages.size} pages", color = KitMuted, fontSize = 12.sp)
+                    }
+                    Box(Modifier.size(32.dp).clip(CircleShape).background(KitSoft).clickable { open = false }, contentAlignment = Alignment.Center) {
+                        Text("✕", color = KitInk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                // nine pages (Materials) fit; more scroll inside the card
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    spec.pages.withIndex().chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            pair.forEach { (i, label) ->
+                                val on = i == selected
+                                Row(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(if (on) b.base else KitSoft)
+                                        .clickable { open = false; if (!on) spec.onSelect(i) }.padding(horizontal = 10.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(Modifier.size(30.dp).clip(CircleShape).background(if (on) Color.White.copy(alpha = .22f) else KitCard), contentAlignment = Alignment.Center) {
+                                        Text(pageGlyph(label), color = if (on) Color.White else b.base, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                    Text(
+                                        label, color = if (on) Color.White else KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, fontSize = 13.sp,
+                                        maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 16.sp, modifier = Modifier.padding(start = 8.dp),
+                                    )
+                                }
+                            }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        Spacer(Modifier.size(10.dp))
-                        Text(
-                            label, color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 220.dp).shadow(4.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(horizontal = 14.dp, vertical = 9.dp),
-                        )
                     }
                 }
             }
         }
         Row(
-            Modifier.widthIn(max = 220.dp).shadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInk).clickable { open = !open }
-                .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            Modifier.widthIn(max = 240.dp).shadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInk).clickable { open = !open }
+                .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(30.dp).clip(CircleShape).background(b.base), contentAlignment = Alignment.Center) { Text(if (open) "✕" else "▤", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold) }
-            Text(if (open) spec.title else spec.pages.getOrElse(spec.selected) { spec.pages[0] }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            Box(Modifier.size(32.dp).clip(CircleShape).background(b.base), contentAlignment = Alignment.Center) {
+                Text(pageGlyph(spec.pages[selected]), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Text(spec.pages[selected], color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp).weight(1f, fill = false))
+            Text("  ${selected + 1}/${spec.pages.size}  " + if (open) "▾" else "▴", color = Color.White.copy(alpha = .7f), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }

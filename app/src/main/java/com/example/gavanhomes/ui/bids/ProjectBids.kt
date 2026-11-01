@@ -119,23 +119,20 @@ fun ProjectBids(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
     LaunchedEffect(uuid, version) { options = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/bid-center/options") } }.getOrNull() }
 
     if (settingsOpen) { com.example.gavanhomes.ui.leads.SettingsEntry(true, "Bid settings", b.base, onCloseSettings); BidSettings(api, b, uuid, version) { attempt++ }; return }
-    com.example.gavanhomes.ui.common.ModulePages("Bids", listOf("Dashboard", "Bids", "Task bids"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Tenders & bids", listOf("Dashboard", "Bids", "Task bids"), view) { view = it }
 
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
     ProvideFab(if (canCreate) listOf(FabAction("bid", "New bid")) else emptyList()) { onNew() }
     when (view) {
-        0 -> BidDashboard(o, canCreate, onNew, onOpen) { key -> sel = mapOf("status" to setOf(key)); query = ""; view = 1 }
+        0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "bids", version); BidDashboard(o, canCreate, onNew, onOpen) { key -> sel = mapOf("status" to setOf(key)); query = ""; view = 1 } }
         2 -> TaskBidList(api, b, uuid, bidsRefresh + version, onOpen, onNewFromTask)
         else -> BidList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ })
     }
@@ -253,13 +250,10 @@ private fun BidList(
     if (rows.isNotEmpty() && selected.isEmpty() && canDelete) Text("Press and hold a bid to select several", color = KitMuted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("No bids match.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
-        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         var more by remember(page) { mutableStateOf(false) }
@@ -279,29 +273,26 @@ internal fun BidCard(r: JSONObject, flat: Boolean = false, selected: Boolean? = 
     val key = r.optString("status")
     val sc = bidTint(key)
     Column(
-        Modifier.padding(horizontal = if (flat) 0.dp else 16.dp, vertical = if (flat) 4.dp else 7.dp).fillMaxWidth()
-            .then(if (flat) Modifier else Modifier.shadow(6.dp, RoundedCornerShape(22.dp)))
-            .clip(RoundedCornerShape(22.dp)).background(if (selected == true) sc.copy(alpha = .14f) else if (flat) Color(0xFFF7F5F1) else Color.White)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier.padding(horizontal = if (flat) 0.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
+            .then(if (flat) Modifier else Modifier.shadow(2.dp, RoundedCornerShape(18.dp)))
+            .clip(RoundedCornerShape(18.dp)).background(if (selected == true) sc.copy(alpha = .14f) else if (flat) com.example.gavanhomes.ui.common.KitSoft else com.example.gavanhomes.ui.common.KitCard)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selected != null) Box(Modifier.padding(end = 10.dp).size(24.dp).clip(CircleShape).background(if (selected) KitInk else Color(0xFFE6E3DD)), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
-            Text(r.optString("title"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (selected != null) Box(Modifier.padding(end = 10.dp).size(24.dp).clip(CircleShape).background(if (selected) KitInk else com.example.gavanhomes.ui.common.KitLine), contentAlignment = Alignment.Center) { if (selected) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold) }
+            Text(r.optString("title"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.size(8.dp))
             Chip(r.optString("status_label"), sc)
         }
-        Text("◷ " + listOfNotNull(bidDay(r.str("start_date")), bidDay(r.str("end_date"))).joinToString(" → "), color = KitMuted, fontSize = 12.sp)
         val sup = r.optJSONArray("suppliers")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            sup.take(3).forEach { Chip(it, Blue) }
-            if (r.optInt("supplier_count") > 3) Chip("+${r.optInt("supplier_count") - 3}", KitMuted)
-            if (sup.isEmpty()) Text("No suppliers", color = KitMuted, fontSize = 12.sp)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${r.optInt("submissions")} of ${r.optInt("supplier_count")} submitted", color = KitMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(listOf("◷ " + listOfNotNull(bidDay(r.str("start_date")), bidDay(r.str("end_date"))).joinToString(" → "),
+            if (sup.isEmpty()) "No suppliers" else sup.take(2).joinToString(", ") + if (r.optInt("supplier_count") > 2) " +${r.optInt("supplier_count") - 2}" else "").joinToString("  ·  "),
+            color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Chip("${r.optInt("submissions")}/${r.optInt("supplier_count")} submitted", Blue)
             if (r.optInt("pending") > 0) Chip("${r.optInt("pending")} to review", Amber)
-            if (r.optBoolean("locked")) Text("🔒", fontSize = 13.sp, modifier = Modifier.padding(start = 8.dp))
+            if (r.optBoolean("locked")) Chip("🔒 Locked", KitMuted)
         }
     }
 }

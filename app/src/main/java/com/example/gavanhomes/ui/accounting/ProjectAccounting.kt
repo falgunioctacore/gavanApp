@@ -91,8 +91,8 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
     val o = overview
     if (o == null) {
         Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") } }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
         return
     }
@@ -102,9 +102,9 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
     )) { onNew(it) }
     val pages = listOf(Page("dashboard", "Dashboard"), Page("payments", "Payment in / out"), Page("expenses", "Expenses"), Page("invoices", "Supplier invoices"))
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
-    ModulePages("Accounting", pages.map { it.label }, index) { view = pages[it].key }
+    ModulePages("Accounts", pages.map { it.label }, index) { view = pages[it].key }
     when (pages[index].key) {
-        "dashboard" -> Dashboard(o, onOpen) { view = it }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "accounting", version); Dashboard(o, onOpen) { view = it } }
         "payments" -> PaymentList(api, b, uuid, version, options) { onOpen("payment", it) }
         "expenses" -> ExpenseList(api, b, uuid, version, options) { onOpen("expense", it) }
         else -> InvoiceList(api, b, uuid, version) { onOpen("invoice", it) }

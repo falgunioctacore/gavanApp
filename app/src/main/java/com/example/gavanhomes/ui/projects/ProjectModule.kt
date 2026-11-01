@@ -97,7 +97,7 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
 
     if (tabs.size > 1) com.example.gavanhomes.ui.common.ModulePages(module.replaceFirstChar { it.uppercase() }, tabs.map { it.optString("label") }, tabs.indexOfFirst { it.optString("key") == tab }.coerceAtLeast(0)) { tab = tabs[it].optString("key"); search = "" }
 
-    if (module != "reports") Column(Modifier.padding(top = 10.dp)) { SearchBox(search, { search = it }, "Search…") }
+    if (module != "reports") Column(Modifier.padding(top = 10.dp)) { com.example.gavanhomes.ui.common.FilterBar(search, { search = it }, "Search…", groups = emptyList(), selected = emptyMap(), onApply = {}, countWith = { -1 }) }
 
     if (stats.isNotEmpty()) Row(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         stats.forEach { s ->
@@ -113,13 +113,10 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
     rows.forEach { ModuleCard(it) }
 
     when {
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
-        error != null && rows.isEmpty() -> Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-        }
+        loading && rows.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+        error != null && rows.isEmpty() -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
         rows.isEmpty() -> Text("Nothing here yet.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
-        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base, modifier = Modifier.padding(8.dp)) }
+        loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base, Modifier.padding(8.dp)) }
     }
     // next page: shown as a button so a long list never loads more than the user asks for
     if (rows.isNotEmpty() && page < lastPage && !loading) {
@@ -135,13 +132,13 @@ private fun ModuleCard(r: JSONObject) {
     val accent = r.str("color")?.takeIf { it.startsWith("#") }?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
     val lines = r.optJSONArray("lines")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp),
+        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {
             Text(r.optString("title"), fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            r.str("subtitle")?.let { Text(it, color = KitMuted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-            if (lines.isNotEmpty()) Text(lines.joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+            r.str("subtitle")?.let { Text(it, color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            if (lines.isNotEmpty()) Text(lines.joinToString(" · "), color = KitMuted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
         }
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 10.dp)) {
             r.str("value")?.let { Text(it, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = accent ?: KitInk) }

@@ -90,18 +90,15 @@ internal fun Waiting(b: Branding, title: String, error: String?, onBack: () -> U
     Column(Modifier.fillMaxSize().background(KitPage)) {
         HeroBar(b, title, onBack, compact = true)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (error == null) CircularProgressIndicator(color = b.base)
-            else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(error, color = KitMuted, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = onRetry) { Text("Retry") }
-            }
+            if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+            else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = onRetry)
         }
     }
 }
 
 @Composable
 internal fun SaveBar(label: String, saving: Boolean, b: Branding, onClick: () -> Unit) {
-    Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
+    Box(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)) {
         Text(
             if (saving) "Saving…" else label, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { onClick() }.padding(vertical = 15.dp),
@@ -199,7 +196,7 @@ fun MaterialDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, ver
                 history.forEach { h ->
                     val (tl, tc) = txnLabel(h.optString("type"))
                     val inQ = h.optDouble("in", 0.0); val outQ = h.optDouble("out", 0.0)
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { Chip(tl, tc); h.str("store")?.let { Chip(it, KitMuted) } }
                             Text(listOfNotNull(whenLabel(h.str("date")), h.str("by")).joinToString(" · "), color = KitMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
@@ -237,7 +234,7 @@ fun MaterialDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, ver
 
 @Composable
 private fun Tile(value: String, label: String, modifier: Modifier, tint: Color) {
-    Column(modifier.clip(RoundedCornerShape(18.dp)).background(Color.White).padding(horizontal = 12.dp, vertical = 14.dp)) {
+    Column(modifier.clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 14.dp)) {
         Text(value, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(label, color = KitMuted, fontSize = 12.sp)
     }
@@ -276,7 +273,7 @@ private fun AdjustSheet(api: ApiClient, b: Branding, uuid: String, m: JSONObject
             saving = false
         }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Adjust stock", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Text("${m.optString("name")} · ${qty(onHand)} ${m.optString("unit")} on hand", color = KitMuted, fontSize = 13.sp)
@@ -501,7 +498,7 @@ fun DocFormScreen(api: ApiClient, b: Branding, uuid: String, kind: String, onBac
                     lines.forEachIndexed { i, l ->
                         val have = l.material.optDouble("on_hand", 0.0)
                         val over = issue && (l.amount.toDoubleOrNull() ?: 0.0) > have + 0.0001
-                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(l.material.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -536,7 +533,7 @@ fun DocFormScreen(api: ApiClient, b: Branding, uuid: String, kind: String, onBac
 internal fun PeoplePick(users: List<JSONObject>, current: Set<Int>, b: Branding, title: String, onClose: () -> Unit, onDone: (List<Int>) -> Unit) {
     val picked = remember { mutableStateListOf<Int>().apply { addAll(current) } }
     var q by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
@@ -546,7 +543,7 @@ internal fun PeoplePick(users: List<JSONObject>, current: Set<Int>, b: Branding,
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 users.filter { q.isBlank() || it.optString("name").contains(q, true) }.forEach { u ->
                     val id = u.optInt("id"); val on = id in picked
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else Color(0xFFF7F5F1)).clickable { if (on) picked.remove(id) else picked.add(id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { if (on) picked.remove(id) else picked.add(id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         com.example.gavanhomes.ui.common.Initials(u.optString("name"), size = 30.dp)
                         Text(u.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                         if (on) Text("✓", color = b.base, fontWeight = FontWeight.ExtraBold)
@@ -592,7 +589,7 @@ fun DocDetailScreen(api: ApiClient, b: Branding, kind: String, id: Int, onBack: 
         }
         Card("Materials") {
             x.objs("lines").forEach { l ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(l.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         l.str("code")?.let { Text(it, color = KitMuted, fontSize = 12.sp) }

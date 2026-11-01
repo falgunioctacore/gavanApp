@@ -103,7 +103,7 @@ fun ImportSheet(
     onImport: () -> Unit, onDismiss: () -> Unit,
 ) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Color.White) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = com.example.gavanhomes.ui.common.KitCard) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
             Text("Import CSV", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Text(type, fontSize = 12.sp, color = KitMuted)
@@ -114,7 +114,7 @@ fun ImportSheet(
                     cols.filterNot { it.isFile }.forEach { c ->
                         Text(
                             c.key + if (c.required) " *" else "", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (c.required) KitDanger else KitInk,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (c.required) KitDanger.copy(alpha = .1f) else Color(0xFFF1EFEB)).padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (c.required) KitDanger.copy(alpha = .1f) else com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -123,7 +123,7 @@ fun ImportSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "↓ Sample CSV", fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1EFEB)).clickable { onSample() }.padding(vertical = 14.dp),
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onSample() }.padding(vertical = 14.dp),
                     )
                     Text(
                         if (result == null) "Choose CSV file" else "Choose another", fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center,
@@ -153,7 +153,7 @@ fun ImportSheet(
                             result.valid.take(5).forEach { r ->
                                 Text(
                                     r.values.filter { it.isNotBlank() }.take(5).joinToString(" · "), fontSize = 12.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFF7F5F1)).padding(horizontal = 12.dp, vertical = 9.dp),
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 12.dp, vertical = 9.dp),
                                 )
                             }
                         }

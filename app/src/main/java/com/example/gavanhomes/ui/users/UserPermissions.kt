@@ -98,10 +98,8 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
             val x = d
             HeroBar(b, "Permissions", onClose, compact = true, showBell = false)
             when {
-                x == null && error != null -> Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(error ?: "", color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = { attempt++ }) { Text("Retry") }
-                }
-                x == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = b.base) }
+                x == null && error != null -> com.example.gavanhomes.ui.common.EstateError(error, modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), onRetry = { attempt++ })
+                x == null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
                 else -> {
                     val all = x.list("all")
                     val fromRole = x.list("role_permissions").toSet()
@@ -110,7 +108,7 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                     val has = { p: String -> full || p in fromRole || p in picked }
                     val groups = all.map { it to splitPermission(it) }.groupBy({ it.second.first }, { it.first to it.second.second }).toSortedMap()
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(x.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                             Text("Role: ${x.optString("role").ifBlank { "none" }.headline()}", color = KitMuted, fontSize = 13.sp)
                             Text(
@@ -141,7 +139,7 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                             if (shown.isEmpty() || full) return@forEach
                             val open = perms.map { it.first }.filter { it !in fromRole }
                             val allOn = open.isNotEmpty() && open.all { it in picked }
-                            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(group.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                     Text("${perms.count { has(it.first) }}/${perms.size}", color = KitMuted, fontSize = 12.sp)
@@ -154,11 +152,11 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                                     shown.forEach { (perm, verb) ->
                                         val role = perm in fromRole
                                         val extra = perm in picked
-                                        val bg = when { role -> RoleBlue; extra -> KitGood; else -> Color(0xFFF1EFEB) }
+                                        val bg = when { role -> RoleBlue; extra -> KitGood; else -> com.example.gavanhomes.ui.common.KitSoft }
                                         Text(
                                             (if (role) "🔒 " else "") + verb, color = if (role || extra) Color.White else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                                             modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(bg)
-                                                .then(if (role || extra) Modifier else Modifier.border(1.dp, Color(0xFFE0DDD6), RoundedCornerShape(14.dp)))
+                                                .then(if (role || extra) Modifier else Modifier.border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(14.dp)))
                                                 .clickable(enabled = editable && !role) { picked = if (extra) picked - perm else picked + perm }.padding(horizontal = 14.dp, vertical = 8.dp),
                                         )
                                     }
@@ -167,7 +165,7 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                         }
                         Spacer(Modifier.height(8.dp))
                     }
-                    if (editable) Box(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    if (editable) Box(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
                         val changed = picked != x.list("permissions").toSet()
                         Text(
                             if (saving) "Saving…" else if (changed) "Save permissions" else "No changes", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,

@@ -132,6 +132,7 @@ fun ProjectComms(api: ApiClient, b: Branding, uuid: String, version: Int, onComp
     ModulePages("Communications", pages, page) { page = it }
     when (page) {
         0 -> {
+            com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "communications", version)
             val o = overview
             if (o == null) Loading(b, error) { attempt++ } else Dashboard(o, onPage = { page = it })
         }
@@ -152,8 +153,8 @@ fun ProjectComms(api: ApiClient, b: Branding, uuid: String, version: Int, onComp
 @Composable
 private fun Loading(b: Branding, error: String?, onRetry: () -> Unit) {
     Box(Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-        if (error == null) CircularProgressIndicator(color = b.base)
-        else Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) { Text(error, color = KitMuted, textAlign = TextAlign.Center); Spacer(Modifier.height(12.dp)); OutlinedButton(onClick = onRetry) { Text("Retry") } }
+        if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base)
+        else com.example.gavanhomes.ui.common.EstateError(error, color = b.base, modifier = Modifier.padding(24.dp), onRetry = onRetry)
     }
 }
 
@@ -179,7 +180,7 @@ private fun Dashboard(o: JSONObject, onPage: (Int) -> Unit) {
                     Text(channelLabel(c), color = channelColor(c), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
                     Text("${x.optInt("sent")} sent · ${x.optInt("failed")} failed · ${x.optInt("skipped")} not sent", color = KitMuted, fontSize = 12.sp)
                 }
-                Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFF0EEEA))) {
+                Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(com.example.gavanhomes.ui.common.KitLine)) {
                     if (total > 0) listOf(x.optInt("sent") to KitGood, x.optInt("failed") to KitDanger, x.optInt("skipped") to InvAmber).filter { it.first > 0 }.forEach { (n, col) ->
                         Box(Modifier.weight(n.toFloat()).fillMaxHeight().background(col))
                     }
@@ -198,7 +199,7 @@ private fun Dashboard(o: JSONObject, onPage: (Int) -> Unit) {
                         val n = d.optInt(k)
                         if (n > 0) Box(Modifier.fillMaxWidth().height((100.0 * n / top).dp).background(col))
                     }
-                    if (d.optInt("email") + d.optInt("sms") + d.optInt("whatsapp") == 0) Box(Modifier.fillMaxWidth().height(2.dp).background(Color(0xFFE8E5DE)))
+                    if (d.optInt("email") + d.optInt("sms") + d.optInt("whatsapp") == 0) Box(Modifier.fillMaxWidth().height(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
                 }
             }
         }
@@ -223,7 +224,7 @@ private fun Dashboard(o: JSONObject, onPage: (Int) -> Unit) {
         Card("Who you can reach", "With an email address · with a phone number") {
             listOf("leads" to "Leads", "customers" to "Customers", "suppliers" to "Bid suppliers").forEach { (k, l) ->
                 val x = a.optJSONObject(k) ?: JSONObject()
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(l, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text("${x.optInt("total")} in this project", color = KitMuted, fontSize = 12.sp)
@@ -236,7 +237,7 @@ private fun Dashboard(o: JSONObject, onPage: (Int) -> Unit) {
     Card("Templates", "Saved messages to start from") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(Triple("WhatsApp", t.optInt("whatsapp"), 2), Triple("SMS", t.optInt("sms"), 2), Triple("Email", t.optInt("email"), 3)).forEach { (l, n, p) ->
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).clickable { onPage(p) }.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onPage(p) }.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(n.toString(), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
                     Text(l, color = KitMuted, fontSize = 12.sp)
                 }
@@ -248,7 +249,7 @@ private fun Dashboard(o: JSONObject, onPage: (Int) -> Unit) {
 /** One sent message in a dashboard card: who, when, channel and outcome (and why it failed). */
 @Composable
 private fun MiniLog(m: JSONObject) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF7F5F1)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(m.str("name") ?: m.optString("to"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Chip(channelLabel(m.str("channel")), channelColor(m.str("channel")))
@@ -337,11 +338,11 @@ private fun Templates(api: ApiClient, b: Branding, uuid: String, version: Int, e
     }
     open?.let { r ->
         val ch = if (email) "email" else if (r.str("channel") == "sms") "sms" else "whatsapp"
-        ModalBottomSheet(onDismissRequest = { open = null }, containerColor = Color.White) {
+        ModalBottomSheet(onDismissRequest = { open = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 18.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(r.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
                 r.str("subject")?.let { Text(it, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-                Text(r.optString("text").ifBlank { "(empty)" }, color = KitInk.copy(alpha = .85f), fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF7F5F1)).padding(12.dp))
+                Text(r.optString("text").ifBlank { "(empty)" }, color = KitInk.copy(alpha = .85f), fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp))
                 if (can.optBoolean("send") && r.str("status") != "inactive") ActionButton("Send ${channelLabel(ch)}", channelColor(ch)) { open = null; onUse(ch, r.optInt("id")) }
                 if (!email && can.optBoolean("send")) {
                     val other = if (ch == "sms") "whatsapp" else "sms"
@@ -356,7 +357,7 @@ private fun Templates(api: ApiClient, b: Branding, uuid: String, version: Int, e
         }
     }
     preview?.let { r ->
-        ModalBottomSheet(onDismissRequest = { preview = null }, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        ModalBottomSheet(onDismissRequest = { preview = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Column(Modifier.navigationBarsPadding().padding(bottom = 12.dp)) {
                 Text(r.optString("subject").ifBlank { r.optString("name") }, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
                 androidx.compose.ui.viewinterop.AndroidView(
@@ -423,7 +424,7 @@ private fun TemplateForm(api: ApiClient, b: Branding, uuid: String, email: Boole
             saving = false
         }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = Color.White, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text((if (id > 0) "Edit " else "New ") + if (email) "email template" else "message template", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Input("Template name", name, { name = it }, errors["name"])
