@@ -92,12 +92,12 @@ fun FilterBar(
                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
                 focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk,
             ),
-            modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)),
+            modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(16.dp)),
         )
 
         // the split Sort | Filter bar (only what the screen has: a search-only list shows just the search box)
         if (groups.isNotEmpty() || sortOptions.isNotEmpty()) Row(
-            Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(50.dp).shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(KitCard),
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(50.dp).softShadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(KitCard),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (sortOptions.isNotEmpty()) {

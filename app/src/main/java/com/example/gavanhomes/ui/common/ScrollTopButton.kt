@@ -40,7 +40,7 @@ private fun BoxScope.TopButton(visible: Boolean, lift: androidx.compose.ui.unit.
         enter = fadeIn() + scaleIn(initialScale = .7f), exit = fadeOut() + scaleOut(targetScale = .7f),
     ) {
         androidx.compose.foundation.layout.Box(
-            Modifier.size(46.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(KitInkFill).clickable { onClick() },
+            Modifier.size(46.dp).softShadow(8.dp, CircleShape).clip(CircleShape).background(KitInkFill).clickable { onClick() },
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.size(20.dp)) {

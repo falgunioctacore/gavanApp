@@ -46,6 +46,7 @@ private val Steps = listOf("Laying the foundation…", "Building the floors…",
  */
 @Composable
 fun EstateLoader(color: Color, modifier: Modifier = Modifier, size: Dp = 64.dp, caption: Boolean = true) {
+    if (caption) { SkeletonCards(modifier = modifier); return }
     val t = rememberInfiniteTransition(label = "estate")
     val p by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "build")
     Column(modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -102,6 +103,7 @@ private class Trouble(val sign: String, val title: String, val hint: String)
 private fun troubleFor(message: String?): Trouble {
     val m = message.orEmpty().lowercase()
     return when {
+        m.startsWith("no internet") -> Trouble("⌁", "No internet connection", "Check your Wi-Fi or mobile data. We\'ll try again by ourselves the moment you\'re back online.")
         "too long" in m || "timeout" in m || "timed out" in m -> Trouble("◷", "This is taking too long", "The server is busy. Give it a moment and try again.")
         "reach" in m || "connect" in m || "resolve host" in m || "network" in m || "failed to" in m -> Trouble("⌁", "Can't reach the server", "Check your internet connection, or that the server is running.")
         "403" in m || "permission" in m || "not allowed" in m || "forbidden" in m || "only " in m || "unauthor" in m -> Trouble("🔒", "You don't have access", "Ask an admin to give you permission for this.")
@@ -117,6 +119,9 @@ private fun troubleFor(message: String?): Trouble {
 @Composable
 fun EstateError(message: String?, color: Color = KitInk, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
     val tr = troubleFor(message)
+    // a screen that failed for lack of internet loads again by itself when the connection returns
+    val netStart = androidx.compose.runtime.remember { com.example.gavanhomes.data.Net.tick }
+    androidx.compose.runtime.LaunchedEffect(com.example.gavanhomes.data.Net.tick) { if (onRetry != null && com.example.gavanhomes.data.Net.tick != netStart) onRetry() }
     Column(modifier.padding(horizontal = 28.dp, vertical = 24.dp).widthIn(max = 360.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.size(104.dp).clip(CircleShape).background(color.copy(alpha = .08f)))

@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        com.example.gavanhomes.data.Net.start(applicationContext)
         AppTheme.mode = SessionStore(this).theme
         openChatFrom(intent)
         setContent {
@@ -49,7 +50,8 @@ class MainActivity : ComponentActivity() {
             GavanHomesTheme(darkTheme = dark, dynamicColor = false) {
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                     AppGate()
-                    com.example.gavanhomes.ui.common.IntroOverlay(androidx.compose.ui.graphics.Color(0xFF5D4924), androidx.compose.ui.graphics.Color(0xFFCFA251), "GavanHomes")
+                    com.example.gavanhomes.ui.common.ConnectionBanner(androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.TopCenter))
+                    com.example.gavanhomes.ui.common.IntroOverlay(androidx.compose.ui.graphics.Color(0xFF5D4924), androidx.compose.ui.graphics.Color(0xFFCFA251), "GavanHomes Admin")
                 }
             }
         }

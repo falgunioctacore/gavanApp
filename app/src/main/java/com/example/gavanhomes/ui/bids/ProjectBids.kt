@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.bids
 
+import com.example.gavanhomes.ui.common.softShadow
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -274,7 +275,7 @@ internal fun BidCard(r: JSONObject, flat: Boolean = false, selected: Boolean? = 
     val sc = bidTint(key)
     Column(
         Modifier.padding(horizontal = if (flat) 0.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
-            .then(if (flat) Modifier else Modifier.shadow(2.dp, RoundedCornerShape(18.dp)))
+            .then(if (flat) Modifier else Modifier.softShadow(2.dp, RoundedCornerShape(18.dp)))
             .clip(RoundedCornerShape(18.dp)).background(if (selected == true) sc.copy(alpha = .14f) else if (flat) com.example.gavanhomes.ui.common.KitSoft else com.example.gavanhomes.ui.common.KitCard)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

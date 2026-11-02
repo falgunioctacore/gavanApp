@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.dashboard
 
+import com.example.gavanhomes.ui.common.glass
+import com.example.gavanhomes.ui.common.softShadow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
@@ -527,7 +529,7 @@ private fun LazyListScope.listCard(title: String, rows: List<Row3>, b: Branding,
 @Composable
 private fun KpiCard(k: Kpi, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+        modifier.softShadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard)
             .then(if (k.path != null) Modifier.clickable { onClick() } else Modifier).padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Text(k.label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.2.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -548,7 +550,7 @@ private fun KpiCard(k: Kpi, modifier: Modifier, onClick: () -> Unit) {
 @Composable
 private fun Card(title: String, sub: String? = null, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).shadow(3.dp, RoundedCornerShape(22.dp))
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).softShadow(3.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -569,13 +571,13 @@ private fun SectionTitle(text: String, top: Int = 20) {
 private fun AlertChip(text: String, color: Color) {
     Text(
         text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = Modifier.softShadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
 
 @Composable
 private fun RoundGlyph(glyph: String, onClick: () -> Unit) {
-    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onClick() }, contentAlignment = Alignment.Center) {
+    Box(Modifier.size(40.dp).glass(CircleShape).clickable { onClick() }, contentAlignment = Alignment.Center) {
         Text(glyph, color = Color.White, fontSize = 18.sp)
     }
 }

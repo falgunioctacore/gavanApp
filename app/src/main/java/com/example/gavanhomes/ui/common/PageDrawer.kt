@@ -106,7 +106,7 @@ fun BoxScope.PageDrawer(b: Branding, spec: PageSpec?) {
     Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 16.dp, bottom = 22.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         AnimatedVisibility(open, enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom), exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)) {
             Column(
-                Modifier.widthIn(max = 380.dp).shadow(16.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(KitCard)
+                Modifier.widthIn(max = 380.dp).softShadow(16.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(KitCard)
                     .clickable(indication = null, interactionSource = quiet) { }.padding(14.dp),
             ) {
                 Row(Modifier.padding(start = 4.dp, end = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -145,7 +145,7 @@ fun BoxScope.PageDrawer(b: Branding, spec: PageSpec?) {
             }
         }
         Row(
-            Modifier.widthIn(max = 240.dp).shadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInkFill).clickable { open = !open }
+            Modifier.widthIn(max = 240.dp).softShadow(8.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitInkFill).clickable { open = !open }
                 .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

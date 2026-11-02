@@ -61,9 +61,9 @@ fun BoxScope.QuickFab(b: Branding, actions: List<FabAction>, onPick: (String) ->
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 actions.forEach { a ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(indication = null, interactionSource = quiet) { open = false; onPick(a.key) }) {
-                        Text(a.label, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.shadow(4.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(KitCard).padding(horizontal = 14.dp, vertical = 9.dp))
+                        Text(a.label, color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.softShadow(4.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(KitCard).padding(horizontal = 14.dp, vertical = 9.dp))
                         Spacer(Modifier.size(10.dp))
-                        Box(Modifier.size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(a.color), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).softShadow(6.dp, CircleShape).clip(CircleShape).background(a.color), contentAlignment = Alignment.Center) {
                             Text(a.glyph, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                         }
                     }
@@ -71,7 +71,7 @@ fun BoxScope.QuickFab(b: Branding, actions: List<FabAction>, onPick: (String) ->
             }
         }
         Box(
-            Modifier.size(58.dp).shadow(10.dp, CircleShape).clip(CircleShape).background(if (open) KitInkFill else b.base).clickable { open = !open },
+            Modifier.size(58.dp).softShadow(10.dp, CircleShape).clip(CircleShape).background(if (open) KitInkFill else b.base).clickable { open = !open },
             contentAlignment = Alignment.Center,
         ) { Text(if (open) "✕" else "+", color = Color.White, fontSize = if (open) 22.sp else 30.sp, fontWeight = FontWeight.Bold) }
     }

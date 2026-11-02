@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.countUp
 import androidx.compose.runtime.setValue
@@ -203,7 +204,7 @@ private class Kpi(val label: String, val value: String, val sub: String, val tin
 
 @Composable
 private fun KpiTile(k: Kpi, modifier: Modifier) {
-    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
+    Column(modifier.softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
         Box(Modifier.fillMaxWidth().height(4.dp).background(k.tint))
         Column(Modifier.padding(14.dp)) {
             Text(k.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.5.sp, maxLines = 1)
@@ -278,7 +279,7 @@ private fun MoneyRow(label: String, value: String, tint: Color) {
 @Composable
 private fun DashCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

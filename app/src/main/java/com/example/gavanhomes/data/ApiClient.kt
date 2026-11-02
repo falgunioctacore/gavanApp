@@ -156,10 +156,16 @@ class ApiClient(private val tokenProvider: () -> String?) {
         val tries = if (method == "GET") 2 else 1
         for (attempt in 1..tries) {
             try { return executeOnce(method, path, auth, contentType, write, readTimeoutMs) }
-            catch (e: java.net.SocketTimeoutException) {
-                if (attempt == tries) throw IOException("The server is taking too long to answer. Please try again in a moment.", e)
+            catch (e: ApiException) { throw e }
+            catch (e: java.net.UnknownHostException) {
+                if (attempt == tries) throw NoConnectionException(OFFLINE_TEXT, e)
+            } catch (e: java.net.SocketTimeoutException) {
+                if (attempt == tries) throw NoConnectionException(if (!Net.online) OFFLINE_TEXT else "The server is taking too long to answer. Please try again in a moment.", e)
             } catch (e: java.net.ConnectException) {
-                if (attempt == tries) throw IOException("Can't reach the server. Check that it is running and you are connected.", e)
+                if (attempt == tries) throw NoConnectionException(if (!Net.online) OFFLINE_TEXT else "Can't reach the server. Check that it is running and you are connected.", e)
+            } catch (e: IOException) {
+                if (!Net.online) throw NoConnectionException(OFFLINE_TEXT, e)
+                throw e
             }
             Thread.sleep(800)
         }

@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.bids
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -123,7 +124,7 @@ internal fun TaskBidList(api: ApiClient, b: Branding, uuid: String, version: Int
     rows.forEach { r ->
         val st = r.optString("status")
         val bid = r.optJSONObject("bid")
-        Column(Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(r.optString("task"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -199,7 +200,7 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
     rows.forEach { t ->
         val id = t.optInt("id"); val active = t.optBoolean("active"); val open = openId == id
         Column(
-            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .clickable { openId = if (open) 0 else id }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

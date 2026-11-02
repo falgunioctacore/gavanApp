@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -142,7 +143,7 @@ internal fun LeadLists(api: ApiClient, b: Branding, uuid: String, version: Int, 
     Header("Lead lists", "${rows.size} list${if (rows.size == 1) "" else "s"} of leads", if (canManage) "+  New list" else null, b.base) { editing = JSONObject() }
     rows.forEach { l ->
         Column(
-            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .clickable { onOpenList(l.optInt("id")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -233,7 +234,7 @@ internal fun ExportRequests(api: ApiClient, b: Branding, uuid: String, version: 
     rows.filter { r -> eq.isBlank() || r.toString().contains(eq.trim(), true) }.forEach { r ->
         val st = r.optString("status")
         val sc = when (st) { "approved" -> KitGood; "denied" -> KitDanger; else -> Amber }
-        Column(Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(r.str("requester") ?: "—", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
@@ -384,7 +385,7 @@ internal fun LeadSettings(api: ApiClient, b: Branding, uuid: String, version: In
         val tpl = kind.key == "email-template" || kind.key == "message-template"
         val open = tpl && openTpl == r.optInt("id")
         Column(
-            Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                 .then(if (tpl) Modifier.clickable { openTpl = if (open) 0 else r.optInt("id") } else Modifier).padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

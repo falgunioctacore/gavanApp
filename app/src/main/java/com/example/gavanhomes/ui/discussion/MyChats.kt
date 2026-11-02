@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -122,7 +123,7 @@ private fun ChatInboxRow(c: JSONObject, onClick: () -> Unit) {
     val unread = c.optInt("unread")
     val tag = c.optString("tag")
     Row(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(KitCard)
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(KitCard)
             .clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

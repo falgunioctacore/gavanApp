@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
 import android.widget.Toast
@@ -118,7 +119,7 @@ fun InventoryStep(
                     val on = t == current
                     Text(
                         "$t · ${form.unitsOf(t).size}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1,
-                        modifier = Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
+                        modifier = Modifier.softShadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
                             .clickable { current = t; query = "" }.padding(horizontal = 14.dp, vertical = 9.dp),
                     )
                 }
@@ -192,7 +193,7 @@ private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean,
         u.values["price"]?.toDoubleOrNull()?.let { "₹" + String.format(java.util.Locale.US, "%,.0f", it) },
     )
     Row(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
             .background(if (hasError) KitDanger.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

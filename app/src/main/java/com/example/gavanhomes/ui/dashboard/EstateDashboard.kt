@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.dashboard
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import kotlin.math.roundToInt
@@ -63,7 +64,7 @@ private fun JSONObject.rows(k: String): List<JSONObject> = optJSONArray(k)?.let 
 @Composable
 private fun EstateCard(title: String, sub: String? = null, action: Pair<String, () -> Unit>? = null, content: @Composable () -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

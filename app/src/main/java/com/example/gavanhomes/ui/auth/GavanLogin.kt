@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.auth
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.*
 
 import android.graphics.BitmapFactory
@@ -113,7 +114,7 @@ fun GavanLoginScreen(api: ApiClient, onSignedIn: (String, User) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
-                    Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard),
+                    Modifier.size(84.dp).softShadow(14.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard),
                     contentAlignment = Alignment.Center,
                 ) {
                     branding.logo?.let { Image(it, contentDescription = branding.name, modifier = Modifier.size(66.dp), contentScale = ContentScale.Fit) }

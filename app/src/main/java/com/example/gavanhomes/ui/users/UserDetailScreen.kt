@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import android.content.Intent
 import android.net.Uri
@@ -269,7 +270,7 @@ private fun PermList(names: List<String>) {
 @Composable
 private fun Card(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -284,7 +285,7 @@ private fun Card(title: String, sub: String? = null, content: @Composable Column
 @Composable
 private fun Tile(value: String, label: String, modifier: Modifier) {
     Column(
-        modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
+        modifier.softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)

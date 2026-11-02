@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.hod
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.accentText
@@ -504,7 +505,7 @@ private fun LazyListScope.overview(
 @Composable
 private fun SalesCard(title: String, sub: String? = null, action: Pair<String, () -> Unit>? = null, content: @Composable () -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -553,7 +554,7 @@ private fun SalesHeadline(k: JSONObject, d: JSONObject) {
 /** Today · This week · This month · Custom, as one segmented control. */
 @Composable
 private fun PeriodSwitch(period: String, b: Branding, onPick: (String) -> Unit) {
-    Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(4.dp)) {
+    Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(4.dp)) {
         Periods.forEach { p ->
             val on = p == period
             Text(
@@ -593,7 +594,7 @@ private fun LazyListScope.staffList(staff: List<JSONObject>, canTargets: Boolean
     items(ranked.withIndex().toList(), key = { it.value.optInt("user_id") }) { (i, s) ->
         val pct = s.optInt("achievement")
         Column(
-            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -715,7 +716,7 @@ private fun LazyListScope.siteList(sites: List<JSONObject>, b: Branding) {
     items(sites.sortedByDescending { it.optDouble("booking_value") * 1000 + it.optInt("leads") }, key = { it.optInt("id") }) { s ->
         val leads = s.optInt("leads"); val conv = if (leads > 0) s.optInt("bookings") * 100f / leads else 0f
         Column(
-            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -815,7 +816,7 @@ private fun LazyListScope.delayList(delays: List<JSONObject>, b: Branding, onCal
         item { Row(Modifier.padding(start = 22.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(c)); Text("  ${label.uppercase()} · ${list.size}", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = KitMuted, letterSpacing = 0.6.sp) } }
         items(list, key = { it.optInt("id") }) { f ->
             Row(
-                Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp),
+                Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(4.dp, 44.dp).clip(RoundedCornerShape(2.dp)).background(c))
@@ -841,7 +842,7 @@ private fun LazyListScope.reportList(reports: List<JSONObject>?, tab: Int, onTab
     if (reports.isEmpty()) { item { Empty("No reports yet", "Reports appear once there is sales activity.") }; return }
     // the periods as one segmented control
     item {
-        Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(4.dp)) {
+        Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(4.dp)) {
             reports.forEachIndexed { i, r ->
                 val on = i == tab
                 Text(r.optString("label"), color = if (on) Color.White else KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, fontSize = 13.sp, textAlign = TextAlign.Center, maxLines = 1,

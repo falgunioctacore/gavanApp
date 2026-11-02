@@ -61,6 +61,13 @@ fun ModuleIcon(key: String, color: Color, size: Dp = 22.dp, bold: Boolean = fals
                 circle(12f, 12f, 9f); circle(12f, 10f, 3f)
                 line(path { m(6.5f, 18.5f); c(8f, 15.8f, 16f, 15.8f, 17.5f, 18.5f) })
             }
+            "back" -> line(path { m(19f, 12f); l(5f, 12f); m(11f, 6f); l(5f, 12f); l(11f, 18f) })
+            "send" -> { line(path { m(21f, 3f); l(3f, 10.5f); l(10f, 13.5f); l(13f, 21f); close() }); line(path { m(21f, 3f); l(10f, 13.5f) }) }
+            "attach" -> line(path { m(20f, 11.5f); l(12.5f, 19f); c(10.5f, 21f, 7.5f, 21f, 5.5f, 19f); c(3.5f, 17f, 3.5f, 14f, 5.5f, 12f); l(13f, 4.5f); c(14.5f, 3f, 17f, 3f, 18.5f, 4.5f); c(20f, 6f, 20f, 8.5f, 18.5f, 10f); l(11f, 17.5f); c(10f, 18.5f, 8.5f, 18.5f, 7.5f, 17.5f); c(6.5f, 16.5f, 6.5f, 15f, 7.5f, 14f); l(14.5f, 7f) })
+            "image" -> { box(3.5f, 4.5f, 17f, 15f, 3f); circle(9f, 10f, 1.6f); line(path { m(4f, 17f); l(9f, 12.5f); l(13f, 16f); l(15.5f, 13.5f); l(20f, 18f) }) }
+            "people" -> { circle(9f, 8.5f, 3f); line(path { m(3.5f, 19f); c(4f, 14.5f, 14f, 14.5f, 14.5f, 19f) }); circle(17f, 9.5f, 2.4f); line(path { m(16f, 14f); c(18.5f, 13.6f, 20.5f, 15.2f, 21f, 18f) }) }
+            "search" -> { circle(10.5f, 10.5f, 6.5f); line(path { m(15.5f, 15.5f); l(20.5f, 20.5f) }) }
+            "filter" -> line(path { m(4f, 5f); l(20f, 5f); l(14f, 12.5f); l(14f, 19f); l(10f, 17f); l(10f, 12.5f); close() })
             "logout" -> {
                 // the power symbol: an open ring with a stem through the gap
                 drawArc(color, -60f, 300f, false, p(3.5f, 4.5f), Size(17f * k, 17f * k), style = stroke)

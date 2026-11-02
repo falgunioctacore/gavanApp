@@ -39,7 +39,7 @@ fun NotificationBell() {
     val n = NotificationCenter.unread
     Box {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { open() },
+            Modifier.size(40.dp).glass(CircleShape).clickable { open() },
             contentAlignment = Alignment.Center,
         ) { Text("🔔", fontSize = 17.sp) }
         if (n > 0) Box(
@@ -57,7 +57,7 @@ fun ChatBell() {
     val n = ChatCenter.total
     Box {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { ChatCenter.picker = true },
+            Modifier.size(40.dp).glass(CircleShape).clickable { ChatCenter.picker = true },
             contentAlignment = Alignment.Center,
         ) { Text("💬", fontSize = 17.sp) }
         if (n > 0) Box(
@@ -105,7 +105,7 @@ fun ChatPickerSheet(b: Branding, onAll: () -> Unit) {
 @Composable
 fun LogoutIconButton(onClick: () -> Unit) {
     Box(
-        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onClick() },
+        Modifier.size(40.dp).glass(CircleShape).clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.foundation.Canvas(Modifier.size(18.dp)) {

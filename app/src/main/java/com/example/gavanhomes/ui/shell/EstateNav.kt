@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.shell
 
+import com.example.gavanhomes.ui.common.glass
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.runtime.getValue
@@ -141,7 +143,7 @@ internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List
             Column(Modifier.statusBarsPadding().padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = if (header != null) 64.dp else 30.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (onBack != null) {
-                        Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onBack() }, contentAlignment = Alignment.Center) { Text("←", color = Color.White, fontSize = 20.sp) }
+                        Box(Modifier.size(40.dp).glass(CircleShape).clickable { onBack() }, contentAlignment = Alignment.Center) { Text("←", color = Color.White, fontSize = 20.sp) }
                         Spacer(Modifier.size(12.dp))
                     }
                     Column {
@@ -164,7 +166,7 @@ internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List
 @Composable
 private fun HubTile(i: HubItem, onClick: () -> Unit) {
     Row(
-        Modifier.appear().fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(18.dp),
+        Modifier.appear().fillMaxWidth().softShadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(52.dp).clip(RoundedCornerShape(17.dp)).background(i.tint.copy(alpha = .12f)), contentAlignment = Alignment.Center) { ModuleIcon(i.icon, i.tint, 26.dp, bold = true) }
@@ -204,7 +206,7 @@ internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: B
     )
     HubScreen(b, "Me", "Your account and settings", items, onBack = onBack, header = {
         Row(
-            Modifier.fillMaxWidth().shadow(10.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
+            Modifier.fillMaxWidth().softShadow(10.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(58.dp).clip(CircleShape).background(Brush.linearGradient(listOf(b.base, b.deep))), contentAlignment = Alignment.Center) {

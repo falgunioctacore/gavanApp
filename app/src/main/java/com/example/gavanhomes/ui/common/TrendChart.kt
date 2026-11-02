@@ -67,7 +67,7 @@ fun ModuleTrend(api: ApiClient, uuid: String, module: String, version: Int = 0) 
     if (months.isEmpty() || series.isEmpty()) return
     val fmt = formatFor(d.optString("unit"))
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitCard).padding(18.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column {

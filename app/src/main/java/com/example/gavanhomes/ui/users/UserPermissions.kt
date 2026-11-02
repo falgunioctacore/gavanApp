@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.softShadow
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -108,7 +109,7 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                     val has = { p: String -> full || p in fromRole || p in picked }
                     val groups = all.map { it to splitPermission(it) }.groupBy({ it.second.first }, { it.first to it.second.second }).toSortedMap()
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(x.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                             Text("Role: ${x.optString("role").ifBlank { "none" }.headline()}", color = KitMuted, fontSize = 13.sp)
                             Text(
@@ -139,7 +140,7 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
                             if (shown.isEmpty() || full) return@forEach
                             val open = perms.map { it.first }.filter { it !in fromRole }
                             val allOn = open.isNotEmpty() && open.all { it in picked }
-                            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(group.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.ExtraBold, color = KitInk, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                     Text("${perms.count { has(it.first) }}/${perms.size}", color = KitMuted, fontSize = 12.sp)

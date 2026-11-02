@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.PageDrawer
 import com.example.gavanhomes.ui.common.accentText
@@ -341,7 +342,7 @@ private fun Counter(value: String, label: String, modifier: Modifier, big: Boole
 @Composable
 private fun FilterChip(label: String, count: Int, dot: Color?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
+        Modifier.softShadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -404,7 +405,7 @@ private fun SheetAction(glyph: String, label: String, onClick: () -> Unit) {
 private fun RoleTile(r: JSONObject, maxPerms: Int, b: Branding, modifier: Modifier) {
     val frac = r.optInt("permissions_count").toFloat() / maxPerms
     Column(
-        modifier.shadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(10.dp),
+        modifier.softShadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Box(

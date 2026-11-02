@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.account
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.*
 
@@ -140,7 +141,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+        Modifier.fillMaxWidth().softShadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = KitInk)

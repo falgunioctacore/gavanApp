@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.PageDrawer
@@ -705,7 +706,7 @@ private fun Pricing(d: JSONObject, b: Branding) {
 @Composable
 private fun Card(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -720,7 +721,7 @@ private fun Card(title: String, sub: String? = null, content: @Composable Column
 @Composable
 private fun Tile(value: String, label: String, modifier: Modifier, tint: Color = KitInk) {
     Column(
-        modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
+        modifier.softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = tint)
@@ -784,7 +785,7 @@ private fun UnitRow(u: JSONObject, onClick: () -> Unit) {
         u.str("area_sqm")?.let { "$it sqm" }, u.str("plot_area")?.let { "$it sqm plot" },
     ).joinToString(" · ")
     Row(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

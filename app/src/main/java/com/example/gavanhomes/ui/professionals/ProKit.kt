@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,7 +94,7 @@ internal fun ProCounter(value: String, label: String, modifier: Modifier, big: B
 @Composable
 internal fun ProFilterChip(label: String, count: Int?, dot: Color?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.shadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
+        Modifier.softShadow(2.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard)
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -124,7 +125,7 @@ internal fun ProSheetAction(glyph: String, label: String, danger: Boolean = fals
 @Composable
 internal fun ProCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(5.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -142,7 +143,7 @@ internal fun ProCard(title: String, sub: String? = null, content: @Composable Co
 /** A key number: a coloured edge on top, the small caption, then the number big in that colour. */
 @Composable
 internal fun ProTile(value: String, label: String, modifier: Modifier, tint: Color = KitInk, sub: String? = null) {
-    Column(modifier.shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
+    Column(modifier.softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)) {
         Box(Modifier.fillMaxWidth().height(4.dp).background(if (tint == KitInk) Color(0xFFCBD5E1) else tint))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.4.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -1,5 +1,16 @@
 package com.example.gavanhomes.ui.common
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
@@ -184,6 +195,55 @@ fun IntroOverlay(deep: Color, base: Color, title: String, holdMs: Long = 1700) {
             }
             Spacer(Modifier.height(22.dp))
             Text(title, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.graphicsLayer { val k = ((p.value - .55f) / .4f).coerceIn(0f, 1f); this.alpha = k; translationY = (1f - k) * 16.dp.toPx() })
+        }
+    }
+}
+
+/** A soft, low shadow — a wide faint halo in the ink colour rather than a hard grey edge. */
+fun Modifier.softShadow(elevation: Dp, shape: Shape): Modifier =
+    shadow(elevation * .8f, shape, ambientColor = Color(0x14101828), spotColor = Color(0x26101828))
+
+/** Frosted glass for controls that sit on a coloured header: a light gradient fill and a thin bright rim. */
+fun Modifier.glass(shape: Shape): Modifier = this.clip(shape)
+    .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .30f), Color.White.copy(alpha = .13f))))
+    .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .55f), Color.White.copy(alpha = .12f))), shape)
+
+// ───────────────────────────── shimmer loading ─────────────────────────────
+
+/** A soft band of light that sweeps across a placeholder, left to right, again and again. */
+fun Modifier.shimmer(): Modifier = composed {
+    val t = rememberInfiniteTransition(label = "shimmer")
+    val x by t.animateFloat(-1f, 2f, infiniteRepeatable(tween(1300, easing = LinearEasing)), label = "x")
+    drawWithContent {
+        drawContent()
+        val w = size.width
+        drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = .6f), Color.Transparent), start = Offset(x * w - w * .35f, 0f), end = Offset(x * w + w * .35f, size.height * .4f)))
+    }
+}
+
+/** A grey bar of the given size that shimmers — a stand-in for a line of text or a chip. */
+@Composable
+fun SkeletonBar(width: androidx.compose.ui.unit.Dp?, height: androidx.compose.ui.unit.Dp = 14.dp, modifier: Modifier = Modifier) {
+    Box((if (width != null) modifier.width(width) else modifier.fillMaxWidth()).height(height).clip(RoundedCornerShape(height / 2.5f)).background(Color(0x14101828)).shimmer())
+}
+
+/** What a list will look like, shimmering while it loads: [count] cards with a title, a line and a chip, the same size and place as the real ones. */
+@Composable
+fun SkeletonCards(count: Int = 4, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(top = 6.dp)) {
+        repeat(count) { i ->
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SkeletonBar(if (i % 2 == 0) 190.dp else 150.dp, 16.dp)
+                    Spacer(Modifier.weight(1f))
+                    SkeletonBar(58.dp, 22.dp)
+                }
+                SkeletonBar(if (i % 2 == 0) 130.dp else 170.dp, 12.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { SkeletonBar(72.dp, 22.dp); SkeletonBar(96.dp, 22.dp) }
+            }
         }
     }
 }

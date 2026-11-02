@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.tasks
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -180,7 +181,7 @@ private fun TaskDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, n, c) ->
                     Column(
-                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
+                        Modifier.weight(1f).softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(n.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = c)
@@ -761,7 +762,7 @@ private fun TaskBoard(api: ApiClient, b: Branding, uuid: String, version: Int, c
                 Modifier.width(270.dp).offset {
                     val o = rootCoords?.positionInRoot() ?: Offset.Zero
                     IntOffset((finger.x - o.x - 135.dp.toPx()).roundToInt(), (finger.y - o.y - 40.dp.toPx()).roundToInt())
-                }.shadow(16.dp, RoundedCornerShape(18.dp)).graphicsLayer { rotationZ = 2f; alpha = .96f },
+                }.softShadow(16.dp, RoundedCornerShape(18.dp)).graphicsLayer { rotationZ = 2f; alpha = .96f },
             ) { TaskCard(t, narrow = true) { } }
         }
     }
@@ -781,7 +782,7 @@ internal fun TaskCard(
     val people = r.names("assignees")
     val due = prettyDay(r.str("due_date"))
     val box = modifier.alpha(if (dim) .35f else 1f).padding(horizontal = if (flat) 0.dp else if (narrow) 8.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
-        .then(if (flat) Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft) else Modifier.shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard))
+        .then(if (flat) Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft) else Modifier.softShadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard))
     Column(
         box.then(if (selected == true) Modifier.border(2.dp, KitInk, RoundedCornerShape(16.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(start = 12.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
@@ -829,7 +830,7 @@ private fun FilterChip(label: String, count: Int?, on: Boolean, tint: Color, onC
 @Composable
 internal fun Card(title: String, sub: String? = null, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Column(
-        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().softShadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {

@@ -79,7 +79,7 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @C
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = if (compact) 16.dp else 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onBack() },
+                    Modifier.size(40.dp).glass(CircleShape).clickable { onBack() },
                     contentAlignment = Alignment.Center,
                 ) { Text("←", color = Color.White, fontSize = 20.sp) }
                 if (leading != null) { Spacer(Modifier.size(8.dp)); leading() }
@@ -112,7 +112,7 @@ internal fun HeroChips(vararg chips: String) {
         chips.forEach {
             Text(
                 it, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .2f)).padding(horizontal = 12.dp, vertical = 7.dp),
+                modifier = Modifier.glass(RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }
     }
@@ -177,14 +177,14 @@ internal fun SearchBox(value: String, onChange: (String) -> Unit, placeholder: S
             focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk,
         ),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).shadow(3.dp, RoundedCornerShape(16.dp)),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).softShadow(3.dp, RoundedCornerShape(16.dp)),
     )
 }
 
 @Composable
 internal fun HeroButton(glyph: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onClick() },
+        Modifier.size(40.dp).glass(CircleShape).clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) { Text(glyph, color = Color.White, fontSize = 20.sp) }
 }

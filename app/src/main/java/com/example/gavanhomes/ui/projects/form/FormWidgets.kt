@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.softShadow
 import android.app.DatePickerDialog
 import android.content.Context
 import android.net.Uri
@@ -59,7 +60,7 @@ private const val MaxFileBytes = 5 * 1024 * 1024        // the website's limit: 
 @Composable
 fun FormCard(title: String, hint: String? = null, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+        Modifier.fillMaxWidth().softShadow(3.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {

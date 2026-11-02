@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
@@ -334,7 +335,7 @@ internal fun LeadCard(r: JSONObject, options: JSONObject?, flat: Boolean = false
     val shape = RoundedCornerShape(18.dp)
     Column(
         Modifier.padding(horizontal = if (flat) 0.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
-            .then(if (flat) Modifier else Modifier.shadow(2.dp, shape))
+            .then(if (flat) Modifier else Modifier.softShadow(2.dp, shape))
             .clip(shape).background(if (selected == true) b0(sc) else if (flat) com.example.gavanhomes.ui.common.KitSoft else com.example.gavanhomes.ui.common.KitCard)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
@@ -514,7 +515,7 @@ internal fun FollowupCard(
     val shape = RoundedCornerShape(18.dp)
     Row(
         Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)
-            .shadow(2.dp, shape).clip(shape).background(com.example.gavanhomes.ui.common.KitCard)
+            .softShadow(2.dp, shape).clip(shape).background(com.example.gavanhomes.ui.common.KitCard)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
     ) {
         // the type's colour as a stripe down the left edge
@@ -618,7 +619,7 @@ internal fun SettingsEntry(open: Boolean, title: String, accent: Color, onToggle
             Spacer(Modifier.weight(1f))
             Text(
                 "⚙  Settings", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.softShadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

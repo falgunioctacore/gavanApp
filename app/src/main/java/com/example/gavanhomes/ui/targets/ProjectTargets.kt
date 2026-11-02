@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.targets
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.tasks.Card
 import com.example.gavanhomes.ui.tasks.Meter
 import com.example.gavanhomes.ui.tasks.TaskCard
@@ -167,7 +168,7 @@ private fun TargetDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, n, c) ->
                     Column(
-                        Modifier.weight(1f).shadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
+                        Modifier.weight(1f).softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(n.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = c)
@@ -762,7 +763,7 @@ private fun TargetBoard(api: ApiClient, b: Branding, uuid: String, version: Int,
                 Modifier.width(270.dp).offset {
                     val o = rootCoords?.positionInRoot() ?: Offset.Zero
                     IntOffset((finger.x - o.x - 135.dp.toPx()).roundToInt(), (finger.y - o.y - 40.dp.toPx()).roundToInt())
-                }.shadow(16.dp, RoundedCornerShape(18.dp)).graphicsLayer { rotationZ = 2f; alpha = .96f },
+                }.softShadow(16.dp, RoundedCornerShape(18.dp)).graphicsLayer { rotationZ = 2f; alpha = .96f },
             ) { TaskCard(t, narrow = true) { } }
         }
     }

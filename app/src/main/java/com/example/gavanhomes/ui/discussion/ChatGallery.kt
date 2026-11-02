@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import android.content.Intent
 import android.graphics.Bitmap
@@ -153,7 +154,7 @@ fun ChatGallery(api: ApiClient, b: Branding, base: String, title: String, onBack
                         val name = m.str("name") ?: "File"
                         val (tag, tint) = iconFor(name)
                         Row(
-                            Modifier.padding(bottom = 8.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { preview = served(m.optString("url")) to name }.padding(12.dp),
+                            Modifier.padding(bottom = 8.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { preview = served(m.optString("url")) to name }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text(tag, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp) }
@@ -168,7 +169,7 @@ fun ChatGallery(api: ApiClient, b: Branding, base: String, title: String, onBack
                     Text(month, color = KitMuted, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
                     items.forEach { m ->
                         Column(
-                            Modifier.padding(bottom = 8.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+                            Modifier.padding(bottom = 8.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard)
                                 .clickable { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(m.optString("url")))) }.onFailure { Toast.makeText(context, "No app can open this link", Toast.LENGTH_SHORT).show() } }.padding(14.dp),
                         ) {
                             Text(m.optString("url"), color = Color(0xFF2874F0), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
