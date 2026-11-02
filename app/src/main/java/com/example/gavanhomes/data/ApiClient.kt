@@ -176,6 +176,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
             conn.connectTimeout = 10_000
             conn.readTimeout = readTimeoutMs
             conn.setRequestProperty("Accept", "application/json")
+            conn.setRequestProperty("Connection", "close")   // a reused socket the server already closed makes an upload fail ("unexpected end of stream")
             if (auth) tokenProvider()?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
             if (write != null) {
                 conn.doOutput = true

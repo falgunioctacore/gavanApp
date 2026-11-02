@@ -1,6 +1,7 @@
 package com.example.gavanhomes.ui.discussion
 
 import android.content.Intent
+import android.provider.OpenableColumns
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
@@ -273,6 +274,9 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
     var options by remember { mutableStateOf<JSONObject?>(null) }
     var askDelete by remember { mutableStateOf<JSONObject?>(null) }
     var members by remember { mutableStateOf<JSONObject?>(null) }
+    var preview by remember { mutableStateOf<Pair<String, String>?>(null) }      // an attachment open in the viewer: url · name
+    var gallery by remember { mutableStateOf(false) }                            // the chat's media, docs & links
+    androidx.activity.compose.BackHandler(enabled = gallery) { gallery = false }
     val listState = rememberLazyListState()
     // this chat is on screen: its new messages are not announced, and what was announced for it comes down
     androidx.compose.runtime.DisposableEffect(conv) {
@@ -323,18 +327,46 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
             sending = false
         }
     }
-    val attach = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        val file = uri?.let { readPicked(context, it) } ?: return@rememberLauncherForActivityResult
+    // sending a picked file — anything typed in the box goes along as its caption, like WhatsApp
+    fun upload(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         sending = true
         scope.launch {
-            try { withContext(Dispatchers.IO) { api.sendForm("$base/send", listOf(FormPart("attachment", fileName = file.name, mime = file.mime, bytes = file.bytes))) }.optJSONObject("message")?.let(::merge) }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not send the file", Toast.LENGTH_LONG).show() }
+            val caption = text.trim()
+            var first = true
+            for (uri in uris) {
+                try {
+                    val sent = withContext(Dispatchers.IO) {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Could not read the file")
+                        if (bytes.size > 20 * 1024 * 1024) error("That file is over 20 MB.")
+                        val name = context.contentResolver.query(uri, null, null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(c.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)) else null } ?: "file"
+                        val parts = mutableListOf(FormPart("attachment", fileName = name, mime = context.contentResolver.getType(uri) ?: "application/octet-stream", bytes = bytes))
+                        if (first && caption.isNotEmpty()) parts.add(FormPart("body", value = caption))
+                        api.sendForm("$base/send", parts)
+                    }
+                    sent.optJSONObject("message")?.let(::merge)
+                    if (first && caption.isNotEmpty()) text = ""
+                    first = false
+                } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not send the file", Toast.LENGTH_LONG).show() }
+            }
             sending = false
         }
+    }
+    var attachMenu by remember { mutableStateOf(false) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val pickDoc = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) upload(listOf(uri)) }
+    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) upload(listOf(uri)) }
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris -> upload(uris) }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> cameraUri?.let { if (ok) upload(listOf(it)) }; cameraUri = null }
+    fun openCamera() {
+        val file = java.io.File(context.cacheDir, "camera").also { it.mkdirs() }.let { java.io.File(it, "photo_" + System.currentTimeMillis() + ".jpg") }
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        cameraUri = uri; takePhoto.launch(uri)
     }
 
     Column(Modifier.fillMaxSize().background(KitPage).imePadding()) {
         HeroBar(b, header?.str("name") ?: title, onBack, compact = true, actions = {
+            HeroButton("🖼") { gallery = true }
             HeroButton("👥") { scope.launch { members = runCatching { withContext(Dispatchers.IO) { api.get("$base/members") } }.getOrNull() } }
         })
         header?.str("status")?.let { Text(it, color = if (header?.optBoolean("online") == true) KitGood else KitMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) }
@@ -353,7 +385,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
                         }
                         val showSender = !m.optBoolean("self") && (i == 0 || messages[i - 1].optString("sender") != m.optString("sender") || messages[i - 1].optBoolean("self"))
                         Bubble(m, b, showSender, onLong = { if (m.optBoolean("can_edit") || m.optBoolean("can_delete")) options = m }) {
-                            m.str("attachment_url")?.let { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(served(url)))) }.onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() } }
+                            m.str("attachment_url")?.let { url -> preview = served(url) to (m.str("attachment_name") ?: "File") }
                         }
                     }
                 }
@@ -366,7 +398,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
             }
         }
         Row(Modifier.fillMaxWidth().background(com.example.gavanhomes.ui.common.KitCard).navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (editing == null) Box(Modifier.size(42.dp).clip(CircleShape).clickable(enabled = !sending) { attach.launch("*/*") }, contentAlignment = Alignment.Center) { Text("📎", fontSize = 20.sp) }
+            if (editing == null) Box(Modifier.size(42.dp).clip(CircleShape).clickable(enabled = !sending) { attachMenu = true }, contentAlignment = Alignment.Center) { Text("📎", fontSize = 20.sp) }
             TextField(
                 value = text, onValueChange = { text = it }, placeholder = { Text("Message", color = KitMuted) }, maxLines = 5,
                 modifier = Modifier.weight(1f), shape = RoundedCornerShape(22.dp),
@@ -380,6 +412,23 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
         }
     }
 
+    if (attachMenu) ModalBottomSheet(onDismissRequest = { attachMenu = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp).padding(bottom = 24.dp, top = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            @Composable
+            fun Tile(emoji: String, label: String, tint: Color, go: () -> Unit) {
+                Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable { attachMenu = false; go() }.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(58.dp).clip(CircleShape).background(tint), contentAlignment = Alignment.Center) { Text(emoji, fontSize = 26.sp) }
+                    Text(label, color = KitInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+            Tile("📄", "Document", Color(0xFF7C5CE0)) { pickDoc.launch("*/*") }
+            Tile("📷", "Camera", Color(0xFFE5484D)) { openCamera() }
+            Tile("🖼", "Gallery", Color(0xFFD65DB1)) { pickMedia.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
+            Tile("🎧", "Audio", Color(0xFFF08A24)) { pickAudio.launch("audio/*") }
+        }
+    }
+    preview?.let { (url, name) -> FilePreview(url, name) { preview = null } }
+    if (gallery) Box(Modifier.fillMaxSize().background(KitPage).clickable(enabled = false) {}) { ChatGallery(api, b, base, header?.str("name") ?: title) { gallery = false } }
     options?.let { m ->
         ModalBottomSheet(onDismissRequest = { options = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
