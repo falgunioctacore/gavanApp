@@ -49,7 +49,8 @@ android {
         release {
             // ./gradlew assembleRelease -PsideBySide  → installs next to the real app, for testing the release build on your own phone
             if (project.hasProperty("sideBySide")) applicationIdSuffix = ".rel"
-            resValue("string", "app_name", "GavanHomes")
+            // the side-by-side build is called "Gavan Live" so it can be told apart from the local app
+            resValue("string", "app_name", if (project.hasProperty("sideBySide")) "Gavan Live" else "GavanHomes")
             buildConfigField("String", "BASE_URL", "\"https://gavan.co.in\"")
             // no R8 shrinking: limiting it to library packages broke androidx.startup on launch (IllegalAccessError)
             optimization { enable = false }

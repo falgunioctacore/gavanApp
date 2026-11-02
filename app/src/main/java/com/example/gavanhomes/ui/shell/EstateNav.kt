@@ -124,7 +124,7 @@ internal class HubItem(val key: String, val title: String, val blurb: String, va
  * large tiles — tap one to open it.
  */
 @Composable
-internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List<HubItem>, header: (@Composable () -> Unit)? = null, onOpen: (String) -> Unit) {
+internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List<HubItem>, header: (@Composable () -> Unit)? = null, onBack: (() -> Unit)? = null, onOpen: (String) -> Unit) {
     Column(Modifier.fillMaxSize().background(Page).verticalScroll(rememberScrollState())) {
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
@@ -133,8 +133,16 @@ internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List
             Box(Modifier.size(200.dp).offset(x = 240.dp, y = (-50).dp).clip(CircleShape).background(Color.White.copy(alpha = .08f)))
             Box(Modifier.size(120.dp).offset(x = (-30).dp, y = 90.dp).clip(CircleShape).background(Color.White.copy(alpha = .06f)))
             Column(Modifier.statusBarsPadding().padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = if (header != null) 64.dp else 30.dp)) {
-                Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                Text(subtitle, color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onBack != null) {
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)).clickable { onBack() }, contentAlignment = Alignment.Center) { Text("←", color = Color.White, fontSize = 20.sp) }
+                        Spacer(Modifier.size(12.dp))
+                    }
+                    Column {
+                        Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(subtitle, color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                    }
+                }
             }
         }
         header?.let { Box(Modifier.offset(y = (-44).dp).padding(horizontal = 16.dp)) { it() } }
@@ -176,7 +184,7 @@ internal fun TeamHub(modules: List<Module>, b: Branding, onOpen: (String) -> Uni
 
 /** Me: your profile, your notifications, and the admin tools, with Log out. */
 @Composable
-internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: Boolean, unread: Int, onOpen: (String) -> Unit) {
+internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: Boolean, unread: Int, onBack: (() -> Unit)? = null, onOpen: (String) -> Unit) {
     val chatsUnread = com.example.gavanhomes.ui.common.ChatCenter.total
     val keys = modules.map { it.key }.toSet()
     val items = listOfNotNull(
@@ -188,7 +196,7 @@ internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: B
         HubItem("appSettings", "App settings", "Company name, logo and brand colours", "projects", Color(0xFF0E8A7E)).takeIf { superAdmin },
         HubItem("logout", "Log out", "Sign out of this phone", "logout", Color(0xFFD03B3B)),
     )
-    HubScreen(b, "Me", "Your account and settings", items, header = {
+    HubScreen(b, "Me", "Your account and settings", items, onBack = onBack, header = {
         Row(
             Modifier.fillMaxWidth().shadow(10.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -188,6 +188,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     // a chat opened from a notification or the chat picker: full screen, Back returns to where you were
     var chatLink by remember { mutableStateOf<ChatLink?>(null) }
     var chatFrom by remember { mutableStateOf("dashboard") }
+    var accountFrom by remember { mutableStateOf("me") }        // where the profile page was opened from (the dashboard name, or the Me tab), so Back returns there
     LaunchedEffect(ChatAlerts.pending) {
         ChatAlerts.pending?.let { link -> chatLink = link; ChatAlerts.pending = null; if (screen != "chat") chatFrom = screen; screen = "chat" }
     }
@@ -353,7 +354,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "hod" && hodSection != 0 -> hodSection = 0
             screen == "audit" && auditSection != 0 -> auditSection = 0
             screen in TeamKeys -> backToTeam()
-            screen == "account" || screen == "audit" -> screen = "me"
+            screen == "account" -> { screen = accountFrom; accountFrom = "me" }
+            screen == "audit" -> screen = "me"
             screen != "dashboard" -> goHome()
             System.currentTimeMillis() - lastBack < 2000 -> activity?.finish()
             else -> { lastBack = System.currentTimeMillis(); Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show() }
@@ -433,7 +435,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         onAppSettings = if (user.roles.any { it.equals("superAdmin", true) }) ({ screen = "appSettings" }) else null)
                     "team" -> TeamHub(modules, branding) { k -> screen = k }
                     "chats" -> com.example.gavanhomes.ui.discussion.MyChatsScreen(api, branding, onBack = { screen = "me" }, onOpenChat = { chatLink = it; chatFrom = "chats"; screen = "chat" })
-                    "me" -> MeHub(user, modules, branding, superAdmin = user.roles.any { it.equals("superAdmin", true) }, unread = NotificationCenter.unread) { k ->
+                    "me" -> MeHub(user, modules, branding, superAdmin = user.roles.any { it.equals("superAdmin", true) }, unread = NotificationCenter.unread, onBack = ::goHome) { k ->
                         when (k) { "notifications" -> openNotifications(); "logout" -> logout(); "appearance" -> appearance = true; else -> screen = k }
                     }
                     else -> androidx.compose.runtime.key(homeVersion) {
@@ -441,6 +443,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             api, user, branding, modules, onOpenModule = ::openModule, onOpenPath = ::openPath, onLogout = logout,
                             cachedJson = store.dashboardJson, onCache = { store.dashboardJson = it }, onUnauthorized = onSignedOut,
                             onOpenProject = { uuid -> detailUuid = uuid; screen = "projectDetail" },
+                            onOpenProfile = { screen = "me" },
                         )
                     }
                 }

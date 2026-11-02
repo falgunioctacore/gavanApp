@@ -129,6 +129,7 @@ fun DashboardScreen(
     onCache: (String) -> Unit = {},
     onUnauthorized: () -> Unit = {},
     onOpenProject: (String) -> Unit = {},
+    onOpenProfile: () -> Unit = {},
 ) {
     // the last dashboard is painted immediately; the fresh one replaces it when it arrives
     var data by remember { mutableStateOf<JSONObject?>(cachedJson?.let { runCatching { JSONObject(it) }.getOrNull() }) }
@@ -153,7 +154,7 @@ fun DashboardScreen(
         when {
             d == null && error == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(branding.base) }
             d == null -> com.example.gavanhomes.ui.common.EstateError(error, color = branding.base, modifier = Modifier.fillMaxSize().padding(24.dp), onRetry = { reload++ })
-            else -> Content(d, user, branding, modules, onOpenModule, onOpenPath, onLogout, onRefresh = { reload++ }, onOpenProject = onOpenProject)
+            else -> Content(d, user, branding, modules, onOpenModule, onOpenPath, onLogout, onRefresh = { reload++ }, onOpenProject = onOpenProject, onOpenProfile = onOpenProfile)
         }
     }
 }
@@ -166,6 +167,7 @@ private fun Content(
     d: JSONObject, user: User, b: Branding, modules: List<Module>,
     onOpenModule: (Module) -> Unit, onOpenPath: (String) -> Unit, onLogout: () -> Unit, onRefresh: () -> Unit,
     onOpenProject: (String) -> Unit = {},
+    onOpenProfile: () -> Unit = {},
 ) {
     val w = d.optJSONObject("full") ?: JSONObject()
     val estate = d.optJSONObject("estate") ?: JSONObject()
@@ -197,6 +199,8 @@ private fun Content(
                 Box(Modifier.size(220.dp).offset(x = 230.dp, y = (-60).dp).clip(CircleShape).background(Color.White.copy(alpha = .08f)))
                 Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 26.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // the name opens the profile page
+                        Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onOpenProfile() }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(46.dp).clip(CircleShape).background(Color.White.copy(alpha = .25f)), contentAlignment = Alignment.Center) {
                             Text(user.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         }
@@ -204,11 +208,10 @@ private fun Content(
                             Text(greeting, color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
                             Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+                        }
                         com.example.gavanhomes.ui.common.ChatBell()
                         Spacer(Modifier.size(8.dp))
                         NotificationBell()
-                        Spacer(Modifier.size(8.dp))
-                        com.example.gavanhomes.ui.common.LogoutIconButton(onLogout)
                     }
 
                     Spacer(Modifier.height(18.dp))
