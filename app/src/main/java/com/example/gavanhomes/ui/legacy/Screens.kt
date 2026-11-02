@@ -492,6 +492,7 @@ fun ProfileScreen(api: ApiClient, user: User, onUser: (User) -> Unit, onBack: ()
     Column(Modifier.fillMaxSize()) {
         TopBar("Profile", onBack)
         LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item { ProfilePhotoRow(api, user.name) }
             item {
                 Text(user.roles.joinToString(" · ").ifBlank { "Admin" }, color = Muted)
             }

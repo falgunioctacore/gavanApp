@@ -209,9 +209,7 @@ internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: B
             Modifier.fillMaxWidth().softShadow(10.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(58.dp).clip(CircleShape).background(Brush.linearGradient(listOf(b.base, b.deep))), contentAlignment = Alignment.Center) {
-                Text(user.name.trim().split(Regex("\\s+")).take(2).joinToString("") { it.take(1) }.uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
-            }
+            com.example.gavanhomes.ui.legacy.MyAvatar(user.name, Modifier.size(58.dp).background(Brush.linearGradient(listOf(b.base, b.deep))), Color.White, 20f)
             Column(Modifier.weight(1f).padding(start = 14.dp)) {
                 Text(user.name, color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(user.email, color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

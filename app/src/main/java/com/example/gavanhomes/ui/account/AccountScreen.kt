@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -67,7 +69,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
     Column(Modifier.fillMaxSize().background(KitPage)) {
         HeroBar(b, "Account", onBack) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Initials(user.name, 64.dp)
+                com.example.gavanhomes.ui.legacy.MyAvatar(user.name, Modifier.size(64.dp).background(Color.White.copy(alpha = .25f)), Color.White, 24f)
                 Column(Modifier.padding(start = 14.dp)) {
                     Text(user.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                     Text(user.email, color = Color.White.copy(alpha = .85f), fontSize = 13.sp)
@@ -81,6 +83,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Section("Profile") {
+                com.example.gavanhomes.ui.legacy.ProfilePhotoRow(api, user.name)
                 Field(first, { first = it }, "First name")
                 Field(last, { last = it }, "Last name")
                 Field(email, { email = it }, "Email")

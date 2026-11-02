@@ -123,6 +123,7 @@ fun AppGate() {
     fun signOut() {
         ChatAlerts.reset(context)
         ChatCenter.chats = emptyList()
+        com.example.gavanhomes.ui.legacy.MyPhoto.clear()
         store.clear(); token = null
         CookieManager.getInstance().removeAllCookies(null)
         gate = Gate.SignedOut
@@ -142,7 +143,7 @@ fun AppGate() {
         is Gate.Failed -> Box(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage), contentAlignment = Alignment.Center) {
             com.example.gavanhomes.ui.common.EstateError(g.message, modifier = Modifier.padding(24.dp), onRetry = { attempt++ })
         }
-        is Gate.Ready -> Home(api, g, branding, store, onSignedOut = ::signOut, onBranding = { branding = it })
+        is Gate.Ready -> { androidx.compose.runtime.LaunchedEffect(g.user.id) { com.example.gavanhomes.ui.legacy.MyPhoto.load(api) }; Home(api, g, branding, store, onSignedOut = ::signOut, onBranding = { branding = it }) }
     }
 }
 

@@ -203,9 +203,7 @@ private fun Content(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         // the name opens the profile page
                         Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onOpenProfile() }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(46.dp).clip(CircleShape).background(Color.White.copy(alpha = .25f)), contentAlignment = Alignment.Center) {
-                            Text(user.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        }
+                        com.example.gavanhomes.ui.legacy.MyAvatar(user.name, Modifier.size(46.dp).background(Color.White.copy(alpha = .25f)), Color.White, 18f)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text(greeting, color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
                             Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
