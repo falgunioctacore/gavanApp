@@ -53,8 +53,8 @@ fun EntityCard(
 ) {
     val shape = RoundedCornerShape(18.dp)
     Column(
-        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
-            .clip(shape).background(KitCard).clickable { onClick() }.padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+        Modifier.appear().padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
+            .clip(shape).background(KitCard).bounceClick { onClick() }.padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(

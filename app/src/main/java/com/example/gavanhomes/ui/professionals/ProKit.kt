@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -123,7 +124,7 @@ internal fun ProSheetAction(glyph: String, label: String, danger: Boolean = fals
 @Composable
 internal fun ProCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(5.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

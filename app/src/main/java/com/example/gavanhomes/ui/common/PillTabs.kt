@@ -54,10 +54,11 @@ fun PillTabs(tabs: List<PillTab>, selected: Int, accent: Color, onSelect: (Int) 
         Row(Modifier.horizontalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             tabs.forEachIndexed { i, t ->
                 val on = i == selected
+                val tabBg by androidx.compose.animation.animateColorAsState(if (on) Color.White else Color.Transparent, androidx.compose.animation.core.tween(260), label = "tab")
                 Row(
                     Modifier.onGloballyPositioned { lefts[i] = it.positionInParent().x.toInt(); widths[i] = it.size.width }
                         .then(if (on) Modifier.shadow(3.dp, RoundedCornerShape(16.dp)) else Modifier)
-                        .clip(RoundedCornerShape(16.dp)).background(if (on) Color.White else Color.Transparent)
+                        .clip(RoundedCornerShape(16.dp)).background(tabBg)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),

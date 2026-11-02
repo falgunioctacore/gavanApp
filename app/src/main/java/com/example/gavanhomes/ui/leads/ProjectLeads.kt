@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.bounceClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -617,7 +618,7 @@ internal fun SettingsEntry(open: Boolean, title: String, accent: Color, onToggle
             Spacer(Modifier.weight(1f))
             Text(
                 "⚙  Settings", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.shadow(2.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onToggle() }.padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

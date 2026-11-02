@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.appear
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -268,7 +269,7 @@ private fun PermList(names: List<String>) {
 @Composable
 private fun Card(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

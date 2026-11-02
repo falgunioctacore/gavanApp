@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -132,7 +133,7 @@ private fun ModuleCard(r: JSONObject) {
     val accent = r.str("color")?.takeIf { it.startsWith("#") }?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
     val lines = r.optJSONArray("lines")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
     Row(
-        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 10.dp),
+        Modifier.appear().padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(Modifier.weight(1f)) {

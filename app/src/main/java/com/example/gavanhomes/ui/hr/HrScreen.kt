@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hr
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.professionals.ProDonutCard
 import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.HeroSummary
@@ -536,7 +538,7 @@ private fun RowCard(r: Row_, schema: HrSchema, b: Branding, onClick: () -> Unit,
 private fun RowCompact(r: Row_, schema: HrSchema, onClick: () -> Unit, onMore: () -> Unit) {
     val badgeField = schema.field(schema.badge)
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(12.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Initials(r.title, 46.dp, hrStatusColor(r.badge))
@@ -554,9 +556,9 @@ private fun RowCompact(r: Row_, schema: HrSchema, onClick: () -> Unit, onMore: (
 @Composable
 private fun MonthBar(month: String, onShift: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        Text("‹", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onShift(-1) }.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text("‹", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onShift(-1) }.padding(horizontal = 16.dp, vertical = 6.dp))
         Text(monthLabel(month), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = KitInk, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 140.dp))
-        Text("›", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onShift(1) }.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text("›", fontSize = 22.sp, color = KitInk, modifier = Modifier.clip(CircleShape).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onShift(1) }.padding(horizontal = 16.dp, vertical = 6.dp))
     }
 }
 
@@ -568,7 +570,7 @@ private fun LazyListScope.attendance(d: JSONObject, month: String, onShift: (Int
         val today = r.optJSONObject("today")
         val inToday = today != null && !today.isNull("check_in_at")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -612,7 +614,7 @@ private fun LazyListScope.leaves(d: JSONObject, b: Branding, onAction: (Int, Str
     items(rows, key = { it.optInt("id") }) { l ->
         val status = l.optString("status")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -644,7 +646,7 @@ private fun LazyListScope.payroll(d: JSONObject, month: String, onShift: (Int) -
         val slip = r.optJSONObject("slip")
         val tone = when { slip == null -> ProAmber; !slip.isNull("emailed_at") -> ProBlue; else -> KitGood }
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(r) }.padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpen(r) }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Initials(r.str("name") ?: "?", 44.dp)
@@ -690,7 +692,7 @@ private fun LazyListScope.suppliers(d: JSONObject, b: Branding, onOpen: (JSONObj
     if (rows.isEmpty()) item { Text("No suppliers yet.", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(40.dp)) }
     items(rows, key = { it.optInt("id") }) { s ->
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(s) }.padding(14.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpen(s) }.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Initials(s.str("name") ?: s.str("company_name") ?: "?", 46.dp)

@@ -449,7 +449,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 }
 
                 // details / form screens sit on top of their list
-                if (screen != base) Box(
+                androidx.compose.animation.AnimatedVisibility(visible = screen != base, enter = androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 6 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260)), exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160))) { Box(
                     Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage).pointerInput(Unit) { detectTapGestures { } },   // taps never reach the list below
                 ) {
                     when (screen) {
@@ -498,7 +498,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onSaved = { hrVersion++; screen = "hr" },
                         )
                     }
-                }
+                } }
             }
             if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings" && screen != "chat" && !com.example.gavanhomes.ui.common.Chrome.hideBar) {   // the forms have their own Save bar
                 if (appearance) AppearanceSheet(branding, onClose = { appearance = false }) { m -> com.example.gavanhomes.ui.common.AppTheme.mode = m; store.theme = m; appearance = false }

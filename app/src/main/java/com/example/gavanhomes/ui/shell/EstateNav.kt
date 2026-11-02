@@ -1,5 +1,9 @@
 package com.example.gavanhomes.ui.shell
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -87,10 +91,12 @@ internal fun EstateNavBar(places: List<Place>, active: String, b: Branding, onSe
         ) {
             places.forEach { p ->
                 val on = p.key == active
+                val pop by androidx.compose.animation.core.animateFloatAsState(if (on) 1.1f else 1f, androidx.compose.animation.core.spring(dampingRatio = .45f, stiffness = 380f), label = "pop")
+                val dot by androidx.compose.animation.core.animateDpAsState(if (on) 5.dp else 0.dp, androidx.compose.animation.core.spring(dampingRatio = .5f, stiffness = 400f), label = "dot")
                 if (p.key == "projects") {
                     // the centre button: a round brand-gradient button that sits inside the bar, its name under it; a ring marks it while Projects is open
                     Column(
-                        Modifier.weight(1f).clickable(interactionSource = quiet, indication = null) { onSelect(p.key) },
+                        Modifier.weight(1f).graphicsLayer { scaleX = pop; scaleY = pop }.clickable(interactionSource = quiet, indication = null) { onSelect(p.key) },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         Box(
@@ -103,12 +109,12 @@ internal fun EstateNavBar(places: List<Place>, active: String, b: Branding, onSe
                     }
                 } else {
                     Column(
-                        Modifier.weight(1f).clickable(interactionSource = quiet, indication = null) { onSelect(p.key) },
+                        Modifier.weight(1f).graphicsLayer { scaleX = pop; scaleY = pop }.clickable(interactionSource = quiet, indication = null) { onSelect(p.key) },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         ModuleIcon(p.icon, if (on) b.base else Muted, 23.dp, bold = on)
                         Text(p.label, fontSize = 11.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Medium, color = if (on) Ink else Muted, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
-                        Box(Modifier.padding(top = 3.dp).size(if (on) 5.dp else 0.dp).clip(CircleShape).background(b.base))
+                        Box(Modifier.padding(top = 3.dp).size(dot).clip(CircleShape).background(b.base))
                     }
                 }
             }
@@ -158,7 +164,7 @@ internal fun HubScreen(b: Branding, title: String, subtitle: String, items: List
 @Composable
 private fun HubTile(i: HubItem, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(18.dp),
+        Modifier.appear().fillMaxWidth().shadow(5.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(52.dp).clip(RoundedCornerShape(17.dp)).background(i.tint.copy(alpha = .12f)), contentAlignment = Alignment.Center) { ModuleIcon(i.icon, i.tint, 26.dp, bold = true) }

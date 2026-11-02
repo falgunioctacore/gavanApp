@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.bounceClick
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -212,7 +213,7 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
                         tasks.forEach { t ->
                             val tc = statusTint(t.optString("status"))
                             Row(
-                                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpenTask(t.optInt("id")) }.padding(14.dp),
+                                Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpenTask(t.optInt("id")) }.padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(Modifier.weight(1f)) {

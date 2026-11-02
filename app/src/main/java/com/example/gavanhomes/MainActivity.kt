@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
@@ -46,7 +47,10 @@ class MainActivity : ComponentActivity() {
             // the navigation bar icons: light on the dark theme, dark on the light one
             SideEffect { WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !dark }
             GavanHomesTheme(darkTheme = dark, dynamicColor = false) {
-                AppGate()
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    AppGate()
+                    com.example.gavanhomes.ui.common.IntroOverlay(androidx.compose.ui.graphics.Color(0xFF5D4924), androidx.compose.ui.graphics.Color(0xFFCFA251), "GavanHomes")
+                }
             }
         }
     }

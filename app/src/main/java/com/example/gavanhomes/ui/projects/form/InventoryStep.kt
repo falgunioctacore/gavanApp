@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -138,11 +140,11 @@ fun InventoryStep(
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     "↓ Sample CSV", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { saveSample.launch(sampleName) }.padding(vertical = 12.dp),
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { saveSample.launch(sampleName) }.padding(vertical = 12.dp),
                 )
                 Text(
                     "↑ Import CSV", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitInk, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { csv = null; importing = true }.padding(vertical = 12.dp),
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { csv = null; importing = true }.padding(vertical = 12.dp),
                 )
             }
         }
@@ -190,7 +192,7 @@ private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean,
         u.values["price"]?.toDoubleOrNull()?.let { "₹" + String.format(java.util.Locale.US, "%,.0f", it) },
     )
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
             .background(if (hasError) KitDanger.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.appear
+import com.example.gavanhomes.ui.common.countUp
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
@@ -98,7 +100,7 @@ fun ProjectDashboard(data: JSONObject?, error: String?, b: Branding, onRetry: ()
     // ── project health: how far the tasks have got, at a glance ──
     val rate = n("completion_rate")
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(26.dp), ambientColor = b.base, spotColor = b.base)
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(26.dp), ambientColor = b.base, spotColor = b.base)
             .clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(b.deep, b.base))).padding(20.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -205,7 +207,7 @@ private fun KpiTile(k: Kpi, modifier: Modifier) {
         Box(Modifier.fillMaxWidth().height(4.dp).background(k.tint))
         Column(Modifier.padding(14.dp)) {
             Text(k.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.5.sp, maxLines = 1)
-            Text(k.value, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = k.tint)
+            Text(countUp(k.value), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = k.tint)
             Text(k.sub, fontSize = 12.sp, color = KitMuted, maxLines = 1)
         }
     }
@@ -276,7 +278,7 @@ private fun MoneyRow(label: String, value: String, tint: Color) {
 @Composable
 private fun DashCard(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

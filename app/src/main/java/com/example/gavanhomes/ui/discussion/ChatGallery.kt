@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.bounceClick
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -152,7 +153,7 @@ fun ChatGallery(api: ApiClient, b: Branding, base: String, title: String, onBack
                         val name = m.str("name") ?: "File"
                         val (tag, tint) = iconFor(name)
                         Row(
-                            Modifier.padding(bottom = 8.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { preview = served(m.optString("url")) to name }.padding(12.dp),
+                            Modifier.padding(bottom = 8.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { preview = served(m.optString("url")) to name }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text(tag, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp) }

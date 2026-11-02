@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.PageDrawer
 import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.HeroSummary
@@ -371,7 +372,7 @@ private fun UserCard(u: U, b: Branding, onClick: () -> Unit, onMore: () -> Unit,
 private fun CompactRow(u: U, b: Branding, onClick: () -> Unit, onMore: () -> Unit) {
     Row(
         Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
+            .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Initials(u.name, 34.dp, statusColor(u.status))

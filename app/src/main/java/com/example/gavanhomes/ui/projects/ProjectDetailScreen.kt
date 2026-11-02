@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.PageDrawer
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.content.Intent
@@ -703,7 +705,7 @@ private fun Pricing(d: JSONObject, b: Branding) {
 @Composable
 private fun Card(title: String, sub: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 7.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -782,8 +784,8 @@ private fun UnitRow(u: JSONObject, onClick: () -> Unit) {
         u.str("area_sqm")?.let { "$it sqm" }, u.str("plot_area")?.let { "$it sqm plot" },
     ).joinToString(" · ")
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(16.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

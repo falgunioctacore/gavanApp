@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import com.example.gavanhomes.ui.common.FabAction
@@ -327,8 +329,8 @@ private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Un
     val late = left != null && left < 0
     val tone = if (late) KitDanger else b.base
     Column(
-        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
-            .clip(shape).background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() },
+        Modifier.appear().padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, shape, ambientColor = Color(0x14000000), spotColor = Color(0x14000000))
+            .clip(shape).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() },
     ) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(p.banner.first, p.banner.second))), contentAlignment = Alignment.Center) {
@@ -369,7 +371,7 @@ private fun CompactRow(p: P, onClick: () -> Unit, onMore: () -> Unit) {
     val late = (p.left ?: 0) < 0
     Row(
         Modifier.padding(horizontal = 12.dp, vertical = 2.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
+            .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(c1, c2))), contentAlignment = Alignment.Center) {

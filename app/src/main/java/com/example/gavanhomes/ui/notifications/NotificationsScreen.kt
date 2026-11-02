@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.notifications
 
+import com.example.gavanhomes.ui.common.appear
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -170,7 +171,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
             itemsIndexed(shown, key = { _, it -> it.value.optString("id") }) { _, (index, n) ->
                 val unread = !n.optBoolean("read")
                 Row(
-                    Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(if (unread) 4.dp else 1.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+                    Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(if (unread) 4.dp else 1.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
                         .background(if (unread) Color.White else com.example.gavanhomes.ui.common.KitSoft).clickable { markRead(index, n) }.padding(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {

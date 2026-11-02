@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.common
 
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -66,13 +67,15 @@ internal suspend fun ApiClient.listAll(resource: String, maxPages: Int = 8): Lis
 /** Brand-gradient header with a back button (and [leading], e.g. the drawer ☰, beside it on the left) and title; [content] sits under the title row. */
 @Composable
 internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, leading: (@Composable () -> Unit)? = null, content: @Composable () -> Unit = {}) {
+    val drift by rememberDrift()
     Box(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
             .background(Brush.linearGradient(listOf(b.deep, b.base), start = Offset.Zero, end = Offset(900f, 1100f)))
             // decorative circle, drawn (not a child) so it never makes the header taller
-            .drawBehind { drawCircle(Color.White.copy(alpha = .08f), radius = 100.dp.toPx(), center = Offset(size.width - 30.dp.toPx(), 30.dp.toPx())) },
+            .drawBehind { drawCircle(Color.White.copy(alpha = .08f), radius = 100.dp.toPx(), center = Offset(size.width - 30.dp.toPx() - drift * 16.dp.toPx(), 30.dp.toPx() + drift * 10.dp.toPx())) },
     ) {
+        Skyline(Modifier.align(Alignment.BottomEnd).fillMaxWidth(.6f).height(56.dp))
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = if (compact) 16.dp else 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(

@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.tasks
 
+import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -314,7 +315,7 @@ fun TaskDetailScreen(
                                 Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                 f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
                             }
-                            Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable {
+                            Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick {
                                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(f.optString("url")))) }.onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
                             }.padding(horizontal = 14.dp, vertical = 8.dp))
                             if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))

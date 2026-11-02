@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.account
 
+import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.*
 
 import androidx.compose.foundation.background
@@ -115,7 +116,7 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
             }
 
             if (onAppSettings != null) Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { onAppSettings() }.padding(16.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onAppSettings() }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 com.example.gavanhomes.ui.common.BrandMark(b, 44.dp, Modifier.border(1.dp, com.example.gavanhomes.ui.common.KitLine, RoundedCornerShape(13.dp)))

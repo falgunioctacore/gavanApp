@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.bounceClick
 import android.content.Context
 import com.example.gavanhomes.ui.common.accentText
 import androidx.compose.foundation.background
@@ -112,7 +113,7 @@ fun BasicInfoStep(
             }
             Text(
                 "+ Add partner", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { form.partners.add(PartnerState()) }.padding(16.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { form.partners.add(PartnerState()) }.padding(16.dp),
             )
         }
 

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.accentText
 import com.example.gavanhomes.ui.common.ScrollTopButton
@@ -289,7 +291,7 @@ fun ProfessionalsScreen(
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${shown.size} ${if (shown.size == 1) "professional" else "professionals"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                                 Text("⇪ Import", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = KitInk,
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { importOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick { importOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp))
                                 Spacer(Modifier.size(8.dp))
                                 com.example.gavanhomes.ui.common.ViewToggle(compact) { compact = it }
                             }
@@ -464,8 +466,8 @@ private fun ProCard(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit
 @Composable
 private fun ProCompact(p: Pro, b: Branding, onClick: () -> Unit, onMore: () -> Unit) {
     Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-            .background(com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(12.dp),
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+            .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onClick() }.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Initials(p.name, 46.dp, statusColor(p.status))
@@ -485,8 +487,8 @@ private fun LazyListScope.types(types: List<JSONObject>, b: Branding, onOpen: (J
     if (types.isEmpty()) item { Text("No types yet — tap + to add one.", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(40.dp)) }
     items(types, key = { it.optInt("id") }) { t ->
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(t) }.padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+                .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpen(t) }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(b.base.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
@@ -577,8 +579,8 @@ private fun LazyListScope.reviews(r: JSONObject, b: Branding, onOpen: (Int) -> U
     }
     items(rows, key = { it.optInt("id") }) { a ->
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
-                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpen(a.optInt("id")) }.padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
+                .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpen(a.optInt("id")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -615,8 +617,8 @@ private fun LazyListScope.performance(rows: List<JSONObject>, b: Branding, onOpe
         fun hrs(k: String) = if (r.isNull(k)) "—" else "${r.optDouble(k)}h"
         val onTime = if (r.isNull("on_time_pct")) null else r.optInt("on_time_pct")
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
-                .background(com.example.gavanhomes.ui.common.KitCard).clickable { onOpenPro(r.optString("uuid")) }.padding(16.dp),
+            Modifier.appear().padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp))
+                .background(com.example.gavanhomes.ui.common.KitCard).bounceClick { onOpenPro(r.optString("uuid")) }.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

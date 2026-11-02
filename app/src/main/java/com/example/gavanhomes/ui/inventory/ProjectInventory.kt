@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.inventory
 
+import com.example.gavanhomes.ui.common.bounceClick
+import com.example.gavanhomes.ui.common.appear
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -460,8 +462,8 @@ internal fun NewButton(label: String, b: Branding, onClick: () -> Unit) {
 @Composable
 internal fun RowCard(onClick: (() -> Unit)?, content: @Composable () -> Unit) {
     Column(
-        Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier).padding(horizontal = 12.dp, vertical = 10.dp),
+        Modifier.appear().padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth().shadow(2.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard)
+            .then(if (onClick != null) Modifier.bounceClick { onClick() } else Modifier).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) { content() }
 }

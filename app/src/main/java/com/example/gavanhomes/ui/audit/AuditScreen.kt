@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.audit
 
+import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.HeroSummary
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
@@ -316,7 +317,7 @@ private fun FilterButton(text: String, on: Boolean, onClick: () -> Unit) {
 @Composable
 private fun Card(modifier: Modifier = Modifier, flagged: Boolean = false, content: @Composable () -> Unit) {
     Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+        Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
             .background(if (flagged) Color(0xFFFFF4F2) else com.example.gavanhomes.ui.common.KitCard).then(modifier).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) { content() }
