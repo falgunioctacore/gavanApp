@@ -274,6 +274,13 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
     var askDelete by remember { mutableStateOf<JSONObject?>(null) }
     var members by remember { mutableStateOf<JSONObject?>(null) }
     val listState = rememberLazyListState()
+    // this chat is on screen: its new messages are not announced, and what was announced for it comes down
+    androidx.compose.runtime.DisposableEffect(conv) {
+        ChatAlerts.openConv = conv
+        ChatAlerts.clear(context, conv)
+        com.example.gavanhomes.ui.common.ChatCenter.chats = com.example.gavanhomes.ui.common.ChatCenter.chats.filter { it.optString("conv") != conv }
+        onDispose { if (ChatAlerts.openConv == conv) ChatAlerts.openConv = null }
+    }
 
     fun merge(m: JSONObject) {
         val i = messages.indexOfFirst { it.optInt("id") == m.optInt("id") }

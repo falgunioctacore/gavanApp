@@ -49,7 +49,7 @@ private val Page: Color get() = com.example.gavanhomes.ui.common.KitPage
 internal class Place(val key: String, val label: String, val icon: String)
 
 internal val TeamKeys = listOf("users", "hr", "professionals")
-internal val MeKeys = listOf("account", "audit", "appSettings", "me")
+internal val MeKeys = listOf("account", "audit", "appSettings", "me", "chats", "chat")
 
 /** The places this person has something in: Home · Sales · Projects · Team · Me. */
 internal fun placesFor(modules: List<Module>): List<Place> {
@@ -177,11 +177,13 @@ internal fun TeamHub(modules: List<Module>, b: Branding, onOpen: (String) -> Uni
 /** Me: your profile, your notifications, and the admin tools, with Log out. */
 @Composable
 internal fun MeHub(user: User, modules: List<Module>, b: Branding, superAdmin: Boolean, unread: Int, onOpen: (String) -> Unit) {
+    val chatsUnread = com.example.gavanhomes.ui.common.ChatCenter.total
     val keys = modules.map { it.key }.toSet()
     val items = listOfNotNull(
         HubItem("account", "Profile & password", "Your details, photo and password", "account", if (com.example.gavanhomes.ui.common.AppTheme.dark) b.base else b.deep),
         HubItem("appearance", "Appearance", when (com.example.gavanhomes.ui.common.AppTheme.mode) { "dark" -> "Dark"; "light" -> "Light"; else -> "Follows the phone" } + " · tap to change", "projects", Color(0xFF6250D6)),
         HubItem("notifications", "Notifications", if (unread > 0) "$unread unread" else "You're all caught up", "dashboard", Color(0xFFC47A1A)),
+        HubItem("chats", "Chats", if (chatsUnread > 0) "$chatsUnread unread · pick a project and chat" else "Project discussions — pick a project and chat", "chat", Color(0xFF1E5FAE)),
         HubItem("audit", "Audit logs", "Every change made in the system, and by whom", "audit", Color(0xFF475569)).takeIf { "audit" in keys },
         HubItem("appSettings", "App settings", "Company name, logo and brand colours", "projects", Color(0xFF0E8A7E)).takeIf { superAdmin },
         HubItem("logout", "Log out", "Sign out of this phone", "logout", Color(0xFFD03B3B)),

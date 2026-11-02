@@ -66,6 +66,10 @@ fun ModuleIcon(key: String, color: Color, size: Dp = 22.dp, bold: Boolean = fals
                 drawArc(color, -60f, 300f, false, p(3.5f, 4.5f), Size(17f * k, 17f * k), style = stroke)
                 line(path { m(12f, 2.5f); l(12f, 11f) })
             }
+            "chat" -> {
+                line(path { m(4f, 5f); l(20f, 5f); c(21.1f, 5f, 22f, 5.9f, 22f, 7f); l(22f, 15f); c(22f, 16.1f, 21.1f, 17f, 20f, 17f); l(11f, 17f); l(6f, 21f); l(6f, 17f); l(4f, 17f); c(2.9f, 17f, 2f, 16.1f, 2f, 15f); l(2f, 7f); c(2f, 5.9f, 2.9f, 5f, 4f, 5f) })
+                line(path { m(7f, 10f); l(17f, 10f); m(7f, 13f); l(13f, 13f) })
+            }
             "more" -> { box(4f, 4f, 6f, 6f, 1.8f); box(14f, 4f, 6f, 6f, 1.8f); box(4f, 14f, 6f, 6f, 1.8f); box(14f, 14f, 6f, 6f, 1.8f) }
             else -> circle(12f, 12f, 8f)
         }

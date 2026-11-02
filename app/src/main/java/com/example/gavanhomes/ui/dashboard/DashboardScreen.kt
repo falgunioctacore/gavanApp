@@ -204,6 +204,8 @@ private fun Content(
                             Text(greeting, color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
                             Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+                        com.example.gavanhomes.ui.common.ChatBell()
+                        Spacer(Modifier.size(8.dp))
                         NotificationBell()
                         Spacer(Modifier.size(8.dp))
                         com.example.gavanhomes.ui.common.LogoutIconButton(onLogout)

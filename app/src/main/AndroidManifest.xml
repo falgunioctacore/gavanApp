@@ -28,6 +28,11 @@
             </intent-filter>
         </activity>
 
+        <!-- the Reply / Mark as read buttons on a chat notification, and Mark as read on an update -->
+        <receiver
+            android:name=".ui.discussion.ChatActionReceiver"
+            android:exported="false" />
+
         <!-- hands an exported file (Excel / PDF) to the share sheet -->
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -85,7 +85,7 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @C
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 actions()
-                if (showBell && !compact && LocalOpenNotifications.current != null) { Spacer(Modifier.size(8.dp)); NotificationBell() }
+                if (showBell && !compact && LocalOpenNotifications.current != null) { Spacer(Modifier.size(8.dp)); ChatBell(); Spacer(Modifier.size(8.dp)); NotificationBell() }
             }
             if (!compact) {
                 Spacer(Modifier.height(18.dp))

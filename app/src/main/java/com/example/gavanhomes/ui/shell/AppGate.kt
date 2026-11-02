@@ -71,6 +71,10 @@ import com.example.gavanhomes.data.ApiClient
 import com.example.gavanhomes.data.ApiConfig
 import com.example.gavanhomes.data.ApiException
 import com.example.gavanhomes.data.SessionStore
+import com.example.gavanhomes.ui.common.ChatCenter
+import com.example.gavanhomes.ui.discussion.ChatAlerts
+import com.example.gavanhomes.ui.discussion.ChatLink
+import com.example.gavanhomes.ui.tasks.objs
 import com.example.gavanhomes.data.User
 import com.example.gavanhomes.data.toJson
 import kotlinx.coroutines.Dispatchers
@@ -117,6 +121,8 @@ fun AppGate() {
     }
 
     fun signOut() {
+        ChatAlerts.reset(context)
+        ChatCenter.chats = emptyList()
         store.clear(); token = null
         CookieManager.getInstance().removeAllCookies(null)
         gate = Gate.SignedOut
@@ -179,6 +185,14 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     var notifFrom by remember { mutableStateOf("dashboard") }   // the screen the bell was pressed on, so Back returns there
     val openNotifications: () -> Unit = { if (screen != "notifications") notifFrom = screen; screen = "notifications" }
 
+    // a chat opened from a notification or the chat picker: full screen, Back returns to where you were
+    var chatLink by remember { mutableStateOf<ChatLink?>(null) }
+    var chatFrom by remember { mutableStateOf("dashboard") }
+    LaunchedEffect(ChatAlerts.pending) {
+        ChatAlerts.pending?.let { link -> chatLink = link; ChatAlerts.pending = null; if (screen != "chat") chatFrom = screen; screen = "chat" }
+    }
+    LaunchedEffect(ChatAlerts.openNotifications) { if (ChatAlerts.openNotifications) { ChatAlerts.openNotifications = false; openNotifications() } }
+
     // the unread badge: starts from the last count, then is fetched on start, whenever the app comes back to the front, and every minute;
     // after a failed fetch (connection down) it tries again in a few seconds instead of waiting a minute
     remember(store) { NotificationCenter.unread = store.unread }
@@ -199,8 +213,24 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         }
     }
 
+    val askNotifications = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        ChatAlerts.schedule(context)
+        while (true) {
+            runCatching { ChatCenter.chats = withContext(Dispatchers.IO) { api.get("/discussion/unread") }.objs("chats").filter { it.optString("conv") != ChatAlerts.openConv } }
+            runCatching { ChatAlerts.check(context, api) }
+            runCatching { ChatAlerts.checkUpdates(context, api) }
+            kotlinx.coroutines.delay(12_000)
+        }
+    }
+
     var confirmLogout by remember { mutableStateOf(false) }
     val logout: () -> Unit = { confirmLogout = true }          // asks first; the real sign-out is below
+
+    com.example.gavanhomes.ui.common.ChatPickerSheet(branding) { chatFrom = screen; screen = "chats" }
 
     if (confirmLogout) {
         SwalConfirm(
@@ -316,6 +346,8 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "hrForm" || screen == "hrRecord" -> screen = "hr"
             screen == "appSettings" -> screen = "account"
             screen == "notifications" -> screen = notifFrom
+            screen == "chat" -> screen = chatFrom
+            screen == "chats" -> screen = "me"
             screen == "professionals" && proSection != 0 -> proSection = 0    // back from a section → that module's dashboard first
             screen == "hr" && hrSection != 0 -> hrSection = 0
             screen == "hod" && hodSection != 0 -> hodSection = 0
@@ -335,6 +367,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
         "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"
         "hrRecord", "hrForm" -> "hr"
         "appSettings" -> "account"
+        "chat" -> when (chatFrom) { "projectDetail", "projectForm" -> "projects"; "userDetail", "userForm" -> "users"; "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"; "hrRecord", "hrForm" -> "hr"; "appSettings" -> "account"; "notifications", "chat" -> "dashboard"; else -> chatFrom }
         "notifications" -> when (notifFrom) { "projectDetail", "projectForm" -> "projects"; "userDetail", "userForm" -> "users"; "professionalDetail", "professionalForm", "reviewDetail" -> "professionals"; "hrRecord", "hrForm" -> "hr"; "appSettings" -> "account"; "notifications" -> "dashboard"; else -> notifFrom }
         else -> screen
     }
@@ -399,6 +432,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = { screen = "me" }, onLogout = logout,
                         onAppSettings = if (user.roles.any { it.equals("superAdmin", true) }) ({ screen = "appSettings" }) else null)
                     "team" -> TeamHub(modules, branding) { k -> screen = k }
+                    "chats" -> com.example.gavanhomes.ui.discussion.MyChatsScreen(api, branding, onBack = { screen = "me" }, onOpenChat = { chatLink = it; chatFrom = "chats"; screen = "chat" })
                     "me" -> MeHub(user, modules, branding, superAdmin = user.roles.any { it.equals("superAdmin", true) }, unread = NotificationCenter.unread) { k ->
                         when (k) { "notifications" -> openNotifications(); "logout" -> logout(); "appearance" -> appearance = true; else -> screen = k }
                     }
@@ -417,6 +451,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 ) {
                     when (screen) {
                         "notifications" -> NotificationsScreen(api, branding, onBack = { screen = notifFrom })
+                        "chat" -> chatLink?.let { l -> androidx.compose.runtime.key(l.conv) { com.example.gavanhomes.ui.discussion.ChatScreen(api, branding, l.project, l.conv, l.title, onBack = { screen = chatFrom }, onChanged = {}) } }
                         "projectDetail" -> ProjectDetailScreen(
                             api, branding, uuid = detailUuid.orEmpty(), onBack = { screen = "projects" },
                             onEdit = { uuid -> formUuid = uuid; screen = "projectForm" },
@@ -462,7 +497,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                     }
                 }
             }
-            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings" && !com.example.gavanhomes.ui.common.Chrome.hideBar) {   // the forms have their own Save bar
+            if (screen != "projectForm" && screen != "userForm" && screen != "professionalForm" && screen != "hrForm" && screen != "appSettings" && screen != "chat" && !com.example.gavanhomes.ui.common.Chrome.hideBar) {   // the forms have their own Save bar
                 if (appearance) AppearanceSheet(branding, onClose = { appearance = false }) { m -> com.example.gavanhomes.ui.common.AppTheme.mode = m; store.theme = m; appearance = false }
                 EstateNavBar(places, placeOf(base), branding) { key ->
                     when (key) {
