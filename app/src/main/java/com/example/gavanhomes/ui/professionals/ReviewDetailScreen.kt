@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -82,7 +84,7 @@ fun ReviewDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit,
     }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
 
     fun decide(decision: String, comments: String?, onFail: (String) -> Unit = {}) {
@@ -92,7 +94,7 @@ fun ReviewDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit,
                 val body = JSONObject().put("decision", decision)
                 if (comments != null) body.put("review_comments", comments)
                 withContext(Dispatchers.IO) { api.send("POST", "/professional-reviews/$id/review", body) }
-                Toast.makeText(context, if (decision == "approved") "Submission approved" else "Sent back for rework", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (decision == "approved") "Submission approved" else "Sent back for rework")
                 onDone()
             } catch (e: ApiException) { onFail(e.errors["review_comments"] ?: e.message ?: "Could not save") }
             catch (e: Exception) { onFail(e.message ?: "Could not save") }
@@ -163,7 +165,7 @@ fun ReviewDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit,
     if (approve) SwalConfirm(
         title = "Approve this submission?", text = "The professional is notified that the work was approved.", confirmText = "Yes, approve", confirmColor = KitGood,
         onCancel = { approve = false },
-        onConfirm = { approve = false; decide("approved", null) { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } },
+        onConfirm = { approve = false; decide("approved", null) { AppToast.show(it) } },
     )
 
     if (reworkOpen) {

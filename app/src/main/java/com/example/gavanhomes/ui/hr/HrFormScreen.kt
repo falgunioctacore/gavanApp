@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hr
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -104,7 +106,7 @@ fun HrFormScreen(api: ApiClient, b: Branding, slug: String, id: Int?, onBack: ()
     }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
 
     LaunchedEffect(attempt) {
@@ -147,7 +149,7 @@ fun HrFormScreen(api: ApiClient, b: Branding, slug: String, id: Int?, onBack: ()
                     dataFields.forEach { body.put(it.name, text[it.name]?.trim().orEmpty().ifEmpty { JSONObject.NULL }) }
                     withContext(Dispatchers.IO) { if (editing) api.send("PUT", "/hr/$slug/$id", body) else api.send("POST", "/hr/$slug", body) }
                 }
-                Toast.makeText(context, "${s.singular} ${if (editing) "saved" else "created"}", Toast.LENGTH_SHORT).show()
+                AppToast.show("${s.singular} ${if (editing) "saved" else "created"}")
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors

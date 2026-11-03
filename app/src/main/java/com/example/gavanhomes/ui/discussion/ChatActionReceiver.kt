@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -50,7 +52,7 @@ class ChatActionReceiver : BroadcastReceiver() {
                                 if (text.isNotEmpty()) {
                                     val ok = runCatching { api.send("POST", "$base/send", JSONObject().put("body", text)) }.isSuccess
                                     if (ok) ChatAlerts.replied(app, conv)
-                                    else Handler(Looper.getMainLooper()).post { Toast.makeText(app, "Couldn't send — open the chat to try again", Toast.LENGTH_LONG).show() }
+                                    else Handler(Looper.getMainLooper()).post { AppToast.show("Couldn't send — open the chat to try again") }
                                 }
                             }
                         }

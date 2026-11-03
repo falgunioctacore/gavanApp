@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.procurement
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -101,8 +103,8 @@ private fun act(context: android.content.Context, scope: kotlinx.coroutines.Coro
     scope.launch {
         try {
             val r = withContext(Dispatchers.IO) { call() }
-            Toast.makeText(context, r.str("message") ?: ok, Toast.LENGTH_SHORT).show(); done()
-        } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            AppToast.show(r.str("message") ?: ok); done()
+        } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
 }
 
@@ -452,7 +454,7 @@ fun IndentFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Un
                 .put("lines", JSONArray(filled.map { JSONObject().put("material_id", it.m.optInt("id")).put("qty", it.amount.toDouble()) }))
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/procurement-center/indents", body) }; Toast.makeText(context, "Indent created", Toast.LENGTH_SHORT).show(); onSaved() }
+                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/procurement-center/indents", body) }; AppToast.show("Indent created"); onSaved() }
                 catch (e: ApiException) { errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message }
                 catch (e: Exception) { banner = e.message ?: "Could not save" }
                 saving = false
@@ -551,7 +553,7 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
                 .put("lines", JSONArray(filled.map { JSONObject().put("material_id", it.m.optInt("id")).put("qty", it.amount.toDouble()).put("rate", it.rate.toDoubleOrNull() ?: 0.0).put("tax_percent", it.gst.toDoubleOrNull() ?: 0.0) }))
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/procurement-center/pos", body) }; Toast.makeText(context, "Purchase order created", Toast.LENGTH_SHORT).show(); onSaved() }
+                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/procurement-center/pos", body) }; AppToast.show("Purchase order created"); onSaved() }
                 catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
                 catch (ex: Exception) { banner = ex.message ?: "Could not save" }
                 saving = false
@@ -644,7 +646,7 @@ fun ReceiveFormScreen(api: ApiClient, b: Branding, uuid: String, poId: Int, onBa
                 .put("invoice_amount", invoiceAmount.toDoubleOrNull() ?: JSONObject.NULL).put("invoice_date", invoiceDate.ifBlank { JSONObject.NULL }).put("remarks", remarks.trim().ifBlank { JSONObject.NULL })
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { val r = withContext(Dispatchers.IO) { api.send("POST", "/procurement-center/pos/$po/receive", body) }; Toast.makeText(context, r.str("message") ?: "Goods received", Toast.LENGTH_LONG).show(); onSaved() }
+                try { val r = withContext(Dispatchers.IO) { api.send("POST", "/procurement-center/pos/$po/receive", body) }; AppToast.show(r.str("message") ?: "Goods received"); onSaved() }
                 catch (e: ApiException) { errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message }
                 catch (e: Exception) { banner = e.message ?: "Could not save" }
                 saving = false
@@ -728,7 +730,7 @@ fun SupplierFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/procurement-center/suppliers/$id", body) else api.send("POST", "/projects/$uuid/procurement-center/suppliers", body) }
-                Toast.makeText(context, if (id != null) "Supplier saved" else "Supplier added", Toast.LENGTH_SHORT).show(); onSaved()
+                AppToast.show(if (id != null) "Supplier saved" else "Supplier added"); onSaved()
             } catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
             catch (ex: Exception) { banner = ex.message ?: "Could not save" }
             saving = false

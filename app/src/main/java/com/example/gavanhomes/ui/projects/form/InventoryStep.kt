@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
@@ -96,17 +98,17 @@ fun InventoryStep(
     val chooseCsv = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val name = displayName(context, uri)
-            if (!name.lowercase().endsWith(".csv")) Toast.makeText(context, "Please select a .csv file.", Toast.LENGTH_LONG).show()
+            if (!name.lowercase().endsWith(".csv")) AppToast.show("Please select a .csv file.")
             else {
                 val text = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
-                if (text == null) Toast.makeText(context, "Could not read that file", Toast.LENGTH_LONG).show() else csv = parseInventoryCsv(text, cols, name)
+                if (text == null) AppToast.show("Could not read that file") else csv = parseInventoryCsv(text, cols, name)
             }
         }
     }
     val saveSample = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
             val ok = runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(sampleCsv(cols).toByteArray()) } }.isSuccess
-            Toast.makeText(context, if (ok) "Sample CSV saved" else "Could not save the file", Toast.LENGTH_SHORT).show()
+            AppToast.show(if (ok) "Sample CSV saved" else "Could not save the file")
         }
     }
     val sampleName = "sample_${slugOf(current)}_inventory.csv"
@@ -165,7 +167,7 @@ fun InventoryStep(
         onImport = {
             val rows = csv?.valid.orEmpty()
             rows.forEach { r -> units.add(UnitState().also { u -> r.forEach { (k, v) -> if (v.isNotBlank()) u.values[k] = v } }) }
-            Toast.makeText(context, "Imported ${rows.size} unit${if (rows.size == 1) "" else "s"}", Toast.LENGTH_SHORT).show()
+            AppToast.show("Imported ${rows.size} unit${if (rows.size == 1) "" else "s"}")
             importing = false; csv = null
         },
         onDismiss = { importing = false; csv = null },

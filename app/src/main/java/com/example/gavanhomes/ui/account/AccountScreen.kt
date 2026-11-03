@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.account
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.*
@@ -97,8 +99,8 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
                                 api.updateProfile(mapOf("first_name" to first.trim(), "last_name" to last.trim(), "email" to email.trim(), "phone_number" to phone.trim()))
                             }
                             onUser(updated); message = true to "Saved"
-                            android.widget.Toast.makeText(context, "Profile saved", android.widget.Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) { message = false to (e.message ?: "Could not save"); android.widget.Toast.makeText(context, e.message ?: "Could not save", android.widget.Toast.LENGTH_LONG).show() } finally { busy = false }
+                            AppToast.show("Profile saved")
+                        } catch (e: Exception) { message = false to (e.message ?: "Could not save"); AppToast.show(e.message ?: "Could not save") } finally { busy = false }
                     }
                 }
             }
@@ -113,8 +115,8 @@ fun AccountScreen(api: ApiClient, user: User, b: Branding, onUser: (User) -> Uni
                         try {
                             withContext(Dispatchers.IO) { api.changePassword(current, newPass) }
                             passMessage = true to "Password updated"; current = ""; newPass = ""
-                            android.widget.Toast.makeText(context, "Password updated", android.widget.Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) { passMessage = false to (e.message ?: "Could not update the password"); android.widget.Toast.makeText(context, e.message ?: "Could not update the password", android.widget.Toast.LENGTH_LONG).show() }
+                            AppToast.show("Password updated")
+                        } catch (e: Exception) { passMessage = false to (e.message ?: "Could not update the password"); AppToast.show(e.message ?: "Could not update the password") }
                     }
                 }
             }

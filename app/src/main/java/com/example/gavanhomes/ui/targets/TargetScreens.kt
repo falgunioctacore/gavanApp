@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.targets
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.bounceClick
 import android.app.DatePickerDialog
 import android.content.Intent
@@ -119,6 +121,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
     var busy by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
     var askDeleteFile by remember { mutableStateOf<JSONObject?>(null) }
+    var previewFile by remember { mutableStateOf<Pair<String, String>?>(null) }      // a target file shown inside the app: url · name
     var departmentSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(id, version, attempt) {
@@ -137,9 +140,9 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { call() }
-                if (success != null) Toast.makeText(context, success, Toast.LENGTH_SHORT).show()
+                if (success != null) AppToast.show(success)
                 after(); onChanged(); attempt++
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
             busy = false
         }
     }
@@ -184,6 +187,34 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                 }
 
                 PillTabs(listOf(PillTab("Details"), PillTab("Files", files.size), PillTab("Discussion"), PillTab("Activity", d.objs("history").size), PillTab("Assign")), tab, b.base) { tab = it }
+
+                // the files — a gallery of the pictures, then the other documents with View / Download — shown on the Details tab and the Files tab
+                val filesCard: @Composable () -> Unit = {
+Card("Files", if (files.isEmpty()) "Documents for this target" else "${files.size} attached") {
+                        if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
+                        val images = files.filter { com.example.gavanhomes.ui.tasks.isImageName(it.optString("name")) }
+                        if (images.isNotEmpty()) com.example.gavanhomes.ui.tasks.ImageGrid(images, if (canDelete) ({ f -> askDeleteFile = f }) else null)
+                        files.filterNot { com.example.gavanhomes.ui.tasks.isImageName(it.optString("name")) }.forEach { f ->
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Blue.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
+                                    Text((f.str("name")?.substringAfterLast('.', "") ?: "").take(4).uppercase().ifEmpty { "FILE" }, color = Blue, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                                }
+                                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                    Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
+                                }
+                                Text("View", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick {
+                                    previewFile = com.example.gavanhomes.ui.tasks.localUrl(f.optString("url")) to f.optString("name")
+                                }.padding(horizontal = 12.dp, vertical = 8.dp))
+                            Text("Download", color = b.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(12.dp)).background(b.base.copy(alpha = .12f)).clickable {
+                                com.example.gavanhomes.ui.tasks.downloadFile(context, scope, f.optString("url"), f.optString("name"), f.optString("type"))
+                            }.padding(horizontal = 12.dp, vertical = 8.dp))
+                                if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))
+                            }
+                        }
+                        if (canEdit) com.example.gavanhomes.ui.tasks.UploadTile(b.base) { pickFile.launch("*/*") }
+                    }
+                }
 
                 when (listOf("overview", "files", "discussion", "activity", "assign")[tab]) {
                     "overview" -> {
@@ -265,31 +296,10 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                                 }
                             }
                         }
+                        filesCard()
                     }
 
-                    "files" -> Card("Files", if (files.isEmpty()) "Documents for this target" else "${files.size} attached") {
-                        if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
-                        files.forEach { f ->
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Blue.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
-                                    Text((f.str("name")?.substringAfterLast('.', "") ?: "").take(4).uppercase().ifEmpty { "FILE" }, color = Blue, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
-                                }
-                                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                    Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                    f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
-                                }
-                                Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick {
-                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(f.optString("url")))) }.onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
-                                }.padding(horizontal = 14.dp, vertical = 8.dp))
-                                if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))
-                            }
-                        }
-                        if (canEdit) Text(
-                            "+  Upload a file", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
-                        )
-                        Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = KitMuted, fontSize = 11.sp)
-                    }
+                    "files" -> filesCard()
 
                     "discussion" -> TaskDiscussion(api, b, id, base = "/target-center", onChanged = { attempt++; onChanged() })
                     "assign" -> TaskAssignTab(api, b, id, d.optString("name"), canEdit, base = "/target-center", onChanged = { attempt++; onChanged() })
@@ -348,6 +358,7 @@ fun TargetDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
             title = "Delete this target?", text = "It will be removed from the project.", confirmText = "Yes, delete it",
             onConfirm = { askDelete = false; act("Target deleted", { api.delete("/target-center/$id") }) { onBack() } }, onCancel = { askDelete = false },
         )
+        previewFile?.let { (url, name) -> com.example.gavanhomes.ui.discussion.FilePreview(url, name) { previewFile = null } }
         askDeleteFile?.let { f -> SwalConfirm(
             title = "Delete this file?", text = f.optString("name"), confirmText = "Yes, delete it",
             onConfirm = { askDeleteFile = null; act("File deleted", { api.delete("/target-center/$id/documents/${f.optInt("id")}") }) }, onCancel = { askDeleteFile = null },
@@ -433,7 +444,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/target-center/$id", body) else api.send("POST", "/projects/$uuid/target-center", body) }
-                Toast.makeText(context, if (editing) "Target saved" else "Target created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "Target saved" else "Target created")
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message

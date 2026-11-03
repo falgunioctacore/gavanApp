@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.inventory
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
@@ -361,8 +363,8 @@ private fun InventorySettings(api: ApiClient, b: Branding, uuid: String, version
             onConfirm = {
                 ask = null
                 scope.launch {
-                    try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/inventory-center/settings/$k/${r.optInt("id")}") }; Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show(); attempt++; onChanged() }
-                    catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                    try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/inventory-center/settings/$k/${r.optInt("id")}") }; AppToast.show("Deleted"); attempt++; onChanged() }
+                    catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
                 }
             },
             onCancel = { ask = null },
@@ -390,7 +392,7 @@ private fun SettingSheet(api: ApiClient, b: Branding, uuid: String, kind: String
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/inventory-center/settings/$kind", JSONObject().put("id", if (id > 0) id else JSONObject.NULL).put("name", name.trim()).put("code", code.trim())) }
-                Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show(); onDone()
+                AppToast.show("Saved"); onDone()
             } catch (x: ApiException) { errors = x.errors.ifEmpty { mapOf("name" to (x.message ?: "Could not save")) } }
             catch (x: Exception) { errors = mapOf("name" to (x.message ?: "Could not save")) }
             saving = false
@@ -700,8 +702,8 @@ private fun TransferList(api: ApiClient, b: Branding, uuid: String, version: Int
             onConfirm = {
                 ask = null
                 scope.launch {
-                    try { withContext(Dispatchers.IO) { api.delete("/inventory-center/transfers/${t.optInt("id")}") }; Toast.makeText(context, "Transfer reversed", Toast.LENGTH_SHORT).show(); onChanged() }
-                    catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not reverse", Toast.LENGTH_LONG).show() }
+                    try { withContext(Dispatchers.IO) { api.delete("/inventory-center/transfers/${t.optInt("id")}") }; AppToast.show("Transfer reversed"); onChanged() }
+                    catch (e: Exception) { AppToast.show(e.message ?: "Could not reverse") }
                 }
             },
             onCancel = { ask = null },
@@ -741,7 +743,7 @@ private fun TransferSheet(api: ApiClient, b: Branding, uuid: String, options: JS
                     api.send("POST", "/projects/$uuid/inventory-center/transfers", JSONObject().put("material_id", material!!.optInt("id")).put("to_project_id", project)
                         .put("quantity", q).put("transfer_date", date).put("remarks", remarks.trim().ifBlank { JSONObject.NULL }))
                 }
-                Toast.makeText(context, "Stock transferred", Toast.LENGTH_SHORT).show(); onDone()
+                AppToast.show("Stock transferred"); onDone()
             } catch (x: ApiException) { errors = x.errors.ifEmpty { mapOf("quantity" to (x.message ?: "Could not transfer")) } }
             catch (x: Exception) { errors = mapOf("quantity" to (x.message ?: "Could not transfer")) }
             saving = false
@@ -902,8 +904,8 @@ private fun StoreDetailSheet(api: ApiClient, b: Branding, uuid: String, s: JSONO
         onConfirm = {
             ask = false
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/inventory-center/stores/$id") }; Toast.makeText(context, "Store removed", Toast.LENGTH_SHORT).show(); onChanged() }
-                catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/inventory-center/stores/$id") }; AppToast.show("Store removed"); onChanged() }
+                catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             }
         },
         onCancel = { ask = false },
@@ -932,7 +934,7 @@ private fun StoreSheet(api: ApiClient, b: Branding, uuid: String, store: JSONObj
                     if (store == null) api.send("POST", "/projects/$uuid/inventory-center/stores", body)
                     else api.send("PUT", "/projects/$uuid/inventory-center/stores/${store.optInt("id")}", body.put("active", active))
                 }
-                Toast.makeText(context, if (store == null) "Store added" else "Store saved", Toast.LENGTH_SHORT).show(); onDone()
+                AppToast.show(if (store == null) "Store added" else "Store saved"); onDone()
             } catch (x: ApiException) { errors = x.errors.ifEmpty { mapOf("name" to (x.message ?: "Could not save")) } }
             catch (x: Exception) { errors = mapOf("name" to (x.message ?: "Could not save")) }
             saving = false

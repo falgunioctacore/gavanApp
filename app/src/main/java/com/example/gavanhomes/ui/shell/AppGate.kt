@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.shell
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.auth.GavanLoginScreen
 import com.example.gavanhomes.ui.common.Branding
 import com.example.gavanhomes.ui.common.SwalConfirm
@@ -193,6 +195,10 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
     LaunchedEffect(ChatAlerts.pending) {
         ChatAlerts.pending?.let { link -> chatLink = link; ChatAlerts.pending = null; if (screen != "chat") chatFrom = screen; screen = "chat" }
     }
+    // a task / target page asked for by a notification: open its project (the project then opens the page)
+    LaunchedEffect(com.example.gavanhomes.ui.common.DeepLink.pending) {
+        com.example.gavanhomes.ui.common.DeepLink.pending?.let { link -> detailUuid = link.project; screen = "projectDetail" }
+    }
     LaunchedEffect(ChatAlerts.openNotifications) { if (ChatAlerts.openNotifications) { ChatAlerts.openNotifications = false; openNotifications() } }
 
     // the unread badge: starts from the last count, then is fetched on start, whenever the app comes back to the front, and every minute;
@@ -245,7 +251,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                 // revoke the API token first (it is still the active one), then clear it locally
                 scope.launch {
                     runCatching { withContext(Dispatchers.IO) { api.logout() } }
-                    Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
+                    AppToast.show("Signed out")
                     onSignedOut()
                 }
             },
@@ -323,7 +329,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             } catch (e: Exception) {
                 opening = false
                 screen = returnTo
-                Toast.makeText(context, e.message ?: "Could not open the page", Toast.LENGTH_LONG).show()
+                AppToast.show(e.message ?: "Could not open the page")
             }
         }
     }
@@ -359,7 +365,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
             screen == "audit" -> screen = "me"
             screen != "dashboard" -> goHome()
             System.currentTimeMillis() - lastBack < 2000 -> activity?.finish()
-            else -> { lastBack = System.currentTimeMillis(); Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show() }
+            else -> { lastBack = System.currentTimeMillis(); AppToast.show("Press back again to exit") }
         }
     }
 

@@ -42,7 +42,9 @@ android {
         // — a phone cannot resolve gavanhomes.test (it only exists in the PC's hosts file)
         debug {
             versionNameSuffix = "-dev"
-            resValue("string", "app_name", "GavanHomes")
+            // ./gradlew assembleDebug -PcopyApp  → a second copy that installs next to the real one ("GavanHomes Copy"), with its own sign-in — to test as another user
+            if (project.hasProperty("copyApp")) applicationIdSuffix = ".copy"
+            resValue("string", "app_name", if (project.hasProperty("copyApp")) "GavanHomes Copy" else "GavanHomes")
             buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8000\"")
         }
         // the app you ship: the live site, https only and signed

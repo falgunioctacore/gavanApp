@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.attendance
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -131,8 +133,8 @@ private fun DaySheet(api: ApiClient, b: Branding, uuid: String, version: Int, da
 
     fun call(ok: String?, run: () -> JSONObject, done: () -> Unit = {}) {
         scope.launch {
-            try { val r = withContext(Dispatchers.IO) { run() }; ok?.let { Toast.makeText(context, r.str("message") ?: it, Toast.LENGTH_SHORT).show() }; done() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            try { val r = withContext(Dispatchers.IO) { run() }; ok?.let { AppToast.show(r.str("message") ?: it) }; done() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
         }
     }
 

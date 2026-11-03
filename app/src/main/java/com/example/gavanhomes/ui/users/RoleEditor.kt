@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -117,7 +119,7 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/roles/$id", body) else api.send("POST", "/roles", body) }
-                Toast.makeText(context, if (editing) "Role saved" else "Role created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "Role saved" else "Role created")
                 onSaved()
             } catch (e: ApiException) { nameError = e.errors["name"] ?: e.message }
             catch (e: Exception) { nameError = e.message ?: "Could not save" }
@@ -196,8 +198,8 @@ fun RoleEditor(api: ApiClient, b: Branding, id: Int?, onClose: () -> Unit, onSav
             onConfirm = {
                 askDelete = false
                 scope.launch {
-                    try { withContext(Dispatchers.IO) { api.delete("/roles/$id") }; Toast.makeText(context, "Role deleted", Toast.LENGTH_SHORT).show(); onSaved() }
-                    catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                    try { withContext(Dispatchers.IO) { api.delete("/roles/$id") }; AppToast.show("Role deleted"); onSaved() }
+                    catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
                 }
             },
             onCancel = { askDelete = false },

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.bounceClick
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -129,9 +131,9 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { call() }
-                if (success != null) Toast.makeText(context, success, Toast.LENGTH_SHORT).show()
+                if (success != null) AppToast.show(success)
                 after(); onChanged(); attempt++; activityVersion++
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
             busy = false
         }
     }
@@ -468,7 +470,7 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/lead-center/$id", body) else api.send("POST", "/projects/$uuid/lead-center", body) }
-                Toast.makeText(context, if (editing) "Lead saved" else "Lead created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "Lead saved" else "Lead created")
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message

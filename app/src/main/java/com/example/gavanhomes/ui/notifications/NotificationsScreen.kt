@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.notifications
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.appear
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -116,6 +118,22 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
         scope.launch { runCatching { withContext(Dispatchers.IO) { api.markNotificationRead(n.optString("id")) } } }
     }
 
+    var askReadAll by remember { mutableStateOf(false) }
+    if (askReadAll) com.example.gavanhomes.ui.common.SwalConfirm(
+        title = "Mark all as read?", text = "All ${NotificationCenter.unread} unread notification${if (NotificationCenter.unread == 1) "" else "s"} will be marked as read.", confirmText = "Yes, mark all", confirmColor = b.base,
+        onConfirm = { askReadAll = false
+                                scope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) { api.markAllNotificationsRead() }
+                                        for (i in rows.indices) rows[i] = JSONObject(rows[i].toString()).put("read", true)
+                                        NotificationCenter.unread = 0
+                                        AppToast.show("All marked as read")
+                                    } catch (e: Exception) { AppToast.show(e.message ?: "Could not update") }
+                                }
+ },
+        onCancel = { askReadAll = false },
+    )
+
     val shown = rows.withIndex().filter { (!unreadOnly || !it.value.optBoolean("read")) && (search.isBlank() || it.value.toString().contains(search.trim(), true)) }
 
     Column(Modifier.fillMaxSize().background(KitPage)) {
@@ -125,16 +143,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
                     b, "Notifications", onBack,
                     actions = {
                         if (NotificationCenter.unread > 0) {
-                            HeroButton("✓✓") {
-                                scope.launch {
-                                    try {
-                                        withContext(Dispatchers.IO) { api.markAllNotificationsRead() }
-                                        for (i in rows.indices) rows[i] = JSONObject(rows[i].toString()).put("read", true)
-                                        NotificationCenter.unread = 0
-                                        Toast.makeText(context, "All marked as read", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not update", Toast.LENGTH_LONG).show() }
-                                }
-                            }
+                            HeroButton("✓✓") { askReadAll = true }
                         }
                     },
                     showBell = false,
@@ -172,7 +181,7 @@ fun NotificationsScreen(api: ApiClient, b: Branding, onBack: () -> Unit) {
                 val unread = !n.optBoolean("read")
                 Row(
                     Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().shadow(if (unread) 4.dp else 1.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
-                        .background(if (unread) Color.White else com.example.gavanhomes.ui.common.KitSoft).clickable { markRead(index, n) }.padding(14.dp),
+                        .background(if (unread) com.example.gavanhomes.ui.common.KitCard else com.example.gavanhomes.ui.common.KitSoft).clickable { markRead(index, n); com.example.gavanhomes.ui.common.DeepLink.from(n)?.let { com.example.gavanhomes.ui.common.DeepLink.pending = it } }.padding(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     Box(Modifier.padding(top = 5.dp).size(10.dp).clip(CircleShape).background(if (unread) b.base else Color.Transparent))

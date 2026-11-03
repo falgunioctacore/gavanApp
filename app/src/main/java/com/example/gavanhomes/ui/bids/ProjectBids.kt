@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.bids
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -219,9 +221,9 @@ private fun BidList(
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/bid-center/bulk-delete", JSONObject().put("ids", JSONArray(ids))) }
-                android.widget.Toast.makeText(context, r.optString("message", "Deleted"), android.widget.Toast.LENGTH_LONG).show()
+                AppToast.show(r.optString("message", "Deleted"))
                 selected.clear(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not delete", android.widget.Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         }
     }
 
@@ -233,14 +235,14 @@ private fun BidList(
         Text("$total bid${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
     }
 
-    if (selected.isNotEmpty()) Row(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Text("Cancel", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear() }.padding(8.dp))
-        Text("Delete", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .14f)).clickable { askDelete = true }.padding(horizontal = 16.dp, vertical = 9.dp))
-    }
+    // bulk bar: pinned at the bottom of the screen while rows are selected
+    com.example.gavanhomes.ui.common.ProvideBulk(if (selected.isEmpty()) null else com.example.gavanhomes.ui.common.BulkSpec(
+        selected.size,
+        buildList { if (canDelete) add(com.example.gavanhomes.ui.common.BulkAction("delete", "Delete", "🗑", danger = true)) },
+        onAction = { if (it == "delete") askDelete = true },
+        onSelectAll = { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }, onClear = { selected.clear() },
+    ))
+
 
     rows.forEach { r ->
         val id = r.optInt("id")

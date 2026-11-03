@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.provider.OpenableColumns
 import android.graphics.BitmapFactory
@@ -202,7 +204,7 @@ private fun NewChatSheet(api: ApiClient, b: Branding, uuid: String, group: Boole
         busy = true
         scope.launch {
             try { val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/discussion-center/start", JSONObject().put("member", key)) }; onStarted(r.optString("uuid"), who) }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not start the chat", Toast.LENGTH_LONG).show() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not start the chat") }
             busy = false
         }
     }
@@ -323,7 +325,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
                     else api.send("POST", "$base/send", JSONObject().put("body", body))
                 }
                 r.optJSONObject("message")?.let(::merge); text = ""; editing = null
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not send", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not send") }
             sending = false
         }
     }
@@ -347,7 +349,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
                     sent.optJSONObject("message")?.let(::merge)
                     if (first && caption.isNotEmpty()) text = ""
                     first = false
-                } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not send the file", Toast.LENGTH_LONG).show() }
+                } catch (e: Exception) { AppToast.show(e.message ?: "Could not send the file") }
             }
             sending = false
         }
@@ -442,7 +444,7 @@ fun ChatScreen(api: ApiClient, b: Branding, uuid: String, conv: String, title: S
         SwalConfirm(title = "Delete this message?", text = "It is removed for everyone in the chat.", confirmText = "Yes, delete",
             onConfirm = { askDelete = null; scope.launch {
                 try { withContext(Dispatchers.IO) { api.delete("$base/messages/${m.optInt("id")}") }.optJSONObject("message")?.let(::merge) }
-                catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             } }, onCancel = { askDelete = null })
     }
     members?.let { r ->

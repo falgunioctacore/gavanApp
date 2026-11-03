@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.accounting
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,8 +94,8 @@ import java.time.format.DateTimeFormatter
 
 private fun act(context: android.content.Context, scope: kotlinx.coroutines.CoroutineScope, ok: String, call: () -> JSONObject, done: () -> Unit) {
     scope.launch {
-        try { val r = withContext(Dispatchers.IO) { call() }; Toast.makeText(context, r.str("message") ?: ok, Toast.LENGTH_SHORT).show(); done() }
-        catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+        try { val r = withContext(Dispatchers.IO) { call() }; AppToast.show(r.str("message") ?: ok); done() }
+        catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
 }
 
@@ -346,7 +348,7 @@ fun PaymentFormScreen(api: ApiClient, b: Branding, uuid: String, type: String, i
             if (id != null) body.put("id", id)
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/payments", body) }; Toast.makeText(context, if (id != null) "Payment saved" else "Payment recorded", Toast.LENGTH_SHORT).show(); onSaved() }
+                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/payments", body) }; AppToast.show(if (id != null) "Payment saved" else "Payment recorded"); onSaved() }
                 catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
                 catch (ex: Exception) { banner = ex.message ?: "Could not save" }
                 saving = false
@@ -438,7 +440,7 @@ fun ExpenseFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBac
             if (id != null) body.put("id", id)
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/expenses", body) }; Toast.makeText(context, if (id != null) "Expense saved" else "Expense added", Toast.LENGTH_SHORT).show(); onSaved() }
+                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/expenses", body) }; AppToast.show(if (id != null) "Expense saved" else "Expense added"); onSaved() }
                 catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
                 catch (ex: Exception) { banner = ex.message ?: "Could not save" }
                 saving = false

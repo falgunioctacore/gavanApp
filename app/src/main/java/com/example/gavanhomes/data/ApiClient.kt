@@ -142,7 +142,15 @@ class ApiClient(private val tokenProvider: () -> String?) {
         }
         w("--$boundary--\r\n")
         val bytes = buffer.toByteArray()
-        return execute("POST", path, true, "multipart/form-data; boundary=$boundary", { out -> out.write(bytes) }, readTimeoutMs = 120_000)
+        val hasFile = parts.any { it.bytes != null }
+        if (hasFile) Uploads.begin(bytes.size, parts.firstOrNull { it.bytes != null }?.fileName)
+        try {
+            return execute("POST", path, true, "multipart/form-data; boundary=$boundary", { out ->
+                var off = 0
+                while (off < bytes.size) { val n = minOf(32 * 1024, bytes.size - off); out.write(bytes, off, n); off += n; if (hasFile) Uploads.advance(n) }
+                out.flush()
+            }, readTimeoutMs = 120_000, streamLength = bytes.size)
+        } finally { if (hasFile) Uploads.end() }
     }
 
     /**
@@ -151,11 +159,11 @@ class ApiClient(private val tokenProvider: () -> String?) {
      */
     private fun execute(
         method: String, path: String, auth: Boolean = true, contentType: String? = null,
-        write: ((java.io.OutputStream) -> Unit)? = null, readTimeoutMs: Int = 45_000,
+        write: ((java.io.OutputStream) -> Unit)? = null, readTimeoutMs: Int = 45_000, streamLength: Int = -1,
     ): JSONObject {
         val tries = if (method == "GET") 2 else 1
         for (attempt in 1..tries) {
-            try { return executeOnce(method, path, auth, contentType, write, readTimeoutMs) }
+            try { return executeOnce(method, path, auth, contentType, write, readTimeoutMs, streamLength) }
             catch (e: ApiException) { throw e }
             catch (e: java.net.UnknownHostException) {
                 if (attempt == tries) throw NoConnectionException(OFFLINE_TEXT, e)
@@ -174,7 +182,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
 
     private fun executeOnce(
         method: String, path: String, auth: Boolean, contentType: String?,
-        write: ((java.io.OutputStream) -> Unit)?, readTimeoutMs: Int,
+        write: ((java.io.OutputStream) -> Unit)?, readTimeoutMs: Int, streamLength: Int = -1,
     ): JSONObject {
         val conn = URL(ApiConfig.BASE_URL + ApiConfig.PREFIX + path).openConnection() as HttpURLConnection
         try {
@@ -187,6 +195,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
             if (write != null) {
                 conn.doOutput = true
                 if (contentType != null) conn.setRequestProperty("Content-Type", contentType)
+                if (streamLength >= 0) conn.setFixedLengthStreamingMode(streamLength)      // sent as it is written (not held back), so the progress is the real one
                 conn.outputStream.use { write(it) }
             }
             val code = conn.responseCode
@@ -198,6 +207,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
                 val fields = errs?.keys()?.asSequence()?.associateWith { k -> errs.optJSONArray(k)?.optString(0).orEmpty() } ?: emptyMap()
                 throw ApiException(code, message, fields)
             }
+            if (method != "GET") WriteNotice.ok(path, json.optString("message"))
             return json
         } finally {
             conn.disconnect()

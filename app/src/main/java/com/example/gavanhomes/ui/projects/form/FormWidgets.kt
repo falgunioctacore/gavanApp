@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects.form
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import android.app.DatePickerDialog
 import android.content.Context
@@ -193,10 +195,10 @@ fun readPicked(context: Context, uri: Uri): PickedFile? {
             if (s >= 0) size = c.getLong(s)
         }
     }
-    if (size > MaxFileBytes) { Toast.makeText(context, "That file is over 5 MB", Toast.LENGTH_LONG).show(); return null }
+    if (size > MaxFileBytes) { AppToast.show("That file is over 5 MB"); return null }
     val bytes = runCatching { resolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-    if (bytes == null) { Toast.makeText(context, "Could not read that file", Toast.LENGTH_LONG).show(); return null }
-    if (bytes.size > MaxFileBytes) { Toast.makeText(context, "That file is over 5 MB", Toast.LENGTH_LONG).show(); return null }
+    if (bytes == null) { AppToast.show("Could not read that file"); return null }
+    if (bytes.size > MaxFileBytes) { AppToast.show("That file is over 5 MB"); return null }
     val ext = when { mime.contains("pdf") -> "pdf"; mime.contains("png") -> "png"; mime.contains("jp") -> "jpg"; else -> null }
     if (ext != null && !name.lowercase().endsWith(".$ext") && !(ext == "jpg" && name.lowercase().endsWith(".jpeg"))) name = "$name.$ext"
     return PickedFile(name, mime, bytes)

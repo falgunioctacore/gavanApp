@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -121,7 +123,7 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
     val pickDoc: (FileSlot) -> Unit = { target = it; launcher.launch(arrayOf("image/jpeg", "image/png", "application/pdf")) }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
 
     LaunchedEffect(attempt) {
@@ -166,7 +168,7 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.sendForm(if (uuid == null) "/professionals" else "/professionals/$uuid", parts) }
-                Toast.makeText(context, if (editing) "Professional saved" else "Professional created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "Professional saved" else "Professional created")
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors

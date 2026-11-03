@@ -1,5 +1,9 @@
 package com.example.gavanhomes.ui.tasks
 
+import androidx.compose.ui.draw.drawBehind
+
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.Canvas
@@ -130,7 +134,7 @@ private val QuickFilters = listOf(Quick("today", "Today"), Quick("tomorrow", "To
  * Data: GET /projects/{uuid}/task-center/overview · list · board.
  */
 @Composable
-fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit = {}, onOpenAt: (Int, String) -> Unit = { id, _ -> onOpen(id) }) {
+fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit = {}, onOpenAt: (Int, String) -> Unit = { id, _ -> onOpen(id) }, showListSignal: Int = 0) {
     var view by remember { mutableIntStateOf(0) }                    // 0 Dashboard · 1 List · 2 Board
     var overview by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -138,7 +142,8 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     // the list's filter, kept here so it survives a switch to the Board and back; a "Quick look" tap on the dashboard sets it too
     var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var query by remember { mutableStateOf("") }
-    var sort by remember { mutableIntStateOf(0) }
+    var sort by remember { mutableIntStateOf(2) }                    // the list starts with the newest task first
+    LaunchedEffect(showListSignal) { if (showListSignal > 0) { view = 1; sel = emptyMap(); query = "" } }      // a task was just created: show the list (newest first)
 
     var pickers by remember { mutableStateOf<JSONObject?>(null) }       // departments, types, people — for the filter sheet
     LaunchedEffect(version, attempt) {
@@ -309,6 +314,12 @@ private fun TaskList(
     var exporting by remember { mutableStateOf(false) }
     // the ⋮ menu of a task row: View details · Mark as complete · Edit · Add notes · Add attachment · View history · Assign · Delete
     var rowMenu by remember { mutableStateOf<JSONObject?>(null) }
+    var historyFor by remember { mutableStateOf<JSONObject?>(null) }          // "View history" and "Assign" open over the list, not on the task's page
+    var assignFor by remember { mutableStateOf<JSONObject?>(null) }
+    var subFor by remember { mutableStateOf<JSONObject?>(null) }              // "Add subtask": the task, and the new subtask's name / priority / due date
+    var subText by remember { mutableStateOf("") }
+    var subPriority by remember { mutableStateOf("Medium") }
+    var subDue by remember { mutableStateOf("") }
     var noteFor by remember { mutableStateOf<JSONObject?>(null) }
     var noteText by remember { mutableStateOf("") }
     var deleteRow by remember { mutableStateOf<JSONObject?>(null) }
@@ -319,14 +330,14 @@ private fun TaskList(
         if (target != null && f != null) scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.sendForm("/task-center/$target/documents", listOf(com.example.gavanhomes.data.FormPart("document", fileName = f.name, mime = f.mime, bytes = f.bytes))) }
-                android.widget.Toast.makeText(context, "File attached", android.widget.Toast.LENGTH_SHORT).show(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not attach the file", android.widget.Toast.LENGTH_LONG).show() }
+                AppToast.show("File attached"); onChanged(); attempt++
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not attach the file") }
         }
     }
     fun rowAction(success: String, call: () -> Unit) {
         scope.launch {
-            try { withContext(Dispatchers.IO) { call() }; android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show(); onChanged(); attempt++ }
-            catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not do that", android.widget.Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { call() }; AppToast.show(success); onChanged(); attempt++ }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not do that") }
         }
     }
     val can = o.optJSONObject("can")
@@ -354,7 +365,7 @@ private fun TaskList(
         if (!com.example.gavanhomes.ui.common.Downloads.canNotify(context)) askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         exporting = true
         val kind = if (format == "pdf") "PDF" else "Excel"
-        android.widget.Toast.makeText(context, "Preparing your $kind export…", android.widget.Toast.LENGTH_SHORT).show()
+        AppToast.show("Preparing your $kind export…")
         scope.launch {
             try {
                 val (name, bytes) = withContext(Dispatchers.IO) {
@@ -364,8 +375,8 @@ private fun TaskList(
                 // saved to the phone's Downloads folder (Downloads/GavanHomes), and announced in the notification bar — tap it to open the file
                 val uri = withContext(Dispatchers.IO) { com.example.gavanhomes.ui.common.Downloads.save(context, name, mime, bytes) }
                 com.example.gavanhomes.ui.common.Downloads.notifyReady(context, "$kind export ready", name, mime, uri)
-                android.widget.Toast.makeText(context, "$kind export saved to Downloads/GavanHomes — $name", android.widget.Toast.LENGTH_LONG).show()
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not export", android.widget.Toast.LENGTH_LONG).show() }
+                AppToast.show("$kind export saved to Downloads/GavanHomes — $name")
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not export") }
             exporting = false
         }
     }
@@ -375,9 +386,9 @@ private fun TaskList(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/task-center/bulk", JSONObject().put("ids", JSONArray(ids)).put("action", action).put("value", value ?: JSONObject.NULL)) }
-                android.widget.Toast.makeText(context, "${ids.size} task${if (ids.size == 1) "" else "s"} updated", android.widget.Toast.LENGTH_SHORT).show()
+                AppToast.show("${ids.size} task${if (ids.size == 1) "" else "s"} updated")
                 selected.clear(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not update", android.widget.Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not update") }
         }
     }
 
@@ -394,21 +405,17 @@ private fun TaskList(
         ActionPill(if (exporting) "Exporting…" else "Export", ActionIcon.Download, filled = false, accent = b.base, enabled = !exporting) { sheet = "export" }
     }
 
-    // bulk bar
-    if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("Select all", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }.padding(6.dp))
-            Text("Cancel", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear() }.padding(6.dp))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (canEdit) { BulkButton("Status") { sheet = "bulk-status" }; BulkButton("Priority") { sheet = "bulk-priority" } }
-            if (canDelete) BulkButton("Delete", KitDanger) { askDelete = true }
-        }
-    }
+    // bulk bar: pinned at the bottom of the screen while rows are selected
+    com.example.gavanhomes.ui.common.ProvideBulk(if (selected.isEmpty()) null else com.example.gavanhomes.ui.common.BulkSpec(
+        selected.size,
+        buildList {
+            if (canEdit) { add(com.example.gavanhomes.ui.common.BulkAction("status", "Status", "◔")); add(com.example.gavanhomes.ui.common.BulkAction("priority", "Priority", "⚑")) }
+            if (canDelete) add(com.example.gavanhomes.ui.common.BulkAction("delete", "Delete", "🗑", danger = true))
+        },
+        onAction = { when (it) { "status" -> sheet = "bulk-status"; "priority" -> sheet = "bulk-priority"; "delete" -> askDelete = true } },
+        onSelectAll = { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }, onClear = { selected.clear() },
+    ))
+
 
     rows.forEach { r ->
         val id = r.optInt("id")
@@ -427,12 +434,40 @@ private fun TaskList(
         loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 
     // ── the ⋮ menu of a task ──
+    // the task's history, in a sheet over the list
+    historyFor?.let { t ->
+        var detail by remember(t) { mutableStateOf<JSONObject?>(null) }
+        var failed by remember(t) { mutableStateOf<String?>(null) }
+        LaunchedEffect(t) { runCatching { withContext(Dispatchers.IO) { api.detail("/task-center/${t.optInt("id")}") } }.onSuccess { detail = it }.onFailure { failed = it.message ?: "Could not load the history" } }
+        ModalBottomSheet(onDismissRequest = { historyFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("History", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text(t.optString("name"), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.height(480.dp).verticalScroll(rememberScrollState())) {
+                    val d = detail
+                    when {
+                        failed != null -> Text(failed ?: "", color = KitDanger, fontSize = 14.sp)
+                        d == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+                        d.objs("history").isEmpty() -> Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
+                        else -> HistoryTimeline(d.objs("history"))
+                    }
+                }
+            }
+        }
+    }
+    // assigning people, in a sheet over the list
+    assignFor?.let { t ->
+        ModalBottomSheet(onDismissRequest = { assignFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(Modifier.navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+                TaskAssignTab(api, b, t.optInt("id"), t.optString("name"), canEdit, onChanged = { onChanged(); attempt++ })
+            }
+        }
+    }
     rowMenu?.let { t ->
         val tid = t.optInt("id")
         val done = t.optString("status") == "Completed"
@@ -440,18 +475,47 @@ private fun TaskList(
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Choose what to do with this task", color = KitMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                // the actions follow the task's status: a pending task can be started, a finished or cancelled one reopened, and so on
+                val st = t.optString("status")
+                val open = st != "Completed" && st != "Cancelled"
+                fun statusId(name: String) = o.objs("statuses").firstOrNull { it.optString("name") == name }?.optInt("id") ?: 0
+                fun setStatus(name: String, done: String) = rowAction(done) { api.send("POST", "/task-center/$tid/status", JSONObject().put("status_id", statusId(name))) }
                 MenuRow("◉", "View task details") { rowMenu = null; onOpen(tid) }
-                if (canEdit && !done) MenuRow("✓", "Mark as complete", KitGood) {
-                    rowMenu = null
-                    val completed = o.objs("statuses").firstOrNull { it.optString("name") == "Completed" }?.optInt("id") ?: 0
-                    rowAction("Task marked complete") { api.send("POST", "/task-center/$tid/status", JSONObject().put("status_id", completed)) }
-                }
-                if (canEdit) MenuRow("✎", "Edit task") { rowMenu = null; onEdit(tid) }
+                if (canEdit && (st == "Pending" || st == "Overdue")) MenuRow("▶", if (st == "Overdue") "Resume task" else "Start task", b.base) { rowMenu = null; setStatus("In Progress", "Task started") }
+                if (canEdit && open) MenuRow("✓", "Mark as complete", KitGood) { rowMenu = null; setStatus("Completed", "Task marked complete") }
+                if (canEdit && st == "In Progress") MenuRow("↺", "Move back to pending") { rowMenu = null; setStatus("Pending", "Task moved back to pending") }
+                if (canEdit && st == "Completed") MenuRow("↺", "Reopen task", b.base) { rowMenu = null; setStatus("In Progress", "Task reopened") }
+                if (canEdit && st == "Cancelled") MenuRow("↺", "Reopen task", b.base) { rowMenu = null; setStatus("Pending", "Task reopened") }
+                if (canEdit) MenuRow("✎", if (st == "Overdue") "Reschedule / edit task" else "Edit task") { rowMenu = null; onEdit(tid) }
                 if (canEdit) MenuRow("☰", "Add notes") { rowMenu = null; noteText = ""; noteFor = t }
-                if (canEdit) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
-                MenuRow("◷", "View history") { rowMenu = null; onOpenAt(tid, "activity") }
-                if (canEdit) MenuRow("⇄", "Assign") { rowMenu = null; onOpenAt(tid, "assign") }
+                if (canEdit && open) MenuRow("☑", "Add subtask") { rowMenu = null; subText = ""; subDue = ""; subPriority = t.optString("priority").ifBlank { "Medium" }; subFor = t }
+                if (canEdit && open) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
+                MenuRow("◷", "View history") { rowMenu = null; historyFor = t }
+                if (canEdit && open) MenuRow("⇄", "Assign") { rowMenu = null; assignFor = t }
+                if (canEdit && open) MenuRow("⊘", "Cancel task", KitDanger) { rowMenu = null; setStatus("Cancelled", "Task cancelled") }
                 if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(com.example.gavanhomes.ui.common.KitLine)); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
+            }
+        }
+    }
+    // a subtask for this task, added from the list
+    subFor?.let { t ->
+        ModalBottomSheet(onDismissRequest = { subFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
+            Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Add a subtask", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text(t.optString("name"), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                com.example.gavanhomes.ui.projects.form.Input("Subtask name", subText, { subText = it })
+                Label("Priority")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Low", "Medium", "High", "Urgent").forEach { p -> Pick(p, subPriority == p, priorityTint(p)) { subPriority = p } } }
+                com.example.gavanhomes.ui.projects.form.PickerField("Due date (optional)", prettyDay(subDue)) {
+                    val d = runCatching { java.time.LocalDate.parse(subDue.take(10)) }.getOrDefault(java.time.LocalDate.now())
+                    android.app.DatePickerDialog(context, { _, y, m, day -> subDue = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show()
+                }
+                if (subDue.isNotBlank()) Text("Clear due date", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { subDue = "" })
+                Text("Add subtask", color = Color.White, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (subText.isBlank()) KitMuted else b.base).clickable(enabled = subText.isNotBlank()) {
+                        val tid = t.optInt("id"); val body = JSONObject().put("title", subText.trim()).put("priority", subPriority).apply { if (subDue.isNotBlank()) put("due_date", subDue) }; subFor = null
+                        rowAction("Subtask added") { api.send("POST", "/task-center/$tid/subtasks", body) }
+                    }.padding(vertical = 14.dp))
             }
         }
     }
@@ -687,11 +751,11 @@ private fun TaskBoard(api: ApiClient, b: Branding, uuid: String, version: Int, c
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/task-center/${task.optInt("id")}/status", JSONObject().put("status_id", target.optInt("id"))) }
-                android.widget.Toast.makeText(context, "Moved to ${target.optString("name")}", android.widget.Toast.LENGTH_SHORT).show()
+                AppToast.show("Moved to ${target.optString("name")}")
                 onChanged()
             } catch (e: Exception) {
                 cols = before
-                android.widget.Toast.makeText(context, e.message ?: "Could not move the task", android.widget.Toast.LENGTH_LONG).show()
+                AppToast.show(e.message ?: "Could not move the task")
             }
         }
     }
@@ -783,6 +847,8 @@ internal fun TaskCard(
     val due = prettyDay(r.str("due_date"))
     val box = modifier.alpha(if (dim) .35f else 1f).padding(horizontal = if (flat) 0.dp else if (narrow) 8.dp else 12.dp, vertical = if (flat) 3.dp else 4.dp).fillMaxWidth()
         .then(if (flat) Modifier.clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft) else Modifier.softShadow(2.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard))
+        // an overdue task stands out: a red wash over the card and a red bar down its left edge
+        .then(if (overdue) Modifier.drawBehind { drawRect(KitDanger.copy(alpha = .09f)); drawRect(KitDanger, size = androidx.compose.ui.geometry.Size(5.dp.toPx(), size.height)) } else Modifier)
     Column(
         box.then(if (selected == true) Modifier.border(2.dp, KitInk, RoundedCornerShape(16.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(start = 12.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
@@ -801,7 +867,8 @@ internal fun TaskCard(
             if (priority != null) Tiny(priority, priorityTint(priority))
             if (narrow && status != null) Tiny(status, statusTint(status))
             if (due != null) Tiny("◷ $due", if (overdue) KitDanger else KitMuted)
-            if (r.optInt("subtasks") > 0) Tiny("☰ ${r.optInt("subtasks")}", KitMuted)
+            if (r.optInt("subtasks") > 0) Tiny("☑ ${r.optInt("subtasks_done")}/${r.optInt("subtasks")}", if (r.optInt("subtasks_done") >= r.optInt("subtasks")) com.example.gavanhomes.ui.common.KitGood else KitMuted)
+            if (r.optInt("files") > 0) Tiny("📎 ${r.optInt("files")}", KitMuted)
             Tiny("◉ " + if (people.isEmpty()) "Unassigned" else people.take(2).joinToString(", ") + if (people.size > 2) " +${people.size - 2}" else "", KitMuted)
             if (r.optInt("progress") > 0) Tiny("${r.optInt("progress")}%", statusTint(status))
         }

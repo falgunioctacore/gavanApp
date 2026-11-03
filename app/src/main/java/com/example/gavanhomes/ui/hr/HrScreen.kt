@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hr
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
@@ -226,7 +228,7 @@ fun HrScreen(
     }
 
     fun refresh() { loadedAt.clear(); data.remove(section); reload++ }
-    fun toast(m: String) = Toast.makeText(context, m, Toast.LENGTH_LONG).show()
+    fun toast(m: String) = AppToast.show(m)
 
     /** POST an action and refresh the list. */
     fun post(path: String, body: JSONObject = JSONObject(), ok: String? = null) {
@@ -280,7 +282,7 @@ fun HrScreen(
                             }
                             counts[i]?.let { n ->
                                 Text(n.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 9.dp, vertical = 3.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) com.example.gavanhomes.ui.common.KitCard else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 9.dp, vertical = 3.dp))
                             }
                         }
                     }
@@ -765,7 +767,7 @@ private fun LeaveSheet(api: ApiClient, onDismiss: () -> Unit, onDone: () -> Unit
                     scope.launch {
                         try {
                             withContext(Dispatchers.IO) { api.send("POST", "/hr/leaves", JSONObject().put("leave_type", type).put("start_date", start.toString()).put("end_date", end.toString()).put("reason", reason.trim())) }
-                            Toast.makeText(context, "Leave request submitted", Toast.LENGTH_SHORT).show(); onDone()
+                            AppToast.show("Leave request submitted"); onDone()
                         } catch (e: ApiException) { error = e.errors.values.firstOrNull() ?: e.message }
                         catch (e: Exception) { error = e.message }
                         busy = false

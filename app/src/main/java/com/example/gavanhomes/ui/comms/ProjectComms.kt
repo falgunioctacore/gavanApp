@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.comms
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
@@ -370,8 +372,8 @@ private fun Templates(api: ApiClient, b: Branding, uuid: String, version: Int, e
     askDelete?.let { r ->
         SwalConfirm(title = "Delete ${r.optString("name")}?", text = "The template is removed for everyone. Messages already sent stay in History.", confirmText = "Yes, delete",
             onConfirm = { askDelete = null; scope.launch {
-                try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/comms-center/templates/$kind/${r.optInt("id")}") }; Toast.makeText(context, "Template deleted", Toast.LENGTH_SHORT).show(); onChanged() }
-                catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/comms-center/templates/$kind/${r.optInt("id")}") }; AppToast.show("Template deleted"); onChanged() }
+                catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             } }, onCancel = { askDelete = null })
     }
 }
@@ -418,7 +420,7 @@ private fun TemplateForm(api: ApiClient, b: Branding, uuid: String, email: Boole
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/comms-center/templates/${if (email) "email" else "message"}", body) }
-                Toast.makeText(context, r.str("message") ?: "Saved", Toast.LENGTH_SHORT).show(); onDone()
+                AppToast.show(r.str("message") ?: "Saved"); onDone()
             } catch (e: ApiException) { errors = e.errors.mapKeys { (k, _) -> if (k == "body") "message" else k }.ifEmpty { mapOf("name" to (e.message ?: "Could not save")) } }
             catch (e: Exception) { errors = mapOf("name" to (e.message ?: "Could not save")) }
             saving = false
@@ -511,9 +513,9 @@ fun ComposeScreen(api: ApiClient, b: Branding, uuid: String, channel: String, te
             try {
                 val a = withContext(Dispatchers.IO) { api.get("/projects/$uuid/comms-center/recipients?type=$type&channel=${if (email) "email" else "phone"}") }.optJSONArray("data") ?: JSONArray()
                 val rows = (0 until a.length()).map { a.getJSONObject(it) }.filter { it.str(if (email) "email" else "phone") != null }
-                if (rows.isEmpty()) Toast.makeText(context, "No ${Sources.first { it.first == type }.second.lowercase()} with ${if (email) "an email" else "a number"}", Toast.LENGTH_SHORT).show()
+                if (rows.isEmpty()) AppToast.show("No ${Sources.first { it.first == type }.second.lowercase()} with ${if (email) "an email" else "a number"}")
                 else source = type to rows
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not load", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not load") }
             loadingSource = null
         }
     }
@@ -534,7 +536,7 @@ fun ComposeScreen(api: ApiClient, b: Branding, uuid: String, channel: String, te
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/comms-center/send", body) }
-                Toast.makeText(context, r.str("message") ?: "Sent", Toast.LENGTH_LONG).show(); onSent()
+                AppToast.show(r.str("message") ?: "Sent"); onSent()
             } catch (x: ApiException) { errors = x.errors.mapKeys { (k, _) -> if (k.startsWith("recipients")) "to" else if (k == "body") "message" else k }; banner = x.message }
             catch (x: Exception) { banner = x.message ?: "Could not send" }
             saving = false

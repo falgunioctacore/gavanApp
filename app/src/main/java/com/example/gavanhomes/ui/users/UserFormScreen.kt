@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.app.TimePickerDialog
 import com.example.gavanhomes.ui.common.accentText
 import android.widget.Toast
@@ -198,7 +200,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (editing) api.send("PUT", "/users/$id", body) else api.send("POST", "/users", body) }
-                Toast.makeText(context, if (editing) "User saved" else "User created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "User saved" else "User created")
                 onSaved()
             } catch (e: ApiException) {
                 form.errors = e.errors

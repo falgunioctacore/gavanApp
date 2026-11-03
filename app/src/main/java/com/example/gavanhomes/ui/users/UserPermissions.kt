@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -88,8 +90,8 @@ fun UserPermissionsScreen(api: ApiClient, b: Branding, id: Int, onClose: () -> U
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.send("PUT", "/users/$id/permissions", JSONObject().put("permissions", JSONArray(picked.sorted()))) }
-                Toast.makeText(context, r.optString("message", "Permissions saved"), Toast.LENGTH_SHORT).show(); onSaved()
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+                AppToast.show(r.optString("message", "Permissions saved")); onSaved()
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
             saving = false
         }
     }

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
@@ -32,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.example.gavanhomes.ui.tasks.ProjectTasks
 import com.example.gavanhomes.ui.common.FabLift
 import com.example.gavanhomes.ui.common.FabSpec
+import com.example.gavanhomes.ui.common.BulkBar
 import com.example.gavanhomes.ui.common.LocalFab
 import com.example.gavanhomes.ui.common.QuickFab
 import com.example.gavanhomes.ui.tasks.TaskDetailScreen
@@ -162,6 +165,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     // Tasks: task pages open over the project, newest on top ("detail" id · "form" id, 0 = a new task)
     val taskStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     val targetStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+    var targetsListSignal by remember { mutableIntStateOf(0) }           // bumped when a target is created, so the Targets screen shows its list
     var targetsVersion by remember { mutableIntStateOf(0) }
     val bidStack = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
     var bidsVersion by remember { mutableIntStateOf(0) }
@@ -186,8 +190,18 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     var commsVersion by remember { mutableIntStateOf(0) }
     var chat by remember { mutableStateOf<Pair<String, String>?>(null) }                                  // open chat: uuid, name
     var chatsVersion by remember { mutableIntStateOf(0) }
+    var tasksListSignal by remember { mutableIntStateOf(0) }             // bumped when a task is created, so the Tasks screen shows its list
     var tasksVersion by remember { mutableIntStateOf(0) }               // bumped after a change, so lists reload
     var unit by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
+
+    // a notification asked for a task / target of this project: open its page over the project
+    val link = com.example.gavanhomes.ui.common.DeepLink.pending
+    androidx.compose.runtime.LaunchedEffect(link, root != null) {
+        if (link != null && link.project == uuid && root != null) {
+            if (link.kind == "target") targetStack.add("detail" to link.id) else taskStack.add("detail" to link.id)
+            com.example.gavanhomes.ui.common.DeepLink.pending = null
+        }
+    }
 
     var dash by remember { mutableStateOf<JSONObject?>(null) }
     var dashError by remember { mutableStateOf<String?>(null) }
@@ -206,7 +220,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
 
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
     fun launch(intent: Intent) { runCatching { context.startActivity(intent) } }
 
@@ -282,9 +296,10 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
 
         val pageScroll = rememberScrollState()
         val fabSlot = remember { androidx.compose.runtime.mutableStateListOf<FabSpec>() }   // the open module's create actions, shown on the + button
+        val bulkSlot = remember { androidx.compose.runtime.mutableStateListOf<com.example.gavanhomes.ui.common.BulkHolder>() }   // the selected rows' action bar, pinned at the bottom
         val pageSlot = remember { androidx.compose.runtime.mutableStateListOf<com.example.gavanhomes.ui.common.PageSpec>() }   // its pages, in the bottom-left drawer
         Box(Modifier.fillMaxSize()) {
-        androidx.compose.runtime.CompositionLocalProvider(LocalFab provides fabSlot, com.example.gavanhomes.ui.common.LocalPages provides pageSlot) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalFab provides fabSlot, com.example.gavanhomes.ui.common.LocalBulk provides bulkSlot, com.example.gavanhomes.ui.common.LocalPages provides pageSlot) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize().verticalScroll(pageScroll)) {
             HeroBar(
                 b, current.label, { if (settingsFor != null) settingsFor = null else onBack() },      // ← closes an open settings page first
@@ -303,7 +318,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             }
 
             if (current.key == "tasks") ProjectTasks(api, b, uuid, tasksVersion, onOpen = { taskStack.add("detail" to it) }, onNew = { taskStack.add("form" to 0) },
-                onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) })
+                onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) }, showListSignal = tasksListSignal)
             else if (current.key == "bids") com.example.gavanhomes.ui.bids.ProjectBids(api, b, uuid, bidsVersion, onOpen = { bidStack.add("detail" to it) }, onNew = { bidStack.add("form" to 0) }, onNewFromTask = { bidStack.add("formtask" to it) }, settingsOpen = settingsFor == "bids", onCloseSettings = { settingsFor = null })
             else if (current.key == "leads") com.example.gavanhomes.ui.leads.ProjectLeads(api, b, uuid, leadsVersion, onOpen = { id, tabKey -> leadStack.add("detail:$tabKey" to id) }, onNew = { leadStack.add("form" to 0) }, onEdit = { leadStack.add("form" to it) }, settingsOpen = settingsFor == "leads", onCloseSettings = { settingsFor = null })
             else if (current.key == "communications") com.example.gavanhomes.ui.comms.ProjectComms(api, b, uuid, commsVersion) { ch, t -> compose = ch to t }
@@ -320,7 +335,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             else if (current.key == "inventory") com.example.gavanhomes.ui.inventory.ProjectInventory(api, b, uuid, inventoryVersion, onOpen = { kind, id -> inventoryStack.add(kind to id) }, onNew = { kind -> inventoryStack.add("new-$kind" to 0) }, onChanged = { inventoryVersion++ },
                 settingsOpen = settingsFor == "inventory", onCloseSettings = { settingsFor = null })
             else if (current.key == "targets") com.example.gavanhomes.ui.targets.ProjectTargets(api, b, uuid, targetsVersion, onOpen = { targetStack.add("detail" to it) }, onNew = { targetStack.add("form" to 0) },
-                onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) })
+                onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) }, showListSignal = targetsListSignal)
             else if (current.key != null) androidx.compose.runtime.key(current.key) { ProjectModule(api, b, uuid, current.key) }
             else if (section == 0) ProjectDashboard(dash, dashError, b) { dashAttempt++ }
             else {
@@ -341,13 +356,15 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     else -> Pricing(d, b)
                 }
             }
-            Spacer(Modifier.height(if (fabSlot.isNotEmpty() || pageSlot.isNotEmpty()) 96.dp else 28.dp))      // room under the floating + button
+            Spacer(Modifier.height(if (bulkSlot.isNotEmpty()) 190.dp else if (fabSlot.isNotEmpty() || pageSlot.isNotEmpty()) 96.dp else 28.dp))      // room under the floating + button
         }
         }
-        val fab = fabSlot.lastOrNull()
-        ScrollTopButton(pageScroll, lift = if (fab != null) FabLift else 0.dp)
+        val bulk = bulkSlot.lastOrNull()?.spec
+        val fab = if (bulk == null) fabSlot.lastOrNull() else null      // the + button and the page switcher step aside while rows are selected
+        if (bulk == null) ScrollTopButton(pageScroll, lift = if (fab != null) FabLift else 0.dp)
         fab?.let { QuickFab(b, it.actions, it.onPick) }
-        PageDrawer(b, pageSlot.lastOrNull())
+        if (bulk == null) PageDrawer(b, pageSlot.lastOrNull())
+        BulkBar(bulk)
         }
     }
     }
@@ -517,7 +534,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     api, b, tid, tasksVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 1; "discussion" -> 2; "activity" -> 3; "assign" -> 4; else -> 0 }, onBack = ::pop, onEdit = { taskStack.add("form" to it) }, onOpenTask = { taskStack.add("detail" to it) },
                     onChanged = { tasksVersion++ },
                 )
-            } else TaskFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { tasksVersion++; pop() })
+            } else TaskFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { tasksVersion++; if (tid == 0) tasksListSignal++; pop() })
         }
     }
 
@@ -529,7 +546,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     api, b, tid, targetsVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 1; "discussion" -> 2; "activity" -> 3; "assign" -> 4; else -> 0 }, onBack = ::pop, onEdit = { targetStack.add("form" to it) },
                     onChanged = { targetsVersion++ },
                 )
-            } else com.example.gavanhomes.ui.targets.TargetFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { targetsVersion++; pop() })
+            } else com.example.gavanhomes.ui.targets.TargetFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { targetsVersion++; if (tid == 0) targetsListSignal++; pop() })
         }
     }
 

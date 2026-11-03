@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hod
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import com.example.gavanhomes.ui.common.HeroSummary
@@ -218,7 +220,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
         } catch (e: Exception) { error = e.message }
     }
 
-    fun toast(m: String) = Toast.makeText(context, m, Toast.LENGTH_LONG).show()
+    fun toast(m: String) = AppToast.show(m)
     val d = root?.optJSONObject("data")
     val canTargets = root?.optJSONObject("can")?.optBoolean("targets") == true
     val sec = Secs[section]

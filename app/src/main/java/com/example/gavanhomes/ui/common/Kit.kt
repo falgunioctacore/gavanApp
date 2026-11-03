@@ -204,21 +204,28 @@ internal suspend fun ApiClient.listAllMeta(resource: String, maxPages: Int = 8):
     out to meta
 }
 
-/** The red delete button of a details header: a round red button with a drawn bin (an emoji would come out washed-out). */
+/** The delete button of a details header: a round see-through glass button like the other header buttons, with a crisp drawn trash bin (lid, handle, body and two ribs). */
 @Composable
 internal fun DeleteButton(onClick: () -> Unit) {
     Box(
-        Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFE5393F)).clickable { onClick() },
+        Modifier.size(40.dp).glass(CircleShape).clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(width = 7.dp, height = 2.dp).clip(RoundedCornerShape(1.dp)).background(KitCard))        // lid handle
-            Box(Modifier.size(width = 16.dp, height = 2.5.dp).clip(RoundedCornerShape(1.dp)).background(KitCard))      // lid
-            Box(Modifier.padding(top = 1.5.dp).size(width = 12.dp, height = 13.dp).clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 3.dp)).background(KitCard)) {
-                Row(Modifier.fillMaxWidth().height(13.dp).padding(horizontal = 2.5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    repeat(2) { Box(Modifier.padding(vertical = 2.5.dp).size(width = 1.5.dp, height = 8.dp).background(Color(0xFFE5393F))) }
-                }
+        androidx.compose.foundation.Canvas(Modifier.size(20.dp)) {
+            val w = size.width; val h = size.height
+            val stroke = 1.9.dp.toPx()
+            val ink = Color(0xFFFFD6D6)        // white with a hint of red: transparent glass like the other header buttons, still readable as delete
+            val round = androidx.compose.ui.graphics.StrokeCap.Round
+            fun line(x1: Float, y1: Float, x2: Float, y2: Float) = drawLine(ink, androidx.compose.ui.geometry.Offset(w * x1, h * y1), androidx.compose.ui.geometry.Offset(w * x2, h * y2), stroke, round)
+            line(.12f, .26f, .88f, .26f)                                    // lid
+            line(.38f, .26f, .38f, .12f); line(.62f, .26f, .62f, .12f); line(.38f, .12f, .62f, .12f)   // handle
+            val body = androidx.compose.ui.graphics.Path().apply {
+                moveTo(w * .22f, h * .36f); lineTo(w * .27f, h * .85f)
+                quadraticBezierTo(w * .28f, h * .92f, w * .35f, h * .92f); lineTo(w * .65f, h * .92f)
+                quadraticBezierTo(w * .72f, h * .92f, w * .73f, h * .85f); lineTo(w * .78f, h * .36f)
             }
+            drawPath(body, ink, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            line(.42f, .5f, .42f, .78f); line(.58f, .5f, .58f, .78f)        // ribs
         }
     }
 }

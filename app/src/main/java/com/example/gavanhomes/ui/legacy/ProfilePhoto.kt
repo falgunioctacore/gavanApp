@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.legacy
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -68,9 +70,9 @@ fun ProfilePhotoRow(api: ApiClient, name: String = "") {
                     val out = ByteArrayOutputStream().also { bmp.compress(Bitmap.CompressFormat.JPEG, 86, it) }.toByteArray()
                     api.sendForm("/profile/photo", listOf(FormPart("photo", fileName = "profile.jpg", mime = "image/jpeg", bytes = out)))
                 }
-                Toast.makeText(context, r.optString("message", "Profile photo updated."), Toast.LENGTH_SHORT).show()
+                AppToast.show(r.optString("message", "Profile photo updated."))
                 MyPhoto.set(r.optJSONObject("data")?.optString("photo")?.takeIf { it.isNotBlank() && it != "null" })
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not upload the photo", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not upload the photo") }
             busy = false
         }
     }
@@ -89,7 +91,7 @@ fun ProfilePhotoRow(api: ApiClient, name: String = "") {
                 modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).clickable {
                     busy = true
                     scope.launch {
-                        try { withContext(Dispatchers.IO) { api.delete("/profile/photo") }; MyPhoto.set(null) } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not remove", Toast.LENGTH_LONG).show() }
+                        try { withContext(Dispatchers.IO) { api.delete("/profile/photo") }; MyPhoto.set(null) } catch (e: Exception) { AppToast.show(e.message ?: "Could not remove") }
                         busy = false
                     }
                 }.padding(vertical = 4.dp))

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.users
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import android.content.Intent
@@ -167,10 +169,10 @@ fun UserDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> Unit, o
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) { api.delete("/users/$id") }
-                        Toast.makeText(context, "User deleted", Toast.LENGTH_SHORT).show()
+                        AppToast.show("User deleted")
                         onDeleted()
                     } catch (e: Exception) {
-                        Toast.makeText(context, e.message ?: "Could not delete the user", Toast.LENGTH_LONG).show()
+                        AppToast.show(e.message ?: "Could not delete the user")
                         deleting = false
                     }
                 }

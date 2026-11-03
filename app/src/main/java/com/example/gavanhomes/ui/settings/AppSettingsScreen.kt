@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.settings
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -110,7 +112,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         val p = readPicked(context, uri) ?: return@rememberLauncherForActivityResult
-        if (p.bytes.size > MaxLogoBytes) { Toast.makeText(context, "The logo must be 2 MB or smaller", Toast.LENGTH_LONG).show(); return@rememberLauncherForActivityResult }
+        if (p.bytes.size > MaxLogoBytes) { AppToast.show("The logo must be 2 MB or smaller"); return@rememberLauncherForActivityResult }
         logo = p
     }
 
@@ -133,10 +135,10 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
                 logo?.let { parts += FormPart("app_logo", fileName = it.name, mime = it.mime, bytes = it.bytes) }
                 withContext(Dispatchers.IO) { api.sendForm("/app-settings", parts) }
                 val fresh = loadBranding(api, context)           // the new logo, name and colour go straight into the whole app
-                Toast.makeText(context, "App settings saved", Toast.LENGTH_SHORT).show()
+                AppToast.show("App settings saved")
                 onSaved(fresh)
             } catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf("app_name" to (e.message ?: "Could not save")) } }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
             saving = false
         }
     }

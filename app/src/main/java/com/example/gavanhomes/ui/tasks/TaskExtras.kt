@@ -1,5 +1,9 @@
 package com.example.gavanhomes.ui.tasks
 
+import androidx.compose.foundation.layout.imePadding
+
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -88,7 +92,7 @@ internal fun localUrl(u: String): String {
 
 internal fun openLink(context: Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(localUrl(url)))) }
-        .onFailure { Toast.makeText(context, "No app can open this", Toast.LENGTH_SHORT).show() }
+        .onFailure { AppToast.show("No app can open this") }
 }
 
 /** A picture from the server, loaded in the background and scaled down. */
@@ -168,16 +172,16 @@ fun TaskDiscussion(api: ApiClient, b: Branding, id: Int, base: String = "/task-c
                     else api.send("POST", "$base/$id/thread", JSONObject().put("content", body))
                 }
                 text = ""; picked = null
-                Toast.makeText(context, if (file != null) "File sent" else "Message sent", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (file != null) "File sent" else "Message sent")
                 load(); onChanged(); delay(60); scroll.animateScrollTo(scroll.maxValue)
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not send", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not send") }
             sending = false
         }
     }
 
     fun changeMessage(call: () -> Unit, done: String) = scope.launch {
-        try { withContext(Dispatchers.IO) { call() }; Toast.makeText(context, done, Toast.LENGTH_SHORT).show(); load(); onChanged() }
-        catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+        try { withContext(Dispatchers.IO) { call() }; AppToast.show(done); load(); onChanged() }
+        catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
 
     when (allowed) {
@@ -419,9 +423,9 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) { api.send("POST", "$base/$id/assign", JSONObject().put("assignees", JSONArray(sel.toList())).put("reason", reason.trim())) }
-                        Toast.makeText(context, "Task assigned", Toast.LENGTH_SHORT).show(); reason = ""; onChanged(); attempt++
+                        AppToast.show("Task assigned"); reason = ""; onChanged(); attempt++
                     } catch (e: ApiException) { reasonError = e.errors["reason"] ?: e.message }
-                    catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not assign", Toast.LENGTH_LONG).show() }
+                    catch (e: Exception) { AppToast.show(e.message ?: "Could not assign") }
                     saving = false
                 }
             }.padding(vertical = 14.dp),
@@ -444,13 +448,16 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
     }
 
     if (picker) ModalBottomSheet(onDismissRequest = { picker = false }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
+        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            var query by remember { mutableStateOf("") }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
                 Text("Done", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { picker = false }.padding(8.dp))
             }
+            com.example.gavanhomes.ui.projects.form.Input("Search by name", query, { query = it })
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                everyone.forEach { (group, rows) ->
+                everyone.forEach { (group, allRows) ->
+                    val rows = allRows.filter { query.isBlank() || it.optString("name").contains(query.trim(), ignoreCase = true) }
                     if (rows.isEmpty()) return@forEach
                     Text(group.uppercase(), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, modifier = Modifier.padding(top = 8.dp))
                     rows.forEach { p ->

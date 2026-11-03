@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.targets
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.tasks.Card
 import com.example.gavanhomes.ui.tasks.Meter
@@ -115,7 +117,7 @@ private val QuickFilters = listOf(Quick("today", "Today"), Quick("tomorrow", "To
  * Data: GET /projects/{uuid}/target-center/overview · list · board.
  */
 @Composable
-fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit = {}, onOpenAt: (Int, String) -> Unit = { id, _ -> onOpen(id) }) {
+fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit = {}, onOpenAt: (Int, String) -> Unit = { id, _ -> onOpen(id) }, showListSignal: Int = 0) {
     var view by remember { mutableIntStateOf(0) }                    // 0 Dashboard · 1 List · 2 Board
     var overview by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -123,7 +125,8 @@ fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     // the list's filter, kept here so it survives a switch to the Board and back; a "Quick look" tap on the dashboard sets it too
     var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var query by remember { mutableStateOf("") }
-    var sort by remember { mutableIntStateOf(0) }
+    var sort by remember { mutableIntStateOf(2) }                    // the list starts with the newest target first
+    LaunchedEffect(showListSignal) { if (showListSignal > 0) { view = 1; sel = emptyMap(); query = "" } }      // a target was just created: show the list (newest first)
 
     var pickers by remember { mutableStateOf<JSONObject?>(null) }       // departments, types, people — for the filter sheet
     LaunchedEffect(version, attempt) {
@@ -311,6 +314,8 @@ private fun TargetList(
     var exporting by remember { mutableStateOf(false) }
     // the ⋮ menu of a target row: View details · Mark as complete · Edit · Add notes · Add attachment · View history · Assign · Delete
     var rowMenu by remember { mutableStateOf<JSONObject?>(null) }
+    var historyFor by remember { mutableStateOf<JSONObject?>(null) }          // "View history" and "Assign" open over the list, not on the target's page
+    var assignFor by remember { mutableStateOf<JSONObject?>(null) }
     var noteFor by remember { mutableStateOf<JSONObject?>(null) }
     var noteText by remember { mutableStateOf("") }
     var deleteRow by remember { mutableStateOf<JSONObject?>(null) }
@@ -321,14 +326,14 @@ private fun TargetList(
         if (target != null && f != null) scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.sendForm("/target-center/$target/documents", listOf(com.example.gavanhomes.data.FormPart("document", fileName = f.name, mime = f.mime, bytes = f.bytes))) }
-                android.widget.Toast.makeText(context, "File attached", android.widget.Toast.LENGTH_SHORT).show(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not attach the file", android.widget.Toast.LENGTH_LONG).show() }
+                AppToast.show("File attached"); onChanged(); attempt++
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not attach the file") }
         }
     }
     fun rowAction(success: String, call: () -> Unit) {
         scope.launch {
-            try { withContext(Dispatchers.IO) { call() }; android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show(); onChanged(); attempt++ }
-            catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not do that", android.widget.Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { call() }; AppToast.show(success); onChanged(); attempt++ }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not do that") }
         }
     }
     val can = o.optJSONObject("can")
@@ -356,7 +361,7 @@ private fun TargetList(
         if (!com.example.gavanhomes.ui.common.Downloads.canNotify(context)) askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         exporting = true
         val kind = if (format == "pdf") "PDF" else "Excel"
-        android.widget.Toast.makeText(context, "Preparing your $kind export…", android.widget.Toast.LENGTH_SHORT).show()
+        AppToast.show("Preparing your $kind export…")
         scope.launch {
             try {
                 val (name, bytes) = withContext(Dispatchers.IO) {
@@ -366,8 +371,8 @@ private fun TargetList(
                 // saved to the phone's Downloads folder (Downloads/GavanHomes), and announced in the notification bar — tap it to open the file
                 val uri = withContext(Dispatchers.IO) { com.example.gavanhomes.ui.common.Downloads.save(context, name, mime, bytes) }
                 com.example.gavanhomes.ui.common.Downloads.notifyReady(context, "$kind export ready", name, mime, uri)
-                android.widget.Toast.makeText(context, "$kind export saved to Downloads/GavanHomes — $name", android.widget.Toast.LENGTH_LONG).show()
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not export", android.widget.Toast.LENGTH_LONG).show() }
+                AppToast.show("$kind export saved to Downloads/GavanHomes — $name")
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not export") }
             exporting = false
         }
     }
@@ -377,9 +382,9 @@ private fun TargetList(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/target-center/bulk", JSONObject().put("ids", JSONArray(ids)).put("action", action).put("value", value ?: JSONObject.NULL)) }
-                android.widget.Toast.makeText(context, "${ids.size} target${if (ids.size == 1) "" else "s"} updated", android.widget.Toast.LENGTH_SHORT).show()
+                AppToast.show("${ids.size} target${if (ids.size == 1) "" else "s"} updated")
                 selected.clear(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not update", android.widget.Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not update") }
         }
     }
 
@@ -396,21 +401,17 @@ private fun TargetList(
         ActionPill(if (exporting) "Exporting…" else "Export", ActionIcon.Download, filled = false, accent = b.base, enabled = !exporting) { sheet = "export" }
     }
 
-    // bulk bar
-    if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("Select all", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }.padding(6.dp))
-            Text("Cancel", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear() }.padding(6.dp))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (canEdit) { BulkButton("Status") { sheet = "bulk-status" }; BulkButton("Priority") { sheet = "bulk-priority" } }
-            if (canDelete) BulkButton("Delete", KitDanger) { askDelete = true }
-        }
-    }
+    // bulk bar: pinned at the bottom of the screen while rows are selected
+    com.example.gavanhomes.ui.common.ProvideBulk(if (selected.isEmpty()) null else com.example.gavanhomes.ui.common.BulkSpec(
+        selected.size,
+        buildList {
+            if (canEdit) { add(com.example.gavanhomes.ui.common.BulkAction("status", "Status", "◔")); add(com.example.gavanhomes.ui.common.BulkAction("priority", "Priority", "⚑")) }
+            if (canDelete) add(com.example.gavanhomes.ui.common.BulkAction("delete", "Delete", "🗑", danger = true))
+        },
+        onAction = { when (it) { "status" -> sheet = "bulk-status"; "priority" -> sheet = "bulk-priority"; "delete" -> askDelete = true } },
+        onSelectAll = { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }, onClear = { selected.clear() },
+    ))
+
 
     rows.forEach { r ->
         val id = r.optInt("id")
@@ -429,12 +430,40 @@ private fun TargetList(
         loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 
     // ── the ⋮ menu of a target ──
+    // the target's history, in a sheet over the list
+    historyFor?.let { t ->
+        var detail by remember(t) { mutableStateOf<JSONObject?>(null) }
+        var failed by remember(t) { mutableStateOf<String?>(null) }
+        LaunchedEffect(t) { runCatching { withContext(Dispatchers.IO) { api.detail("/target-center/${t.optInt("id")}") } }.onSuccess { detail = it }.onFailure { failed = it.message ?: "Could not load the history" } }
+        ModalBottomSheet(onDismissRequest = { historyFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("History", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text(t.optString("name"), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.height(480.dp).verticalScroll(rememberScrollState())) {
+                    val d = detail
+                    when {
+                        failed != null -> Text(failed ?: "", color = KitDanger, fontSize = 14.sp)
+                        d == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
+                        d.objs("history").isEmpty() -> Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
+                        else -> com.example.gavanhomes.ui.tasks.HistoryTimeline(d.objs("history"))
+                    }
+                }
+            }
+        }
+    }
+    // assigning people, in a sheet over the list
+    assignFor?.let { t ->
+        ModalBottomSheet(onDismissRequest = { assignFor = null }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(Modifier.navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+                com.example.gavanhomes.ui.tasks.TaskAssignTab(api, b, t.optInt("id"), t.optString("name"), canEdit, base = "/target-center", onChanged = { onChanged(); attempt++ })
+            }
+        }
+    }
     rowMenu?.let { t ->
         val tid = t.optInt("id")
         val done = t.optString("status") == "Completed"
@@ -442,17 +471,26 @@ private fun TargetList(
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = KitInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Choose what to do with this target", color = KitMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                // the actions follow the target's status: a pending one can be started, a finished or cancelled one reopened, and so on
+                val st = t.optString("status")
+                val open = st != "Completed" && st != "Cancelled"
+                fun statusId(name: String) = o.objs("statuses").firstOrNull { it.optString("name") == name }?.optInt("id") ?: 0
+                fun setStatus(name: String, done: String) = rowAction(done) { api.send("POST", "/target-center/$tid/status", JSONObject().put("status_id", statusId(name))) }
                 MenuRow("◉", "View target details") { rowMenu = null; onOpen(tid) }
-                if (canEdit && !done) MenuRow("✓", "Mark as complete", KitGood) {
-                    rowMenu = null
-                    val completed = o.objs("statuses").firstOrNull { it.optString("name") == "Completed" }?.optInt("id") ?: 0
-                    rowAction("Target marked complete") { api.send("POST", "/target-center/$tid/status", JSONObject().put("status_id", completed)) }
-                }
-                if (canEdit) MenuRow("✎", "Edit target") { rowMenu = null; onEdit(tid) }
+                if (canEdit && (st == "Pending" || st == "Overdue")) MenuRow("▶", if (st == "Overdue") "Resume target" else "Start target", b.base) { rowMenu = null; setStatus("In Progress", "Target started") }
+                // a target that needs photo proof can't be completed until a photo is on it: the menu asks for the photo instead
+                val needsPhoto = t.optBoolean("photo_required") && t.optInt("files") == 0
+                if (canEdit && open && needsPhoto) MenuRow("📷", "Upload a photo to complete", KitGood) { rowMenu = null; attachTo = tid; attachPicker.launch("image/*") }
+                else if (canEdit && open) MenuRow("✓", "Mark as complete", KitGood) { rowMenu = null; setStatus("Completed", "Target marked complete") }
+                if (canEdit && st == "In Progress") MenuRow("↺", "Move back to pending") { rowMenu = null; setStatus("Pending", "Target moved back to pending") }
+                if (canEdit && st == "Completed") MenuRow("↺", "Reopen target", b.base) { rowMenu = null; setStatus("In Progress", "Target reopened") }
+                if (canEdit && st == "Cancelled") MenuRow("↺", "Reopen target", b.base) { rowMenu = null; setStatus("Pending", "Target reopened") }
+                if (canEdit) MenuRow("✎", if (st == "Overdue") "Reschedule / edit target" else "Edit target") { rowMenu = null; onEdit(tid) }
                 if (canEdit) MenuRow("☰", "Add notes") { rowMenu = null; noteText = ""; noteFor = t }
-                if (canEdit) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
-                MenuRow("◷", "View history") { rowMenu = null; onOpenAt(tid, "activity") }
-                if (canEdit) MenuRow("⇄", "Assign") { rowMenu = null; onOpenAt(tid, "assign") }
+                if (canEdit && open) MenuRow("＋", "Add attachment") { rowMenu = null; attachTo = tid; attachPicker.launch("*/*") }
+                MenuRow("◷", "View history") { rowMenu = null; historyFor = t }
+                if (canEdit && open) MenuRow("⇄", "Assign") { rowMenu = null; assignFor = t }
+                if (canEdit && open) MenuRow("⊘", "Cancel target", KitDanger) { rowMenu = null; setStatus("Cancelled", "Target cancelled") }
                 if (canDelete) { Box(Modifier.fillMaxWidth().height(1.dp).background(com.example.gavanhomes.ui.common.KitLine)); MenuRow("✕", "Delete", KitDanger) { rowMenu = null; deleteRow = t } }
             }
         }
@@ -688,11 +726,11 @@ private fun TargetBoard(api: ApiClient, b: Branding, uuid: String, version: Int,
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/target-center/${dragged.optInt("id")}/status", JSONObject().put("status_id", into.optInt("id"))) }
-                android.widget.Toast.makeText(context, "Moved to ${into.optString("name")}", android.widget.Toast.LENGTH_SHORT).show()
+                AppToast.show("Moved to ${into.optString("name")}")
                 onChanged()
             } catch (e: Exception) {
                 cols = before
-                android.widget.Toast.makeText(context, e.message ?: "Could not move the target", android.widget.Toast.LENGTH_LONG).show()
+                AppToast.show(e.message ?: "Could not move the target")
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.bids
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -125,9 +127,9 @@ fun BidDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: 
             try {
                 val r = withContext(Dispatchers.IO) { call() }
                 val msg = success ?: r?.optString("message")?.takeIf { it.isNotBlank() }
-                if (msg != null) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                if (msg != null) AppToast.show(msg)
                 after(); onChanged(); attempt++
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not do that", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not do that") }
             busy = false
         }
     }
@@ -367,7 +369,7 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/bid-center/$id", body) else api.send("POST", "/projects/$uuid/bid-center", body) }
-                Toast.makeText(context, r.optString("message", "Bid saved"), Toast.LENGTH_SHORT).show()
+                AppToast.show(r.optString("message", "Bid saved"))
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message

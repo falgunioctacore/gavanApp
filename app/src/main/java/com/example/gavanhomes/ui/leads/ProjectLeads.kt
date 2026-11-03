@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import androidx.compose.foundation.background
@@ -252,9 +254,9 @@ private fun LeadList(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/lead-center/bulk", JSONObject().put("ids", JSONArray(ids)).put("action", action).put("extra", extra ?: JSONObject.NULL)) }
-                android.widget.Toast.makeText(context, "${ids.size} lead${if (ids.size == 1) "" else "s"} updated", android.widget.Toast.LENGTH_SHORT).show()
+                AppToast.show("${ids.size} lead${if (ids.size == 1) "" else "s"} updated")
                 selected.clear(); onChanged(); attempt++
-            } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not update", android.widget.Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not update") }
         }
     }
 
@@ -269,20 +271,20 @@ private fun LeadList(
         Text("$total lead${if (total == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
     }
 
-    if (selected.isNotEmpty()) Column(
-        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("Select all", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }.padding(6.dp))
-            Text("Cancel", color = Color.White.copy(alpha = .8f), fontSize = 12.sp, modifier = Modifier.clickable { selected.clear() }.padding(6.dp))
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (canEdit) { BulkButton("Status") { sheet = "bulk-status" }; BulkButton("Label") { sheet = "bulk-label" }; BulkButton("Assign") { sheet = "bulk-assign" }; BulkButton("Move to list") { sheet = "bulk-list" } }
-            if (canDelete) BulkButton("Delete", KitDanger) { askDelete = true }
-        }
-    }
+    // bulk bar: pinned at the bottom of the screen while rows are selected
+    com.example.gavanhomes.ui.common.ProvideBulk(if (selected.isEmpty()) null else com.example.gavanhomes.ui.common.BulkSpec(
+        selected.size,
+        buildList {
+            if (canEdit) {
+                add(com.example.gavanhomes.ui.common.BulkAction("status", "Status", "◔")); add(com.example.gavanhomes.ui.common.BulkAction("label", "Label", "#"))
+                add(com.example.gavanhomes.ui.common.BulkAction("assign", "Assign", "☺")); add(com.example.gavanhomes.ui.common.BulkAction("list", "Move", "↪"))
+            }
+            if (canDelete) add(com.example.gavanhomes.ui.common.BulkAction("delete", "Delete", "🗑", danger = true))
+        },
+        onAction = { when (it) { "status" -> sheet = "bulk-status"; "label" -> sheet = "bulk-label"; "assign" -> sheet = "bulk-assign"; "list" -> sheet = "bulk-list"; "delete" -> askDelete = true } },
+        onSelectAll = { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }, onClear = { selected.clear() },
+    ))
+
 
     rows.forEach { r ->
         val id = r.optInt("id")
@@ -441,8 +443,8 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     var scheduleFor by remember { mutableStateOf<JSONObject?>(null) }
     fun act(success: String, call: () -> Unit) {
         scope.launch {
-            try { withContext(Dispatchers.IO) { call() }; android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show(); attempt++ }
-            catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not save", android.widget.Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { call() }; AppToast.show(success); attempt++ }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
         }
     }
 

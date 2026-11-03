@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.inventory
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -224,8 +226,8 @@ fun MaterialDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, ver
         onConfirm = {
             askDelete = false
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.delete("/inventory-center/materials/$id") }; Toast.makeText(context, "Material deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
-                catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                try { withContext(Dispatchers.IO) { api.delete("/inventory-center/materials/$id") }; AppToast.show("Material deleted"); onChanged(); onBack() }
+                catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             }
         },
         onCancel = { askDelete = false },
@@ -268,7 +270,7 @@ private fun AdjustSheet(api: ApiClient, b: Branding, uuid: String, m: JSONObject
                     api.send("POST", "/projects/$uuid/inventory-center/materials/${m.optInt("id")}/adjust", JSONObject().put("stock_action", action).put("qty", q)
                         .put("comment", comment.trim().ifBlank { JSONObject.NULL }).put("store_id", if (store > 0) store else JSONObject.NULL))
                 }
-                Toast.makeText(context, "Stock updated", Toast.LENGTH_SHORT).show(); onDone()
+                AppToast.show("Stock updated"); onDone()
             } catch (e: ApiException) { error = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message } catch (e: Exception) { error = e.message ?: "Could not update" }
             saving = false
         }
@@ -363,7 +365,7 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/inventory-center/materials/$id", body) else api.send("POST", "/projects/$uuid/inventory-center/materials", body) }
-                Toast.makeText(context, if (id != null) "Material saved" else "Material created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (id != null) "Material saved" else "Material created")
                 onSaved()
             } catch (e: ApiException) { errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message }
             catch (e: Exception) { banner = e.message ?: "Could not save" }
@@ -466,7 +468,7 @@ fun DocFormScreen(api: ApiClient, b: Branding, uuid: String, kind: String, onBac
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/inventory-center/${if (issue) "issues" else "returns"}", body) }
-                Toast.makeText(context, if (issue) "Material issued" else "Material returned", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (issue) "Material issued" else "Material returned")
                 onSaved()
             } catch (e: ApiException) { errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message }
             catch (e: Exception) { banner = e.message ?: "Could not save" }
@@ -605,8 +607,8 @@ fun DocDetailScreen(api: ApiClient, b: Branding, kind: String, id: Int, onBack: 
         onConfirm = {
             askDelete = false
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.delete(base) }; Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
-                catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                try { withContext(Dispatchers.IO) { api.delete(base) }; AppToast.show("Deleted"); onChanged(); onBack() }
+                catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             }
         },
         onCancel = { askDelete = false },

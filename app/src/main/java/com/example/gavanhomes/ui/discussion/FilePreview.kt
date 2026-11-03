@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.discussion
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -104,7 +106,7 @@ fun FilePreview(url: String, name: String, onClose: () -> Unit) {
 
 private fun openElsewhere(context: Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+        .onFailure { AppToast.show("No app can open this file") }
 }
 
 @Composable

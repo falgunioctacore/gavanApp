@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -112,7 +114,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
     val pick: (FileSlot) -> Unit = { target = it; launcher.launch(arrayOf("image/jpeg", "image/png", "application/pdf")) }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
 
     LaunchedEffect(attempt) {
@@ -153,7 +155,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
             try {
                 val parts = form.parts(editing, columns)
                 withContext(Dispatchers.IO) { api.sendForm(if (uuid == null) "/projects" else "/projects/$uuid", parts) }
-                Toast.makeText(context, if (editing) "Project saved" else "Project created", Toast.LENGTH_SHORT).show()
+                AppToast.show(if (editing) "Project saved" else "Project created")
                 onSaved()
             } catch (e: ApiException) {
                 form.errors = e.errors

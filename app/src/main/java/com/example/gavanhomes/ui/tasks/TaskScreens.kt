@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.tasks
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.ScrollTopButton
 import android.app.DatePickerDialog
@@ -116,6 +118,7 @@ fun TaskDetailScreen(
     var askDelete by remember { mutableStateOf(false) }
     var askDeleteSub by remember { mutableStateOf<JSONObject?>(null) }
     var askDeleteFile by remember { mutableStateOf<JSONObject?>(null) }
+    var previewFile by remember { mutableStateOf<Pair<String, String>?>(null) }      // a task file shown inside the app: url · name
     var departmentSheet by remember { mutableStateOf(false) }
     var subtask by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
@@ -137,9 +140,9 @@ fun TaskDetailScreen(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { call() }
-                if (success != null) Toast.makeText(context, success, Toast.LENGTH_SHORT).show()
+                if (success != null) AppToast.show(success)
                 after(); onChanged(); attempt++
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
             busy = false
         }
     }
@@ -190,6 +193,34 @@ fun TaskDetailScreen(
                 tab, b.base,
             ) { tab = it }
             val page = listOf("overview", "files", "discussion", "activity", "assign")[tab]
+
+            // the files — a gallery of the pictures, then the other documents with View / Download — shown on the Details tab and the Files tab
+            val filesCard: @Composable () -> Unit = {
+Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size} attached") {
+                    if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
+                    val images = files.filter { isImageName(it.optString("name")) }
+                    if (images.isNotEmpty()) com.example.gavanhomes.ui.tasks.ImageGrid(images, if (canDelete) ({ f -> askDeleteFile = f }) else null)
+                    files.filterNot { isImageName(it.optString("name")) }.forEach { f ->
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Blue.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
+                                Text((f.str("name")?.substringAfterLast('.', "") ?: "").take(4).uppercase().ifEmpty { "FILE" }, color = Blue, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                            }
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
+                            }
+                            Text("View", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick {
+                                previewFile = localUrl(f.optString("url")) to f.optString("name")
+                            }.padding(horizontal = 12.dp, vertical = 8.dp))
+                            Text("Download", color = b.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(12.dp)).background(b.base.copy(alpha = .12f)).clickable {
+                                com.example.gavanhomes.ui.tasks.downloadFile(context, scope, f.optString("url"), f.optString("name"), f.optString("type"))
+                            }.padding(horizontal = 12.dp, vertical = 8.dp))
+                            if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))
+                        }
+                    }
+                    if (canEdit) com.example.gavanhomes.ui.tasks.UploadTile(b.base) { pickFile.launch("*/*") }
+                }
+            }
 
             // the subtasks checklist, shown under the details (a subtask has none of its own)
             val subtasksCard: @Composable () -> Unit = {
@@ -301,32 +332,11 @@ fun TaskDetailScreen(
                         }
                     }
                     if (!isSub) subtasksCard()
+                    filesCard()
                 }
 
                 // ───── files ─────
-                "files" -> Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size} attached") {
-                    if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
-                    files.forEach { f ->
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Blue.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
-                                Text((f.str("name")?.substringAfterLast('.', "") ?: "").take(4).uppercase().ifEmpty { "FILE" }, color = Blue, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
-                            }
-                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                Text(f.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                f.optLong("size").takeIf { it > 0 }?.let { Text("${it / 1024} KB", color = KitMuted, fontSize = 12.sp) }
-                            }
-                            Text("Open", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitCard).bounceClick {
-                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(f.optString("url")))) }.onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
-                            }.padding(horizontal = 14.dp, vertical = 8.dp))
-                            if (canDelete) Text("✕", color = KitDanger, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteFile = f }.padding(8.dp))
-                        }
-                    }
-                    if (canEdit) Text(
-                        "+  Upload a file", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { pickFile.launch("*/*") }.padding(vertical = 13.dp),
-                    )
-                    Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = KitMuted, fontSize = 11.sp)
-                }
+                "files" -> filesCard()
 
                 "discussion" -> TaskDiscussion(api, b, id, onChanged = { attempt++; onChanged() })              // a new message adds to the activity feed
                 "assign" -> TaskAssignTab(api, b, id, d.optString("name"), canEdit, onChanged = { attempt++; onChanged() })   // so the details, people and activity show the change
@@ -335,33 +345,7 @@ fun TaskDetailScreen(
                     val history = d.objs("history")
                     Card("Activity", if (history.isEmpty()) "Nothing has happened yet" else "Who did what, and when") {
                         if (history.isEmpty()) Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
-                        history.forEachIndexed { i, h ->
-                            val tint = when (h.optString("dot")) { "ts-dot-create" -> KitGood; "ts-dot-delete" -> KitDanger; else -> Color(0xFFC47A1A) }
-                            Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-                                // the timeline: a dot per entry joined by a line
-                                Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier.padding(top = 5.dp).size(12.dp).clip(CircleShape).background(tint))
-                                    if (i < history.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
-                                }
-                                Column(Modifier.padding(start = 10.dp, bottom = if (i < history.lastIndex) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(h.optString("label"), color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp,
-                                            modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp))
-                                    }
-                                    Text("${h.optString("user")} · ${h.optString("at").ifBlank { h.optString("ago") }}", color = KitMuted, fontSize = 12.sp)
-                                    h.objs("changes").forEach { c ->
-                                        val old = c.str("old"); val new = c.str("new")
-                                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
-                                            Text(c.optString("field"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            if (old != null && new != null) {
-                                                Text(old, color = KitMuted, fontSize = 12.sp, textDecoration = TextDecoration.LineThrough, lineHeight = 16.sp)
-                                                Text("→ $new", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
-                                            } else Text(new ?: old ?: "—", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        HistoryTimeline(history)
                     }
                 }
             }
@@ -392,6 +376,7 @@ fun TaskDetailScreen(
             title = "Delete this subtask?", text = s.optString("name"), confirmText = "Yes, delete it",
             onConfirm = { askDeleteSub = null; act("Subtask deleted", { api.delete("/task-center/${s.optInt("id")}") }) }, onCancel = { askDeleteSub = null },
         ) }
+        previewFile?.let { (url, name) -> com.example.gavanhomes.ui.discussion.FilePreview(url, name) { previewFile = null } }
         askDeleteFile?.let { f -> SwalConfirm(
             title = "Delete this file?", text = f.optString("name"), confirmText = "Yes, delete it",
             onConfirm = { askDeleteFile = null; act("File deleted", { api.delete("/task-center/$id/documents/${f.optInt("id")}") }) }, onCancel = { askDeleteFile = null },
@@ -407,7 +392,7 @@ private fun waNumber(phone: String): String {
 
 private fun dial(context: android.content.Context, phone: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' }))) }
-        .onFailure { Toast.makeText(context, "This phone cannot make calls", Toast.LENGTH_SHORT).show() }
+        .onFailure { AppToast.show("This phone cannot make calls") }
 }
 
 /** The number, with **Call** (opens the dialer) and **WhatsApp** (opens a chat with them). */
@@ -418,7 +403,7 @@ internal fun PhoneActions(phone: String) {
         Text(phone, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Text("Call", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitGood).clickable { dial(context, phone) }.padding(horizontal = 16.dp, vertical = 8.dp))
         Text("WhatsApp", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF25A244)).clickable {
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${waNumber(phone)}"))) }.onFailure { Toast.makeText(context, "WhatsApp is not available", Toast.LENGTH_SHORT).show() }
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${waNumber(phone)}"))) }.onFailure { AppToast.show("WhatsApp is not available") }
         }.padding(horizontal = 14.dp, vertical = 8.dp))
     }
 }
@@ -487,11 +472,32 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var recDate by remember { mutableStateOf("") }
     var leadId by remember { mutableIntStateOf(0) }
     var leadLabel by remember { mutableStateOf("") }
+    var unitId by remember { mutableIntStateOf(0) }
+    var unitLabel by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }                       // "" · bids · leads (the website's task category)
+    var attachment by remember { mutableStateOf<com.example.gavanhomes.ui.projects.form.PickedFile?>(null) }   // a file to attach when the task is created
+    var unitSheet by remember { mutableStateOf(false) }
+    var subs by remember { mutableStateOf<List<SubRow>>(emptyList()) }                           // the subtasks checklist of the form
+    var subPeople by remember { mutableStateOf<Int?>(null) }                                     // the subtask whose people are being picked
+    var bidItems by remember { mutableStateOf<List<BidRow>>(emptyList()) }                       // the items of a task from Bids (the website's "Bid Items")
+    var hadBidItems by remember { mutableStateOf(false) }
+    var bidPick by remember { mutableStateOf<Int?>(null) }                                       // the row whose item is being chosen
+    var typeDialog by remember { mutableStateOf<Pair<String?, String>?>(null) }        // add (key null) or rename a task type: key · label
+    var typeDelete by remember { mutableStateOf<Pair<String, String>?>(null) }          // key · label
+    var deptDialog by remember { mutableStateOf(false) }
+    var listBusy by remember { mutableStateOf(false) }
+    fun refreshOptions(after: () -> Unit = {}) {
+        scope.launch { runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/task-center/options") } }.onSuccess { options = it; after() } }
+    }
     var statusId by remember { mutableIntStateOf(0) }
     var departmentId by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var overdueReason by remember { mutableStateOf("") }
-    var people by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var people by remember { mutableStateOf<Set<Int>>(emptySet()) }                              // employees / supervisors (users)
+    var otherPeople by remember { mutableStateOf<Map<String, Set<Int>>>(emptyMap()) }            // contractor · supplier · professional → ids
+    var assignNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }              // "type:id" → name, for showing who is picked
+    var assignTab by remember { mutableStateOf("employee") }                                     // the assignee type tab, like the website's
+    var visited by remember { mutableStateOf<Set<String>>(emptySet()) }                          // types looked at — only those are sent, so the others stay as they were
     var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var banner by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -508,7 +514,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         val parts = listOf(typeLabel(), leadLabel.substringBefore(" — ").trim()).filter { it.isNotBlank() }
         name = if (parts.isEmpty()) "" else parts.joinToString(" – ") + " Follow-up"
     }
-    fun snapshot(): List<Any> =listOf(name, description, type, priority, due, dueTime, reminder, remDate, remTime, recurrence, recDate, leadId, statusId, departmentId, progress.toInt(), overdueReason, people)
+    fun snapshot(): List<Any> =listOf(name, description, type, priority, due, dueTime, reminder, remDate, remTime, recurrence, recDate, leadId, statusId, departmentId, progress.toInt(), overdueReason, people, otherPeople, unitId, category, attachment?.name.orEmpty(), bidItems.map { listOf(it.kind, it.id, it.qty, it.unit) }, subs.map { listOf(it.id, it.title, it.priority, it.due, it.people) })
 
     LaunchedEffect(attempt) {
         loadError = null
@@ -520,8 +526,20 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                 due = d.str("due_date").orEmpty(); dueTime = d.str("due_time")?.take(5).orEmpty(); statusId = d.optInt("status_id"); departmentId = d.optInt("department_id")
                 reminder = d.str("reminder").orEmpty(); d.str("reminder_custom_at")?.let { remDate = it.take(10); remTime = it.drop(11).take(5) }
                 recurrence = d.str("recurrence").orEmpty(); recDate = d.str("recurrence_custom_date").orEmpty()
-                leadId = d.optInt("lead_id"); leadLabel = d.str("lead_label").orEmpty(); progress = d.optInt("progress").toFloat(); overdueReason = d.str("overdue_reason").orEmpty()
+                leadId = d.optInt("lead_id"); leadLabel = d.str("lead_label").orEmpty(); unitId = d.optInt("unit_id"); unitLabel = d.str("unit_label").orEmpty(); category = d.str("task_category").orEmpty(); progress = d.optInt("progress").toFloat(); overdueReason = d.str("overdue_reason").orEmpty()
                 people = d.optJSONArray("assignee_ids")?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet()
+                d.optJSONArray("subtask_rows")?.let { a ->
+                    subs = (0 until a.length()).map { i -> a.getJSONObject(i).let { x -> SubRow(x.optInt("id"), x.optString("title"), x.str("priority") ?: "Medium", x.str("due_date").orEmpty(), x.optJSONArray("assignee_ids")?.let { p -> (0 until p.length()).map { k -> p.getInt(k) }.toSet() } ?: emptySet()) } }
+                }
+                d.optJSONArray("bid_items")?.let { a ->
+                    bidItems = (0 until a.length()).map { i -> a.getJSONObject(i).let { x -> BidRow(x.optString("kind"), x.optInt("id"), x.optString("name"), x.optString("quantity").trimEnd('0').trimEnd('.').ifBlank { "" }, x.optString("unit").takeIf { u -> u != "null" }.orEmpty()) } }
+                    hadBidItems = bidItems.isNotEmpty()
+                }
+                d.optJSONArray("assignments")?.let { a ->
+                    val m = mutableMapOf<String, MutableSet<Int>>(); val n = mutableMapOf<String, String>()
+                    for (i in 0 until a.length()) { val x = a.getJSONObject(i); val t = x.optString("type"); n["$t:${x.optInt("id")}"] = x.optString("name"); if (t != "user") m.getOrPut(t) { mutableSetOf() }.add(x.optInt("id")) }
+                    otherPeople = m; visited = m.keys.toSet(); assignNames = n
+                }
             }
             options = o
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
@@ -534,20 +552,29 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         if (description.isBlank()) problems["description"] = "Enter a description"
         if (reminder == "custom" && remDate.isBlank()) problems["reminder_custom_date"] = "Pick the reminder date"
         if (recurrence == "custom" && recDate.isBlank()) problems["recurrence_custom_date"] = "Pick the end date"
+        if (category == "bids" && bidItems.any { it.id == 0 || it.qty.toDoubleOrNull() == null }) problems["bid_items"] = "Pick an item and a quantity for every bid item"
         if (problems.isNotEmpty()) { errors = problems; banner = problems.values.first(); return }
         val nul = JSONObject.NULL
         val body = JSONObject().put("name", name.trim()).put("description", description.trim()).put("priority", priority)
             .put("due_date", due.ifBlank { nul }).put("due_time", dueTime.ifBlank { nul }).put("type", type.ifBlank { nul })
-            .put("assignee_id", JSONArray(people.sorted())).put("department_id", if (departmentId > 0) departmentId else nul)
+            .put("assignee_groups", JSONObject().put("user", JSONArray(people.sorted())).also { g -> listOf("contractor", "supplier", "professional").filter { it in visited || it in otherPeople }.forEach { t -> g.put(t, JSONArray((otherPeople[t] ?: emptySet()).sorted())) } }).put("department_id", if (departmentId > 0) departmentId else nul)
             .put("lead_id", if (leadId > 0) leadId else nul).put("reminder", reminder.ifBlank { nul })
             .put("reminder_custom_date", if (reminder == "custom") remDate.ifBlank { nul } else nul).put("reminder_custom_time", if (reminder == "custom") remTime.ifBlank { nul } else nul)
-            .put("recurrence", recurrence.ifBlank { nul }).put("recurrence_custom_date", if (recurrence == "custom") recDate.ifBlank { nul } else nul)
+            .put("unit_id", if (unitId > 0) unitId else nul).put("task_category", category.ifBlank { nul }).put("recurrence", recurrence.ifBlank { nul }).put("recurrence_custom_date", if (recurrence == "custom") recDate.ifBlank { nul } else nul)
+        if (editing || subs.isNotEmpty()) body.put("subtasks", JSONArray(subs.filter { it.title.isNotBlank() }.map { r -> JSONObject().apply { if (r.id > 0) put("id", r.id); put("title", r.title.trim()); put("priority", r.priority); put("due_date", r.due.ifBlank { nul }); put("assignee_id", JSONArray(r.people.sorted())) } }))
+        if (category == "bids" || bidItems.isNotEmpty() || hadBidItems) body.put("bid_items", JSONArray(bidItems.filter { it.id > 0 }.map { r -> JSONObject().put("kind", r.kind).put("id", r.id).put("quantity", r.qty.toDoubleOrNull() ?: 0.0).put("unit", r.unit.ifBlank { nul }) }))
         if (editing) { if (statusId > 0) body.put("status_id", statusId); body.put("progress", progress.toInt()); body.put("overdue_reason", overdueReason.ifBlank { nul }) }
         errors = emptyMap(); banner = null; saving = true
         scope.launch {
             try {
-                withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/task-center/$id", body) else api.send("POST", "/projects/$uuid/task-center", body) }
-                Toast.makeText(context, if (editing) "Task saved" else "Task created", Toast.LENGTH_SHORT).show()
+                withContext(Dispatchers.IO) {
+                    if (id != null) api.send("PUT", "/task-center/$id", body)
+                    else {
+                        val made = api.send("POST", "/projects/$uuid/task-center", body).optJSONObject("data")?.optInt("id") ?: 0
+                        attachment?.let { a -> if (made > 0) api.sendForm("/task-center/$made/documents", listOf(FormPart("document", fileName = a.name, mime = a.mime, bytes = a.bytes))) }
+                    }
+                }
+                AppToast.show(if (editing) "Task saved" else "Task created")
                 onSaved()
             } catch (e: ApiException) {
                 errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message
@@ -555,6 +582,8 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
             saving = false
         }
     }
+
+    val pickAttachment = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { readPicked(context, it) }?.let { attachment = it } }
 
     fun pickDate(current: String, set: (String) -> Unit) {
         val d = runCatching { LocalDate.parse(current.take(10)) }.getOrDefault(LocalDate.now())
@@ -582,14 +611,67 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                             PickerField("Customer / lead", leadLabel.ifBlank { null }) { leadSheet = true }
                             if (leadId > 0) Text("Remove link", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { leadId = 0; leadLabel = ""; refreshName() })
                             PickerField("Type", typeLabel().ifBlank { null }, errors["type"]) { typeSheet = true }
+                            PickerField("Unit (flat / shop)", unitLabel.ifBlank { null }, errors["unit_id"]) { unitSheet = true }
+                            if (unitId > 0) Text("Remove unit", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { unitId = 0; unitLabel = "" })
+                            Label("Task category")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Pick("None", category.isEmpty(), KitMuted) { category = "" }
+                                Pick("Bids", category == "bids", Blue) { category = "bids" }
+                                Pick("Leads", category == "leads", Blue) { category = "leads" }
+                            }
+                        }
+
+                        if (category == "bids" || bidItems.isNotEmpty()) Card("Bid items", if (bidItems.isEmpty()) "What this bid is for" else "${bidItems.size} item${if (bidItems.size == 1) "" else "s"}") {
+                            errors["bid_items"]?.let { Text("• $it", color = KitDanger, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                            bidItems.forEachIndexed { i, r ->
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Pick("Material", r.kind == "material", b.base) { if (r.kind != "material") bidItems = bidItems.toMutableList().also { it[i] = BidRow("material", 0, "", r.qty, "") } }
+                                        Pick("Service", r.kind == "service", b.base) { if (r.kind != "service") bidItems = bidItems.toMutableList().also { it[i] = BidRow("service", 0, "", r.qty, "") } }
+                                        Spacer(Modifier.weight(1f))
+                                        Text("✕", color = KitMuted, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { bidItems = bidItems.toMutableList().also { it.removeAt(i) } }.padding(8.dp))
+                                    }
+                                    PickerField(if (r.kind == "service") "Service" else "Material", r.name.ifBlank { null }) { bidPick = i }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Box(Modifier.weight(1f)) { Input("Quantity", r.qty, { v -> bidItems = bidItems.toMutableList().also { it[i] = r.copy(qty = v.filter { c -> c.isDigit() || c == '.' }) } }) }
+                                        Box(Modifier.weight(1f)) { Input("Unit", r.unit, { v -> bidItems = bidItems.toMutableList().also { it[i] = r.copy(unit = v) } }) }
+                                    }
+                                }
+                            }
+                            Text("＋  Add item", color = b.base, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(b.base.copy(alpha = .12f)).clickable { bidItems = bidItems + BidRow("material", 0, "", "", ""); bidPick = bidItems.size - 1 }.padding(vertical = 13.dp))
                         }
 
                         Card("What needs doing", "Name it and say what it involves") {
                             Input("Task name", name, { name = it; nameEdited = true }, errors["name"])
                             if (!nameEdited && name.isNotBlank()) Text("Suggested from the type and customer — edit it if you like", color = KitMuted, fontSize = 11.sp)
                             Input("Description", description, { description = it }, errors["description"], singleLine = false)
+                            if (!editing) {
+                                PickerField("Attachment (PDF, Office, image or ZIP, up to 10 MB)", attachment?.name) { pickAttachment.launch("*/*") }
+                                if (attachment != null) Text("Remove file", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { attachment = null })
+                            }
                             Label("Priority")
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Low", "Medium", "High", "Urgent").forEach { p -> Pick(p, priority == p, priorityTint(p)) { priority = p } } }
+                        }
+
+                        Card("Subtasks", if (subs.isEmpty()) "Break the work into steps" else "${subs.size} step${if (subs.size == 1) "" else "s"}") {
+                            subs.forEachIndexed { i, r ->
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.weight(1f)) { Input("Subtask name", r.title, { v -> subs = subs.toMutableList().also { it[i] = r.copy(title = v) } }) }
+                                        Text("✕", color = KitMuted, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { subs = subs.toMutableList().also { it.removeAt(i) } }.padding(8.dp))
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.weight(1f)) { PickerField("Due date", prettyDay(r.due)) { pickDate(r.due) { v -> subs = subs.toMutableList().also { it[i] = r.copy(due = v) } } } }
+                                        val order = listOf("Low", "Medium", "High", "Urgent")
+                                        Pick(r.priority, true, priorityTint(r.priority)) { subs = subs.toMutableList().also { it[i] = r.copy(priority = order[(order.indexOf(r.priority) + 1) % order.size]) } }
+                                    }
+                                    val names = r.people.map { id -> options?.objs("people")?.firstOrNull { it.optInt("id") == id }?.optString("name") ?: assignNames["user:$id"] ?: "User $id" }
+                                    PickerField("Assignee (the task's people if empty)", names.takeIf { it.isNotEmpty() }?.let { if (it.size <= 2) it.joinToString(", ") else "${it.take(2).joinToString(", ")} +${it.size - 2}" }) { subPeople = i }
+                                }
+                            }
+                            Text("＋  Add subtask", color = b.base, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(b.base.copy(alpha = .12f)).clickable { subs = subs + SubRow(0, "", priority, "", emptySet()) }.padding(vertical = 13.dp))
                         }
 
                         Card("When", "Due date, reminder and repeat") {
@@ -617,8 +699,9 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                             if (recurrence == "custom") PickerField("Repeat until", prettyDay(recDate), errors["recurrence_custom_date"]) { pickDate(recDate) { recDate = it } }
                         }
 
-                        Card("Who", "${people.size} selected") {
-                            val chosen = o.objs("people").filter { it.optInt("id") in people }.map { it.optString("name") }
+                        Card("Who", "${people.size + otherPeople.values.sumOf { it.size }} selected") {
+                            val chosen = people.map { id -> o.objs("people").firstOrNull { it.optInt("id") == id }?.optString("name") ?: assignNames["user:$id"] ?: "User $id" } +
+                                otherPeople.flatMap { (t, ids) -> ids.sorted().map { assignNames["$t:$it"] ?: "#$it" } }
                             PickerField("Assign to", chosen.takeIf { it.isNotEmpty() }?.let { if (it.size <= 2) it.joinToString(", ") else "${it.take(2).joinToString(", ")} +${it.size - 2}" }) { peopleSheet = true }
                             PickerField("Department", o.objs("departments").firstOrNull { it.optInt("id") == departmentId }?.optString("name")) { departmentSheet = true }
                         }
@@ -648,7 +731,10 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         // the task type, as a dropdown list
         if (typeSheet) ModalBottomSheet(onDismissRequest = { typeSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Task type", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Task type", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
+                    Text("＋ New type", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { typeDialog = null to "" }.padding(8.dp))
+                }
                 val choices = listOf("" to "None") + (options?.objs("types").orEmpty().map { it.optString("key") to it.optString("label") })
                 choices.forEach { (key, label) ->
                     val on = type == key
@@ -659,6 +745,10 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                     ) {
                         Text(label, color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         if (on) Text("✓", color = b.base, fontWeight = FontWeight.ExtraBold)
+                        if (key.isNotEmpty()) {
+                            Text("✎", color = KitMuted, fontSize = 17.sp, modifier = Modifier.clip(CircleShape).clickable { typeDialog = key to label }.padding(horizontal = 10.dp, vertical = 4.dp))
+                            Text("🗑", fontSize = 15.sp, modifier = Modifier.clip(CircleShape).clickable { typeDelete = key to label }.padding(horizontal = 8.dp, vertical = 4.dp))
+                        }
                     }
                 }
             }
@@ -667,7 +757,10 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         // department: pick one
         if (departmentSheet) ModalBottomSheet(onDismissRequest = { departmentSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
             Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Department", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Department", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
+                    Text("＋ New department", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { deptDialog = true }.padding(8.dp))
+                }
                 (listOf(0 to "None") + (options?.objs("departments").orEmpty().map { it.optInt("id") to it.optString("name") })).forEach { (did, label) ->
                     val on = departmentId == did
                     Row(
@@ -682,27 +775,55 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
             }
         }
 
-        // people: tick as many as needed
-        if (peopleSheet) ModalBottomSheet(onDismissRequest = { peopleSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
-                    Text("Done", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { peopleSheet = false }.padding(8.dp))
+        // people: pick a type (employee / supervisor / contractor / supplier / professional) and tick as many as needed — like the website's assignee tabs
+        if (peopleSheet) {
+            var lists by remember { mutableStateOf<Map<String, List<JSONObject>>>(emptyMap()) }
+            var listing by remember { mutableStateOf(false) }
+            LaunchedEffect(assignTab) {
+                if (assignTab in listOf("contractor", "supplier", "professional")) visited = visited + assignTab
+                if (assignTab !in lists) {
+                    listing = true
+                    val rows = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/task-center/assignees?type=$assignTab").objs("data") } }.getOrDefault(emptyList())
+                    lists = lists + (assignTab to rows); listing = false
                 }
-                Column(Modifier.height(420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val everyone = options?.objs("people").orEmpty()
-                    if (everyone.isEmpty()) Text("This project has no team members yet.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
-                    everyone.forEach { p ->
-                        val pid = p.optInt("id"); val on = pid in people
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft)
-                                .clickable { people = if (on) people - pid else people + pid }.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Initials(p.optString("name"), size = 34.dp)
-                            Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                            Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) b.base else Color.Transparent).border(2.dp, if (on) b.base else Color(0xFF9E9E9E), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                                if (on) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            val kind = if (assignTab == "employee" || assignTab == "supervisor") "user" else assignTab
+            ModalBottomSheet(onDismissRequest = { peopleSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
+                        Text("Done", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { peopleSheet = false }.padding(8.dp))
+                    }
+                    var query by remember { mutableStateOf("") }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("employee" to "Employee", "supervisor" to "Supervisor", "contractor" to "Contractor", "supplier" to "Supplier", "professional" to "Professional").forEach { (key, label) ->
+                            val count = if (key == "employee" || key == "supervisor") people.size else otherPeople[key]?.size ?: 0
+                            Pick(if (count > 0 && key != "supervisor") "$label · $count" else label, assignTab == key, b.base) { assignTab = key }
+                        }
+                    }
+                    Input("Search by name", query, { query = it })
+                    if (assignTab == "supervisor") Text("Supervisors are team members too — what you tick here is the same list as Employee.", color = KitMuted, fontSize = 12.sp)
+                    Column(Modifier.height(380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val everyone = lists[assignTab].orEmpty().filter { query.isBlank() || it.optString("name").contains(query.trim(), ignoreCase = true) }
+                        if (listing) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        else if (everyone.isEmpty()) Text(if (assignTab == "employee") "This project has no team members yet." else "Nobody to pick here.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+                        everyone.forEach { p ->
+                            val pid = p.optInt("id")
+                            val on = if (kind == "user") pid in people else pid in (otherPeople[kind] ?: emptySet())
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft)
+                                    .clickable {
+                                        assignNames = assignNames + ("$kind:$pid" to p.optString("name"))
+                                        if (kind == "user") people = if (on) people - pid else people + pid
+                                        else otherPeople = otherPeople + (kind to (if (on) (otherPeople[kind] ?: emptySet()) - pid else (otherPeople[kind] ?: emptySet()) + pid))
+                                    }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Initials(p.optString("name"), size = 34.dp)
+                                Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                                Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) b.base else Color.Transparent).border(2.dp, if (on) b.base else Color(0xFF9E9E9E), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                                    if (on) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                                }
                             }
                         }
                     }
@@ -710,6 +831,54 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
             }
         }
 
+        typeDialog?.let { (key, label) ->
+            NameDialog(if (key == null) "New task type" else "Rename task type", label, "Type name", if (key == null) "Add" else "Save", listBusy, onDismiss = { typeDialog = null }) { text ->
+                listBusy = true
+                scope.launch {
+                    try {
+                        val r = withContext(Dispatchers.IO) { if (key == null) api.send("POST", "/task-center/types", JSONObject().put("label", text)) else api.send("PUT", "/task-center/types/$key", JSONObject().put("label", text)) }
+                        val newKey = r.optString("id")
+                        typeDialog = null
+                        refreshOptions { if (key == null && newKey.isNotBlank()) { type = newKey; refreshName() }; AppToast.show(if (key == null) "Task type added" else "Task type renamed") }
+                    } catch (e: Exception) { AppToast.show((e as? ApiException)?.errors?.values?.firstOrNull { it.isNotBlank() } ?: e.message ?: "Could not save the task type") }
+                    listBusy = false
+                }
+            }
+        }
+        typeDelete?.let { (key, label) ->
+            SwalConfirm(
+                title = "Delete task type?", text = "\"$label\" will be removed from the list. Tasks that already use it keep their type.", confirmText = "Yes, delete",
+                onConfirm = {
+                    typeDelete = null
+                    scope.launch {
+                        try { withContext(Dispatchers.IO) { api.delete("/task-center/types/$key") }; if (type == key) { type = ""; refreshName() }; refreshOptions { AppToast.show("Task type deleted") } }
+                        catch (e: Exception) { AppToast.show(e.message ?: "Could not delete the task type") }
+                    }
+                }, onCancel = { typeDelete = null },
+            )
+        }
+        if (deptDialog) NameDialog("New department", "", "Department name", "Add", listBusy, onDismiss = { deptDialog = false }) { text ->
+            listBusy = true
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/lists/departments", JSONObject().put("name", text)) }
+                    deptDialog = false
+                    refreshOptions { options?.objs("departments")?.lastOrNull { it.optString("name") == text }?.let { departmentId = it.optInt("id") }; AppToast.show("Department added") }
+                } catch (e: Exception) { AppToast.show((e as? ApiException)?.errors?.values?.firstOrNull { it.isNotBlank() } ?: e.message ?: "Could not add the department") }
+                listBusy = false
+            }
+        }
+        bidPick?.let { i ->
+            val row = bidItems.getOrNull(i)
+            if (row != null) BidItemSheet(options?.objs(if (row.kind == "service") "services" else "materials").orEmpty(), row.kind, row.id, onPick = { id, name, unit ->
+                bidItems = bidItems.toMutableList().also { it[i] = row.copy(id = id, name = name, unit = unit.ifBlank { row.unit }) }; bidPick = null
+            }, onClose = { bidPick = null })
+        }
+        subPeople?.let { i ->
+            val row = subs.getOrNull(i)
+            if (row != null) SubPeopleSheet(options?.objs("people").orEmpty(), row.people, onChange = { v -> subs = subs.toMutableList().also { it[i] = row.copy(people = v) } }, onClose = { subPeople = null })
+        }
+        if (unitSheet) UnitSheet(api, uuid, unitId, onPick = { uid, label -> unitId = uid; unitLabel = label; unitSheet = false }, onClose = { unitSheet = false })
         if (leadSheet) LeadSheet(api, uuid, leadId, onPick = { lid, label -> leadId = lid; leadLabel = label; leadSheet = false; refreshName() }, onClose = { leadSheet = false })
     }
 }
@@ -744,6 +913,143 @@ private fun LeadSheet(api: ApiClient, uuid: String, current: Int, onPick: (Int, 
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (r.optInt("id") == current) Blue.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft)
                             .clickable { onPick(r.optInt("id"), r.optString("label")) }.padding(14.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+/** Search the project's units (flat / shop numbers) and pick one. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnitSheet(api: ApiClient, uuid: String, current: Int, onPick: (Int, String) -> Unit, onClose: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var rows by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(query) {
+        delay(300); loading = true
+        rows = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/task-center/units?search=${URLEncoder.encode(query.trim(), "UTF-8")}").objs("data") } }.getOrDefault(emptyList())
+        loading = false
+    }
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Unit", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+            Input("Search by flat / unit number", query, { query = it })
+            Column(Modifier.height(380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                else if (rows.isEmpty()) Text("No units match.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+                rows.forEach { r ->
+                    Text(
+                        r.optString("label"), color = KitInk, fontWeight = if (r.optInt("id") == current) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (r.optInt("id") == current) Blue.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft)
+                            .clickable { onPick(r.optInt("id"), r.optString("label")) }.padding(14.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A small box asking for one name (a new task type, a new department, a rename). */
+@Composable
+private fun NameDialog(title: String, initial: String, label: String, button: String, busy: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(title, fontWeight = FontWeight.ExtraBold) },
+        text = { Input(label, text, { text = it }) },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onSave(text.trim()) }, enabled = !busy && text.isNotBlank()) { Text(if (busy) "Saving…" else button, fontWeight = FontWeight.ExtraBold) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") } },
+    )
+}
+
+/** One row of a bid's items: material or service, which one, how many, in what unit. */
+private data class BidRow(val kind: String, val id: Int, val name: String, val qty: String, val unit: String)
+
+/** Pick a material or a service from the catalogue (with a search). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BidItemSheet(all: List<JSONObject>, kind: String, current: Int, onPick: (Int, String, String) -> Unit, onClose: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val rows = all.filter { query.isBlank() || it.optString("name").contains(query.trim(), ignoreCase = true) }
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(if (kind == "service") "Choose a service" else "Choose a material", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+            Input("Search", query, { query = it })
+            Column(Modifier.height(380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (rows.isEmpty()) Text(if (all.isEmpty()) "No ${if (kind == "service") "services" else "materials"} in the catalogue yet." else "Nothing matches.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+                rows.forEach { r ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (r.optInt("id") == current) Blue.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft)
+                            .clickable { onPick(r.optInt("id"), r.optString("name"), r.optString("unit").takeIf { it != "null" }.orEmpty()) }.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(r.optString("name"), color = KitInk, fontWeight = if (r.optInt("id") == current) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        r.optString("unit").takeIf { it.isNotBlank() && it != "null" }?.let { Text(it, color = KitMuted, fontSize = 12.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One subtask line of the form (id 0 = new). */
+private data class SubRow(val id: Int, val title: String, val priority: String, val due: String, val people: Set<Int>)
+
+/** Tick the people for one subtask. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SubPeopleSheet(all: List<JSONObject>, selected: Set<Int>, onChange: (Set<Int>) -> Unit, onClose: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Subtask assignee", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
+                Text("Done", color = Blue, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { onClose() }.padding(8.dp))
+            }
+            Column(Modifier.height(420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (all.isEmpty()) Text("This project has no team members yet.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+                all.forEach { p ->
+                    val pid = p.optInt("id"); val on = pid in selected
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) Blue.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { onChange(if (on) selected - pid else selected + pid) }.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Initials(p.optString("name"), size = 34.dp)
+                        Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                        if (on) Text("✓", color = Blue, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Who did what and when: a dot per entry joined by a line, each with what changed (old → new). Shared by the task page's Activity tab and the list's "View history". */
+@Composable
+internal fun HistoryTimeline(history: List<JSONObject>) {
+    history.forEachIndexed { i, h ->
+        val tint = when (h.optString("dot")) { "ts-dot-create" -> KitGood; "ts-dot-delete" -> KitDanger; else -> Color(0xFFC47A1A) }
+        Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+            // the timeline: a dot per entry joined by a line
+            Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.padding(top = 5.dp).size(12.dp).clip(CircleShape).background(tint))
+                if (i < history.lastIndex) Box(Modifier.weight(1f).width(2.dp).background(com.example.gavanhomes.ui.common.KitLine))
+            }
+            Column(Modifier.padding(start = 10.dp, bottom = if (i < history.lastIndex) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(h.optString("label"), color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp))
+                }
+                Text("${h.optString("user")} · ${h.optString("at").ifBlank { h.optString("ago") }}", color = KitMuted, fontSize = 12.sp)
+                h.objs("changes").forEach { c ->
+                    val old = c.str("old"); val new = c.str("new")
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(horizontal = 10.dp, vertical = 7.dp)) {
+                        Text(c.optString("field"), color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        if (old != null && new != null) {
+                            Text(old, color = KitMuted, fontSize = 12.sp, textDecoration = TextDecoration.LineThrough, lineHeight = 16.sp)
+                            Text("→ $new", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
+                        } else Text(new ?: old ?: "—", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
+                    }
                 }
             }
         }

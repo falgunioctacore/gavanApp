@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.leads
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
@@ -83,9 +85,9 @@ private fun runAct(scope: kotlinx.coroutines.CoroutineScope, context: android.co
         try {
             val r = withContext(Dispatchers.IO) { call() }
             val msg = r?.optString("message")?.takeIf { it.isNotBlank() } ?: success
-            if (msg != null) android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            if (msg != null) AppToast.show(msg)
             after()
-        } catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not do that", android.widget.Toast.LENGTH_LONG).show() }
+        } catch (e: Exception) { AppToast.show(e.message ?: "Could not do that") }
     }
 }
 

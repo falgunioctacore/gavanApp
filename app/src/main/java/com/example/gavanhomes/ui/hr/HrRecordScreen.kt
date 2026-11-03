@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.hr
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -93,15 +95,15 @@ fun HrRecordScreen(api: ApiClient, b: Branding, slug: String, id: Int, onBack: (
     }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
     fun act(path: String, body: JSONObject = JSONObject(), message: String) {
         busy = true
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { api.send("POST", path, body) }
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show(); attempt++; onChanged()
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Something went wrong", Toast.LENGTH_LONG).show() }
+                AppToast.show(message); attempt++; onChanged()
+            } catch (e: Exception) { AppToast.show(e.message ?: "Something went wrong") }
             busy = false
         }
     }
@@ -181,8 +183,8 @@ fun HrRecordScreen(api: ApiClient, b: Branding, slug: String, id: Int, onBack: (
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) { api.delete("/hr/$slug/$id") }
-                    Toast.makeText(context, "${schema.singular} deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack()
-                } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show(); busy = false }
+                    AppToast.show("${schema.singular} deleted"); onChanged(); onBack()
+                } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete"); busy = false }
             }
         },
     )

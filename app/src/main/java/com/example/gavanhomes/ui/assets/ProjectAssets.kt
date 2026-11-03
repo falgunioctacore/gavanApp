@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.assets
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -248,8 +250,8 @@ private fun TransferList(api: ApiClient, b: Branding, uuid: String, version: Int
     val scope = rememberCoroutineScope()
     var ask by remember { mutableStateOf<JSONObject?>(null) }
     fun call(ok: String, run: () -> JSONObject) = scope.launch {
-        try { val r = withContext(Dispatchers.IO) { run() }; Toast.makeText(context, r.str("message") ?: ok, Toast.LENGTH_SHORT).show(); onChanged() }
-        catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+        try { val r = withContext(Dispatchers.IO) { run() }; AppToast.show(r.str("message") ?: ok); onChanged() }
+        catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
     FilteredList(
         api, b, "/projects/$uuid/asset-center/transfers", version, "Search asset, code or location…",

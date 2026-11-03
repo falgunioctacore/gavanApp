@@ -217,14 +217,14 @@ fun Modifier.shimmer(): Modifier = composed {
     drawWithContent {
         drawContent()
         val w = size.width
-        drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = .6f), Color.Transparent), start = Offset(x * w - w * .35f, 0f), end = Offset(x * w + w * .35f, size.height * .4f)))
+        drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = if (AppTheme.dark) .12f else .6f), Color.Transparent), start = Offset(x * w - w * .35f, 0f), end = Offset(x * w + w * .35f, size.height * .4f)))
     }
 }
 
 /** A grey bar of the given size that shimmers — a stand-in for a line of text or a chip. */
 @Composable
 fun SkeletonBar(width: androidx.compose.ui.unit.Dp?, height: androidx.compose.ui.unit.Dp = 14.dp, modifier: Modifier = Modifier) {
-    Box((if (width != null) modifier.width(width) else modifier.fillMaxWidth()).height(height).clip(RoundedCornerShape(height / 2.5f)).background(Color(0x14101828)).shimmer())
+    Box((if (width != null) modifier.width(width) else modifier.fillMaxWidth()).height(height).clip(RoundedCornerShape(height / 2.5f)).background(if (AppTheme.dark) Color(0x24FFFFFF) else Color(0x14101828)).shimmer())
 }
 
 /** What a list will look like, shimmering while it loads: [count] cards with a title, a line and a chip, the same size and place as the real ones. */
@@ -233,7 +233,7 @@ fun SkeletonCards(count: Int = 4, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().padding(top = 6.dp)) {
         repeat(count) { i ->
             Column(
-                Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(16.dp),
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(KitCard).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

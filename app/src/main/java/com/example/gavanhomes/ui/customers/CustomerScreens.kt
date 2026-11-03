@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.customers
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,8 +95,8 @@ import java.time.LocalDate
 /** Run [call] off the main thread; toast the server's message (or [ok]) and then [done], or toast the error. */
 private fun act(context: android.content.Context, scope: kotlinx.coroutines.CoroutineScope, ok: String, call: () -> JSONObject, done: () -> Unit) {
     scope.launch {
-        try { val r = withContext(Dispatchers.IO) { call() }; Toast.makeText(context, r.str("message") ?: ok, Toast.LENGTH_SHORT).show(); done() }
-        catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+        try { val r = withContext(Dispatchers.IO) { call() }; AppToast.show(r.str("message") ?: ok); done() }
+        catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
 }
 
@@ -507,7 +509,7 @@ private fun submit(context: android.content.Context, scope: kotlinx.coroutines.C
                    setSaving: (Boolean) -> Unit, setErrors: (Map<String, String>, String?) -> Unit, done: () -> Unit) {
     setSaving(true)
     scope.launch {
-        try { withContext(Dispatchers.IO) { if (update != null) api.send("PUT", update, body) else api.send("POST", create, body) }; Toast.makeText(context, ok, Toast.LENGTH_SHORT).show(); done() }
+        try { withContext(Dispatchers.IO) { if (update != null) api.send("PUT", update, body) else api.send("POST", create, body) }; AppToast.show(ok); done() }
         catch (e: ApiException) { setErrors(e.errors, e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message) }
         catch (e: Exception) { setErrors(emptyMap(), e.message ?: "Could not save") }
         setSaving(false)

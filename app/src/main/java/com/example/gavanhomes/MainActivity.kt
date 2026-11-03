@@ -25,6 +25,11 @@ class MainActivity : ComponentActivity() {
     private fun openChatFrom(intent: Intent?) {
         if (intent == null) return
         if (intent.getBooleanExtra("open_notifications", false)) ChatAlerts.openNotifications = true
+        // an alert about a task / target opens that page
+        intent.getStringExtra("open_kind")?.let { kind ->
+            val id = intent.getIntExtra("open_id", 0); val project = intent.getStringExtra("open_project")
+            if (id > 0 && !project.isNullOrBlank()) com.example.gavanhomes.ui.common.DeepLink.pending = com.example.gavanhomes.ui.common.DeepLink.Open(kind, id, project)
+        }
         val project = intent.getStringExtra("chat_project")
         val conv = intent.getStringExtra("chat_conv")
         if (!project.isNullOrBlank() && !conv.isNullOrBlank()) ChatAlerts.pending = ChatLink(project, conv, intent.getStringExtra("chat_title") ?: "Chat")
@@ -40,6 +45,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         com.example.gavanhomes.data.Net.start(applicationContext)
+        com.example.gavanhomes.data.WriteNotice.listener = { com.example.gavanhomes.ui.common.AppToast.fallback(it) }      // a toast after any change, even where a screen showed none
         AppTheme.mode = SessionStore(this).theme
         openChatFrom(intent)
         setContent {
@@ -51,6 +57,8 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                     AppGate()
                     com.example.gavanhomes.ui.common.ConnectionBanner(androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.TopCenter))
+                    com.example.gavanhomes.ui.common.UploadBar(androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                    com.example.gavanhomes.ui.common.AppToastHost(androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.TopEnd))
                     com.example.gavanhomes.ui.common.IntroOverlay(androidx.compose.ui.graphics.Color(0xFF5D4924), androidx.compose.ui.graphics.Color(0xFFCFA251), "GavanHomes Admin")
                 }
             }

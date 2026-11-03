@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -76,7 +78,7 @@ fun ProfessionalDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: 
     }
     val view: (String) -> Unit = { path ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${ApiConfig.BASE_URL}/storage/$path"))) }
-            .onFailure { Toast.makeText(context, "No app can open this file", Toast.LENGTH_SHORT).show() }
+            .onFailure { AppToast.show("No app can open this file") }
     }
     fun launch(i: Intent) { runCatching { context.startActivity(i) } }
 
@@ -168,8 +170,8 @@ fun ProfessionalDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: 
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) { api.delete("/professionals/$uuid") }
-                        Toast.makeText(context, "Professional deleted", Toast.LENGTH_SHORT).show(); onDeleted()
-                    } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show(); deleting = false }
+                        AppToast.show("Professional deleted"); onDeleted()
+                    } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete"); deleting = false }
                 }
             },
         )

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.general
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -229,7 +231,7 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
         if (id > 0) body.put("id", id)
         saving = true; errors = emptyMap()
         scope.launch {
-            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/$plural", body) }; Toast.makeText(context, if (id > 0) "Saved" else "Added", Toast.LENGTH_SHORT).show(); onDone() }
+            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/$plural", body) }; AppToast.show(if (id > 0) "Saved" else "Added"); onDone() }
             catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf("name" to (e.message ?: "Could not save")) } }
             catch (e: Exception) { errors = mapOf("name" to (e.message ?: "Could not save")) }
             saving = false
@@ -258,8 +260,8 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
     }
     if (askDelete) SwalConfirm(title = "Delete ${row.optString("name")}?", text = "They are removed from this project's lists.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
-            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/$plural/$id") }; Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show(); onDone() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/$plural/$id") }; AppToast.show("Deleted"); onDone() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         } }, onCancel = { askDelete = false })
 }
 
@@ -301,8 +303,8 @@ fun ContractorDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, v
     if (edit) o?.let { EditSheet(api, b, uuid, "contractor", x, it, can, onClose = { edit = false }) { edit = false; attempt++; onChanged() } }
     if (askDelete) SwalConfirm(title = "Delete ${x.optString("name")}?", text = "A contractor with workers can't be deleted.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
-            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/contractors/$id") }; Toast.makeText(context, "Contractor deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/contractors/$id") }; AppToast.show("Contractor deleted"); onChanged(); onBack() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         } }, onCancel = { askDelete = false })
 }
 
@@ -368,7 +370,7 @@ internal fun GenListSheet(api: ApiClient, b: Branding, uuid: String, l: GenList,
         if (id > 0) body.put("id", id)
         saving = true; errors = emptyMap()
         scope.launch {
-            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/lists/${l.key}", body) }; Toast.makeText(context, if (id > 0) "Saved" else "Added", Toast.LENGTH_SHORT).show(); onDone() }
+            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/lists/${l.key}", body) }; AppToast.show(if (id > 0) "Saved" else "Added"); onDone() }
             catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf(first to (e.message ?: "Could not save")) } }
             catch (e: Exception) { errors = mapOf(first to (e.message ?: "Could not save")) }
             saving = false
@@ -393,7 +395,7 @@ internal fun GenListSheet(api: ApiClient, b: Branding, uuid: String, l: GenList,
     }
     if (askDelete) SwalConfirm(title = "Delete this ${l.noun}?", text = "It is removed from this project.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
-            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/lists/${l.key}/$id") }; Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show(); onDone() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/general-center/lists/${l.key}/$id") }; AppToast.show("Deleted"); onDone() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         } }, onCancel = { askDelete = false })
 }

@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.attendance
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -105,15 +107,23 @@ fun WorkerDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, versi
     }
     fun call(ok: String, run: () -> JSONObject) {
         scope.launch {
-            try { val r = withContext(Dispatchers.IO) { run() }; Toast.makeText(context, r.str("message") ?: ok, Toast.LENGTH_SHORT).show(); attempt++; onChanged() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not save", Toast.LENGTH_LONG).show() }
+            try { val r = withContext(Dispatchers.IO) { run() }; AppToast.show(r.str("message") ?: ok); attempt++; onChanged() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
         }
     }
     val x = d ?: return Waiting(b, "Worker", error, onBack) { attempt++ }
     val can = x.optJSONObject("can") ?: JSONObject()
     val review = x.optJSONObject("review") ?: JSONObject()
+    var askDelete by remember { mutableStateOf(false) }
+    if (askDelete) com.example.gavanhomes.ui.common.SwalConfirm(
+        title = "Delete ${x.optString("name")}?", text = "The worker and their records will be removed from the project.", confirmText = "Yes, delete",
+        onConfirm = { askDelete = false; call("Worker deleted") { api.delete("/projects/$uuid/general-center/workers/$id").also { onBack() } } }, onCancel = { askDelete = false },
+    )
     Column(Modifier.fillMaxSize().background(KitPage).verticalScroll(rememberScrollState())) {
-        HeroBar(b, "Worker", onBack, actions = { if (can.optBoolean("edit_worker")) HeroButton("✎") { onEdit(id) } }) {
+        HeroBar(b, "Worker", onBack, actions = {
+            if (can.optBoolean("edit_worker")) HeroButton("✎") { onEdit(id) }
+            if (can.optBoolean("delete_worker")) { Spacer(Modifier.size(8.dp)); com.example.gavanhomes.ui.common.DeleteButton { askDelete = true } }
+        }) {
             Column {
                 Text(x.optString("name"), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                 Text(listOfNotNull(x.str("trade"), x.str("contractor")).joinToString(" · ").ifEmpty { "Worker" }, color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
@@ -240,7 +250,7 @@ fun WorkerFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/projects/$uuid/attendance-center/workers/$id", body) else api.send("POST", "/projects/$uuid/attendance-center/workers", body) }
-                Toast.makeText(context, if (id != null) "Worker saved" else "Worker added", Toast.LENGTH_SHORT).show(); onSaved()
+                AppToast.show(if (id != null) "Worker saved" else "Worker added"); onSaved()
             } catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
             catch (ex: Exception) { banner = ex.message ?: "Could not save" }
             saving = false

@@ -55,7 +55,7 @@ object ChatAlerts {
     const val CHANNEL = "chat_messages"
     const val GROUP = "gavan_chats"
     const val SUMMARY_ID = 41_000
-    const val UPDATES = "app_updates"
+    const val UPDATES = "task_alerts"      // high importance: pops up on screen (the old "app_updates" channel was a quiet one and cannot be changed once created)
     const val UPDATES_GROUP = "gavan_updates"
     const val UPDATES_SUMMARY_ID = 41_001
     const val ACTION_REPLY = "com.example.gavanhomes.CHAT_REPLY"
@@ -218,8 +218,9 @@ object ChatAlerts {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = app.getSystemService(NotificationManager::class.java)
+            nm.deleteNotificationChannel("app_updates")
             if (nm.getNotificationChannel(UPDATES) == null) {
-                nm.createNotificationChannel(NotificationChannel(UPDATES, "Tasks, targets & updates", NotificationManager.IMPORTANCE_DEFAULT).apply { description = "Task, target, lead and bid notifications" })
+                nm.createNotificationChannel(NotificationChannel(UPDATES, "Tasks, targets & updates", NotificationManager.IMPORTANCE_HIGH).apply { description = "Task, target, lead and bid notifications" })
             }
         }
         val open = PendingIntent.getActivity(
@@ -233,7 +234,7 @@ object ChatAlerts {
             items.take(6).forEach { inbox.addLine(it.optString("title")) }
             val summary = NotificationCompat.Builder(app, UPDATES).setSmallIcon(android.R.drawable.stat_notify_more).setColor(BRAND)
                 .setContentTitle("${items.size} new notifications").setContentText(items.first().optString("title")).setStyle(inbox)
-                .setContentIntent(open).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_DEFAULT).setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setContentIntent(open).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_HIGH).setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setGroup(UPDATES_GROUP).setGroupSummary(true).setNumber(items.size).build()
             runCatching { nm.notify(UPDATES_SUMMARY_ID, summary) }
         }
@@ -244,12 +245,19 @@ object ChatAlerts {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val message = it.optString("message").ifBlank { it.optString("title") }
+            // a task / target alert opens that page when tapped; the others open the notifications list
+            val target = com.example.gavanhomes.ui.common.DeepLink.from(it)
+            val tap = if (target == null) open else PendingIntent.getActivity(
+                app, id, Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    .putExtra("open_kind", target.kind).putExtra("open_id", target.id).putExtra("open_project", target.project).putExtra("open_notifications", false),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
             val whenMs = runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant().toEpochMilli() }.getOrDefault(System.currentTimeMillis())
             val n = NotificationCompat.Builder(app, UPDATES).setSmallIcon(if (it.optString("kind") == "task" || it.optString("kind") == "target") android.R.drawable.ic_menu_agenda else android.R.drawable.stat_notify_more)
                 .setColor(BRAND).setContentTitle(it.optString("title")).setContentText(message).setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setSubText(it.optString("site").takeIf { s -> s.isNotBlank() && s != "null" }).setWhen(whenMs).setShowWhen(true)
-                .setContentIntent(open).addAction(0, "Mark as read", note).setGroup(UPDATES_GROUP).setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT).setDefaults(NotificationCompat.DEFAULT_ALL).setCategory(NotificationCompat.CATEGORY_REMINDER).build()
+                .setContentIntent(tap).addAction(0, "Mark as read", note).setGroup(UPDATES_GROUP).setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH).setDefaults(NotificationCompat.DEFAULT_ALL).setCategory(NotificationCompat.CATEGORY_REMINDER).build()
             runCatching { nm.notify(id, n) }
         }
     }

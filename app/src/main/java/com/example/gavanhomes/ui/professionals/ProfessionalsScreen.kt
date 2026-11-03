@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.professionals
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.bounceClick
 import com.example.gavanhomes.ui.common.appear
@@ -185,7 +187,7 @@ fun ProfessionalsScreen(
     }
 
     fun refresh() { loadedAt.clear(); reload++ }
-    fun fail(e: Exception) = Toast.makeText(context, e.message ?: "Something went wrong", Toast.LENGTH_LONG).show()
+    fun fail(e: Exception) = AppToast.show(e.message ?: "Something went wrong")
 
     val sidebarCounts = mapOf(
         1 to (pros?.size ?: dash?.optJSONObject("stats")?.optInt("total")),
@@ -228,7 +230,7 @@ fun ProfessionalsScreen(
                             }
                             sidebarCounts[i]?.let { n ->
                                 Text(n.toString(), color = if (on) b.dark else KitMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) Color.White else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 10.dp, vertical = 4.dp))
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(if (on) com.example.gavanhomes.ui.common.KitCard else com.example.gavanhomes.ui.common.KitPage).padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                     }
@@ -348,7 +350,7 @@ fun ProfessionalsScreen(
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) { api.delete("/professionals/${p.uuid}") }
-                        Toast.makeText(context, "Professional deleted", Toast.LENGTH_SHORT).show(); refresh()
+                        AppToast.show("Professional deleted"); refresh()
                     } catch (e: Exception) { fail(e) }
                 }
             },
@@ -540,7 +542,7 @@ private fun TypeSheet(api: ApiClient, type: JSONObject, onDismiss: () -> Unit, o
                             try {
                                 val body = JSONObject().put("name", name.trim()).put("description", description.trim().ifEmpty { JSONObject.NULL }).put("status", if (active) 1 else 0)
                                 withContext(Dispatchers.IO) { if (id == 0) api.send("POST", "/professional-types", body) else api.send("PUT", "/professional-types/$id", body) }
-                                Toast.makeText(context, if (id == 0) "Type created" else "Type saved", Toast.LENGTH_SHORT).show(); onChanged()
+                                AppToast.show(if (id == 0) "Type created" else "Type saved"); onChanged()
                             } catch (e: ApiException) { error = e.errors["name"] ?: e.message }
                             catch (e: Exception) { error = e.message }
                             saving = false
@@ -560,8 +562,8 @@ private fun TypeSheet(api: ApiClient, type: JSONObject, onDismiss: () -> Unit, o
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) { api.delete("/professional-types/$id") }
-                    Toast.makeText(context, "Type deleted", Toast.LENGTH_SHORT).show(); onChanged()
-                } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+                    AppToast.show("Type deleted"); onChanged()
+                } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
             }
         },
     )

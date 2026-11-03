@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.files
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.content.Intent
 import android.webkit.MimeTypeMap
 import android.widget.Toast
@@ -181,8 +183,8 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.sendForm("/projects/$uuid/file-center/files/${f.optString("id")}/replace", listOf(FormPart("file", fileName = file.name, mime = file.mime, bytes = file.bytes))) }
-                Toast.makeText(context, r.str("message") ?: "New version uploaded", Toast.LENGTH_SHORT).show(); local++
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not upload", Toast.LENGTH_LONG).show() }
+                AppToast.show(r.str("message") ?: "New version uploaded"); local++
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not upload") }
             replacing = null
         }
     }
@@ -204,15 +206,15 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
                 val mime = mimeOf(file, ext)
                 val uri = withContext(Dispatchers.IO) { Downloads.save(context, file, mime, bytes) }
                 val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                runCatching { context.startActivity(view) }.onFailure { Toast.makeText(context, "Saved to Downloads/GavanHomes", Toast.LENGTH_LONG).show() }
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not open the file", Toast.LENGTH_LONG).show() }
+                runCatching { context.startActivity(view) }.onFailure { AppToast.show("Saved to Downloads/GavanHomes") }
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not open the file") }
             busy = null
         }
     }
     fun act(done: String, call: suspend () -> Unit) {
         scope.launch {
-            try { withContext(Dispatchers.IO) { call() }; Toast.makeText(context, done, Toast.LENGTH_SHORT).show(); local++ }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not do that", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { call() }; AppToast.show(done); local++ }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not do that") }
         }
     }
 
@@ -326,7 +328,7 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
     renaming?.let { (kind, f) ->
         TextSheet(if (kind == "folder") "Rename folder" else "Rename file", "Name", f.optString("name"), "Save", b, onClose = { renaming = null }) { name ->
             withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/${if (kind == "folder") "folders" else "files"}/${f.optString("id")}/rename", JSONObject().put("name", name)) }
-            Toast.makeText(context, "Renamed", Toast.LENGTH_SHORT).show(); renaming = null; local++
+            AppToast.show("Renamed"); renaming = null; local++
         }
     }
     moving?.let { f -> MoveSheet(api, b, uuid, f, onClose = { moving = null }) { moving = null; local++ } }
@@ -334,17 +336,17 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
     asking?.let { f ->
         TextSheet("Request access", "Why do you need “${f.optString("name")}”?", "", "Send request", b, multiline = true, onClose = { asking = null }) { reason ->
             withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/request-access", JSONObject().put("file_id", f.optString("id")).put("reason", reason)) }
-            Toast.makeText(context, "Access requested — you'll be told when it's reviewed", Toast.LENGTH_LONG).show(); asking = null; local++
+            AppToast.show("Access requested — you'll be told when it's reviewed"); asking = null; local++
         }
     }
     if (newFolder) TextSheet("New folder", "Folder name", "", "Create folder", b, note = path.lastOrNull()?.let { "Inside ${it.second}" }, onClose = { newFolder = false }) { name ->
         withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/folders", JSONObject().put("name", name).put("parent_id", folderId ?: JSONObject.NULL)) }
-        Toast.makeText(context, "Folder created", Toast.LENGTH_SHORT).show(); newFolder = false; local++
+        AppToast.show("Folder created"); newFolder = false; local++
     }
     picked?.let { p -> UploadSheet(api, b, uuid, p, path.lastOrNull(), onClose = { picked = null }) { picked = null; local++ } }
     if (quota) TextSheet("Storage quota", "Allowance for this project (GB)", overview?.optJSONObject("storage")?.optInt("quota_gb")?.toString() ?: "50", "Save", b, number = true, onClose = { quota = false }) { gb ->
         withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/quota", JSONObject().put("quota_gb", gb.toIntOrNull() ?: 0)) }
-        Toast.makeText(context, "Storage quota updated", Toast.LENGTH_SHORT).show(); quota = false; local++
+        AppToast.show("Storage quota updated"); quota = false; local++
     }
     deleting?.let { (kind, f) ->
         SwalConfirm(
@@ -553,7 +555,7 @@ private fun UploadSheet(api: ApiClient, b: Branding, uuid: String, p: PickedFile
                                 description.takeIf { it.isNotBlank() }?.let { FormPart("description", it.trim()) }, folder?.let { FormPart("folder_id", it.first) },
                             ))
                         }
-                        Toast.makeText(context, "File uploaded", Toast.LENGTH_SHORT).show(); onDone()
+                        AppToast.show("File uploaded"); onDone()
                     } catch (e: ApiException) { error = e.errors.values.firstOrNull() ?: e.message }
                     catch (e: Exception) { error = e.message ?: "Could not upload" }
                     saving = false
@@ -576,15 +578,15 @@ private fun MoveSheet(api: ApiClient, b: Branding, uuid: String, f: JSONObject, 
     var list by remember { mutableStateOf<List<JSONObject>?>(null) }
     LaunchedEffect(Unit) {
         try { list = withContext(Dispatchers.IO) { api.get("/projects/$uuid/file-center/folder-list") }.objs("data") }
-        catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not load folders", Toast.LENGTH_LONG).show(); onClose() }
+        catch (e: Exception) { AppToast.show(e.message ?: "Could not load folders"); onClose() }
     }
     val l = list ?: return
     ChoiceSheet("Move “${f.optString("name")}” to", l.filter { !it.optBoolean("static") }.map { Choice(it.optString("id"), it.optString("path")) }, null, b, allowNone = true, noneLabel = "All files (root)", onClose = onClose) { id ->
         scope.launch {
             try {
                 val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/files/${f.optString("id")}/move", JSONObject().put("folder_id", id.ifBlank { null } ?: JSONObject.NULL)) }
-                Toast.makeText(context, r.str("message") ?: "Moved", Toast.LENGTH_SHORT).show(); onDone()
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not move", Toast.LENGTH_LONG).show(); onClose() }
+                AppToast.show(r.str("message") ?: "Moved"); onDone()
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not move"); onClose() }
         }
     }
 }
@@ -600,10 +602,10 @@ private fun ShareSheet(api: ApiClient, b: Branding, uuid: String, f: JSONObject,
         try {
             people = withContext(Dispatchers.IO) { api.get("/projects/$uuid/file-center/people") }.objs("data")
             current = withContext(Dispatchers.IO) { api.detail("/projects/$uuid/file-center/files/${f.optString("id")}") }.objs("shares").map { it.optInt("id") }.toSet()
-        } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not load", Toast.LENGTH_LONG).show(); onClose() }
+        } catch (e: Exception) { AppToast.show(e.message ?: "Could not load"); onClose() }
     }
     val p = people ?: return
-    if (p.isEmpty()) { LaunchedEffect(Unit) { Toast.makeText(context, "No one is on this project's team yet", Toast.LENGTH_LONG).show(); onClose() }; return }
+    if (p.isEmpty()) { LaunchedEffect(Unit) { AppToast.show("No one is on this project's team yet"); onClose() }; return }
     PeoplePick(p, current, b, "Share “${f.optString("name")}”", onClose = onClose) { ids ->
         val add = ids.filter { it !in current }; val remove = current.filter { it !in ids }
         scope.launch {
@@ -612,8 +614,8 @@ private fun ShareSheet(api: ApiClient, b: Branding, uuid: String, f: JSONObject,
                     if (add.isNotEmpty()) api.send("POST", "/projects/$uuid/file-center/files/${f.optString("id")}/share", JSONObject().put("user_ids", JSONArray(add)))
                     remove.forEach { api.send("POST", "/projects/$uuid/file-center/files/${f.optString("id")}/share", JSONObject().put("user_id", it)) }
                 }
-                Toast.makeText(context, if (add.isEmpty() && remove.isEmpty()) "No changes" else "Sharing updated", Toast.LENGTH_SHORT).show(); onDone()
-            } catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not share", Toast.LENGTH_LONG).show(); onClose() }
+                AppToast.show(if (add.isEmpty() && remove.isEmpty()) "No changes" else "Sharing updated"); onDone()
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not share"); onClose() }
         }
     }
 }
@@ -655,7 +657,7 @@ private fun Requests(api: ApiClient, b: Branding, uuid: String, version: Int, on
     deciding?.let { (r, to) ->
         TextSheet(if (to == "approved") "Approve access" else "Deny access", "Note for ${r.optString("by")} (optional)", "", if (to == "approved") "Approve" else "Deny", b, multiline = true, allowEmpty = true, onClose = { deciding = null }) { note ->
             withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/requests/${r.optInt("id")}", JSONObject().put("status", to).put("reviewer_notes", note.ifBlank { JSONObject.NULL })) }
-            Toast.makeText(context, if (to == "approved") "Approved — they can open the file now" else "Denied", Toast.LENGTH_SHORT).show(); deciding = null; local++; onChanged()
+            AppToast.show(if (to == "approved") "Approved — they can open the file now" else "Denied"); deciding = null; local++; onChanged()
         }
     }
 }

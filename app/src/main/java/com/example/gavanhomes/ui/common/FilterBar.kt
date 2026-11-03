@@ -181,7 +181,7 @@ private fun FilterPage(groups: List<FilterGroup>, selected: Map<String, Set<Stri
                         val on = i == active
                         val n = draft[g.key]?.size ?: 0
                         Row(
-                            Modifier.fillMaxWidth().background(if (on) Color.White else Color.Transparent).clickable { active = i }.padding(vertical = 18.dp),
+                            Modifier.fillMaxWidth().background(if (on) com.example.gavanhomes.ui.common.KitCard else Color.Transparent).clickable { active = i }.padding(vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(Modifier.width(4.dp).height(22.dp).background(if (on) Blue else Color.Transparent))

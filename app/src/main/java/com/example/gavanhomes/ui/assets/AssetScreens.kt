@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.assets
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -139,8 +141,8 @@ fun AssetDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, versio
     }
     if (askDelete) SwalConfirm(title = "Delete ${x.optString("name")}?", text = "It is removed from the register.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
-            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/asset-center/assets/$id") }; Toast.makeText(context, "Asset deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/asset-center/assets/$id") }; AppToast.show("Asset deleted"); onChanged(); onBack() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         } }, onCancel = { askDelete = false })
 }
 
@@ -193,8 +195,8 @@ fun MaintenanceDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, 
     }
     if (askDelete) SwalConfirm(title = "Delete this maintenance job?", text = "The asset's maintenance total is worked out again.", confirmText = "Yes, delete",
         onConfirm = { askDelete = false; scope.launch {
-            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/asset-center/maintenances/$id") }; Toast.makeText(context, "Maintenance deleted", Toast.LENGTH_SHORT).show(); onChanged(); onBack() }
-            catch (e: Exception) { Toast.makeText(context, e.message ?: "Could not delete", Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { api.delete("/projects/$uuid/asset-center/maintenances/$id") }; AppToast.show("Maintenance deleted"); onChanged(); onBack() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
         } }, onCancel = { askDelete = false })
 }
 
@@ -229,7 +231,7 @@ private fun save(context: android.content.Context, scope: kotlinx.coroutines.Cor
                  setSaving: (Boolean) -> Unit, setErrors: (Map<String, String>, String?) -> Unit, done: () -> Unit) {
     setSaving(true)
     scope.launch {
-        try { withContext(Dispatchers.IO) { api.send(method, path, body) }; Toast.makeText(context, ok, Toast.LENGTH_SHORT).show(); done() }
+        try { withContext(Dispatchers.IO) { api.send(method, path, body) }; AppToast.show(ok); done() }
         catch (e: ApiException) { setErrors(e.errors, e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message) }
         catch (e: Exception) { setErrors(emptyMap(), e.message ?: "Could not save") }
         setSaving(false)

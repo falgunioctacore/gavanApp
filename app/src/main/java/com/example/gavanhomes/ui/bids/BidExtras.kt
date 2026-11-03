@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.bids
 
+import com.example.gavanhomes.ui.common.AppToast
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
@@ -184,8 +186,8 @@ internal fun BidSettings(api: ApiClient, b: Branding, uuid: String, version: Int
     }
     fun act(success: String, call: () -> Unit) {
         scope.launch {
-            try { withContext(Dispatchers.IO) { call() }; android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show(); attempt++; onChanged() }
-            catch (e: Exception) { android.widget.Toast.makeText(context, e.message ?: "Could not save", android.widget.Toast.LENGTH_LONG).show() }
+            try { withContext(Dispatchers.IO) { call() }; AppToast.show(success); attempt++; onChanged() }
+            catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
         }
     }
 
