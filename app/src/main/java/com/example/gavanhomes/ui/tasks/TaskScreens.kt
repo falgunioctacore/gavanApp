@@ -306,7 +306,7 @@ Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size}
                         if (people.isEmpty()) Text("Nobody yet.", color = KitMuted, fontSize = 14.sp)
                         people.forEach { p ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Initials(p.optString("name"), size = 38.dp)
+                                com.example.gavanhomes.ui.common.PersonAvatar(p.optInt("id"), p.optString("name"), 38.dp)
                                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                                     Text(p.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                     p.str("phone")?.let { Text(it, color = KitMuted, fontSize = 12.sp) }
@@ -498,8 +498,8 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var assignNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }              // "type:id" → name, for showing who is picked
     var assignTab by remember { mutableStateOf("employee") }                                     // the assignee type tab, like the website's
     var visited by remember { mutableStateOf<Set<String>>(emptySet()) }                          // types looked at — only those are sent, so the others stay as they were
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var leadSheet by remember { mutableStateOf(false) }
     var typeSheet by remember { mutableStateOf(false) }
@@ -819,7 +819,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                                     }.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Initials(p.optString("name"), size = 34.dp)
+                                com.example.gavanhomes.ui.common.PersonAvatar(if (kind == "user") pid else 0, p.optString("name"), 34.dp)
                                 Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                                 Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) b.base else Color.Transparent).border(2.dp, if (on) b.base else Color(0xFF9E9E9E), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                                     if (on) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
@@ -1014,7 +1014,7 @@ private fun SubPeopleSheet(all: List<JSONObject>, selected: Set<Int>, onChange: 
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) Blue.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { onChange(if (on) selected - pid else selected + pid) }.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Initials(p.optString("name"), size = 34.dp)
+                        com.example.gavanhomes.ui.common.PersonAvatar(pid, p.optString("name"), 34.dp)
                         Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                         if (on) Text("✓", color = Blue, fontWeight = FontWeight.ExtraBold)
                     }

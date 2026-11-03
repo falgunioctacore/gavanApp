@@ -119,7 +119,7 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
     var attempt by remember { mutableIntStateOf(0) }
     var tab by remember { mutableIntStateOf(0) }
     var saving by remember { mutableStateOf(false) }
-    var banner by remember { mutableStateOf<List<String>>(emptyList()) }
+    var banner by com.example.gavanhomes.ui.common.rememberBannerListState()
     var picker by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     var initial by remember { mutableStateOf<List<Any>?>(null) }   // the values as loaded, to tell whether anything was changed

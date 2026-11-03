@@ -205,6 +205,7 @@ class ApiClient(private val tokenProvider: () -> String?) {
                 val errs = json.optJSONObject("errors")
                 val message = json.optString("message").ifEmpty { errs?.let { firstError(it) } ?: "Request failed ($code)" }
                 val fields = errs?.keys()?.asSequence()?.associateWith { k -> errs.optJSONArray(k)?.optString(0).orEmpty() } ?: emptyMap()
+                if (code == 422 && method != "GET") WriteNotice.invalid(message)
                 throw ApiException(code, message, fields)
             }
             if (method != "GET") WriteNotice.ok(path, json.optString("message"))

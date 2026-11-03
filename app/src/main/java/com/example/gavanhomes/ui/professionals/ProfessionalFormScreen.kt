@@ -94,8 +94,8 @@ fun ProfessionalFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: (
     val photo = remember { FileSlot() }
     val certification = remember { FileSlot() }
     var typeId by remember { mutableStateOf<Int?>(null) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<List<String>>(emptyList()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerListState()
 
     var types by remember { mutableStateOf<List<Choice>>(emptyList()) }
     var statuses by remember { mutableStateOf<List<String>>(emptyList()) }

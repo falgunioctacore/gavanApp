@@ -438,8 +438,8 @@ fun IndentFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Un
     val people = remember { mutableStateListOf<Int>() }
     var remarks by remember { mutableStateOf("") }
     val lines = remember { mutableStateListOf<IndentLine>() }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val back = leaveGuard(lines.isNotEmpty() || purpose.isNotBlank() || remarks.isNotBlank(), onBack)
@@ -530,8 +530,8 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
     var remarks by remember { mutableStateOf("") }
     var terms by remember { mutableStateOf("") }
     val lines = remember { mutableStateListOf<PoLine>() }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val back = leaveGuard(lines.isNotEmpty() || vendor > 0, onBack)
@@ -621,8 +621,8 @@ fun ReceiveFormScreen(api: ApiClient, b: Branding, uuid: String, poId: Int, onBa
     var invoiceAmount by remember { mutableStateOf("") }
     var invoiceDate by remember { mutableStateOf(LocalDate.now().toString()) }
     var remarks by remember { mutableStateOf("") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf(false) }
     LaunchedEffect(po) {
@@ -697,8 +697,8 @@ fun SupplierFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
     var loaded by remember { mutableStateOf(id == null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var initial by remember { mutableStateOf<Map<String, String>?>(null) }
     LaunchedEffect(attempt) {

@@ -92,7 +92,7 @@ fun AppSettingsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onSaved: 
     val scope = rememberCoroutineScope()
     val text = remember { mutableStateMapOf<String, String>() }       // app_name, theme_color — and the website-only colours, kept as they are
     var logo by remember { mutableStateOf<PickedFile?>(null) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }

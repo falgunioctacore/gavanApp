@@ -1,5 +1,7 @@
 package com.example.gavanhomes.ui.projects
 
+import kotlinx.coroutines.launch
+
 import com.example.gavanhomes.ui.common.softShadow
 import com.example.gavanhomes.ui.common.appear
 import androidx.compose.foundation.background
@@ -75,6 +77,7 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
     var search by remember(module) { mutableStateOf("") }
     var stats by remember(module) { mutableStateOf<List<JSONObject>>(emptyList()) }
     val rows = remember(module) { mutableStateListOf<JSONObject>() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var page by remember(module) { mutableIntStateOf(1) }
     var lastPage by remember(module) { mutableIntStateOf(1) }
     var total by remember(module) { mutableIntStateOf(0) }
@@ -122,9 +125,8 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
     }
     // next page: shown as a button so a long list never loads more than the user asks for
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page, module) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 }
 

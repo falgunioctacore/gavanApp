@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         com.example.gavanhomes.data.Net.start(applicationContext)
         com.example.gavanhomes.data.WriteNotice.listener = { com.example.gavanhomes.ui.common.AppToast.fallback(it) }      // a toast after any change, even where a screen showed none
+        com.example.gavanhomes.data.WriteNotice.invalidListener = { com.example.gavanhomes.ui.common.AppToast.error(it) }      // a missing / invalid field reported by the server is a toast too
         AppTheme.mode = SessionStore(this).theme
         openChatFrom(intent)
         setContent {

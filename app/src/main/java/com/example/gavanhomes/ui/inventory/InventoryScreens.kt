@@ -317,12 +317,18 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     val f = remember { androidx.compose.runtime.mutableStateMapOf<String, String>() }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     var initial by remember { mutableStateOf<Map<String, String>?>(null) }
-    val fields = listOf("name", "code", "uom_id", "category_id", "opening_stock", "stock_as_of_date", "stock_at_price", "min_stock", "rate", "purchase_price", "tax_rate", "hsn_code", "brand_name", "location", "specifications")
+    val fields = listOf("name", "code", "uom_id", "category_id", "opening_stock", "stock_as_of_date", "stock_at_price", "min_stock", "rate", "purchase_price", "tax_rate", "hsn_code", "brand_name", "location", "specifications",
+        "sale_price_type", "sale_discount", "sale_discount_type", "wholesale_min_qty", "wholesale_price", "wholesale_price_type", "purchase_price_type", "gst", "terms", "length", "breadth", "diameter", "height", "weight", "colour")
+    val numeric = setOf("opening_stock", "stock_at_price", "min_stock", "rate", "purchase_price", "sale_discount", "wholesale_min_qty", "wholesale_price", "gst", "length", "breadth", "diameter", "height", "weight")
+    var photo by remember { mutableStateOf<com.example.gavanhomes.ui.projects.form.PickedFile?>(null) }       // a new picture for the material
+    var removePhoto by remember { mutableStateOf(false) }
+    var currentPhoto by remember { mutableStateOf<String?>(null) }
+    val pickPhoto = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri -> uri?.let { com.example.gavanhomes.ui.projects.form.readPicked(context, it) }?.let { photo = it; removePhoto = false } }
     fun num(v: Any?): String = (v as? Number)?.toDouble()?.takeIf { it != 0.0 }?.let { qty(it).replace(",", "") } ?: v?.toString()?.takeIf { it != "null" && it.toDoubleOrNull() != 0.0 }.orEmpty()
 
     LaunchedEffect(attempt) {
@@ -333,11 +339,12 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
                 val x = withContext(Dispatchers.IO) { api.detail("/inventory-center/materials/$id?project=$uuid") }
                 fields.forEach { k ->
                     f[k] = when (k) {
-                        "opening_stock", "stock_at_price", "min_stock", "rate", "purchase_price" -> num(x.opt(k))
+                        in numeric -> num(x.opt(k))
                         "uom_id", "category_id" -> x.optInt(k).takeIf { it > 0 }?.toString().orEmpty()
                         else -> x.str(k).orEmpty()
                     }
                 }
+                currentPhoto = x.str("image")
             } else f["stock_as_of_date"] = LocalDate.now().toString()
             options = o
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
@@ -348,7 +355,8 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
         val problems = mutableMapOf<String, String>()
         if (f["name"].isNullOrBlank()) problems["name"] = "Enter the material's name."
         if (f["uom_id"].isNullOrBlank()) problems["uom_id"] = "Choose the unit it is counted in."
-        listOf("opening_stock", "stock_at_price", "min_stock", "rate", "purchase_price").forEach { k -> f[k]?.takeIf { it.isNotBlank() }?.let { if (it.toDoubleOrNull() == null || it.toDouble() < 0) problems[k] = "Enter a number (0 or more)." } }
+        numeric.forEach { k -> f[k]?.takeIf { it.isNotBlank() }?.let { if (it.toDoubleOrNull() == null || it.toDouble() < 0) problems[k] = "Enter a number (0 or more)." } }
+        f["gst"]?.toDoubleOrNull()?.let { if (it > 100) problems["gst"] = "GST can't be more than 100%." }
         if (problems.isNotEmpty()) { errors = problems; banner = problems.values.first(); return }
         val body = JSONObject()
         fields.forEach { k ->
@@ -356,15 +364,25 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
             body.put(k, when {
                 v.isEmpty() -> JSONObject.NULL
                 k in setOf("uom_id", "category_id") -> v.toInt()
-                k in setOf("opening_stock", "stock_at_price", "min_stock", "rate", "purchase_price") -> v.toDouble()
+                k in numeric -> v.toDouble()
                 else -> v
             })
         }
         body.put("project", uuid)
+        if (removePhoto) body.put("remove_image", true)
         errors = emptyMap(); banner = null; saving = true
         scope.launch {
             try {
-                withContext(Dispatchers.IO) { if (id != null) api.send("PUT", "/inventory-center/materials/$id", body) else api.send("POST", "/projects/$uuid/inventory-center/materials", body) }
+                withContext(Dispatchers.IO) {
+                    val pic = photo
+                    if (pic != null) {
+                        // a form with a picture goes as multipart (a POST either way)
+                        val parts = mutableListOf<com.example.gavanhomes.data.FormPart>(com.example.gavanhomes.data.FormPart("project", value = uuid))
+                        fields.forEach { k -> body.opt(k)?.takeIf { it != JSONObject.NULL }?.let { parts.add(com.example.gavanhomes.data.FormPart(k, value = it.toString())) } }
+                        parts.add(com.example.gavanhomes.data.FormPart("image", fileName = pic.name, mime = pic.mime, bytes = pic.bytes))
+                        api.sendForm(if (id != null) "/inventory-center/materials/$id/update" else "/projects/$uuid/inventory-center/materials", parts)
+                    } else if (id != null) api.send("PUT", "/inventory-center/materials/$id", body) else api.send("POST", "/projects/$uuid/inventory-center/materials", body)
+                }
                 AppToast.show(if (id != null) "Material saved" else "Material created")
                 onSaved()
             } catch (e: ApiException) { errors = e.errors; banner = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message }
@@ -394,17 +412,45 @@ fun MaterialFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
                 }
                 Card("Pricing & tax") {
                     Input("Sale rate (₹)", f["rate"].orEmpty(), { f["rate"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["rate"], keyboard = KeyboardType.Decimal)
+                    Label("Sale rate is")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { listOf("with_tax" to "With tax", "without_tax" to "Without tax").forEach { (k, l) -> Pick(l, f["sale_price_type"] == k, InvBlue) { f["sale_price_type"] = if (f["sale_price_type"] == k) "" else k } } }
+                    Input("Sale discount", f["sale_discount"].orEmpty(), { f["sale_discount"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["sale_discount"], keyboard = KeyboardType.Decimal)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { listOf("percentage" to "Percentage %", "amount" to "Amount ₹").forEach { (k, l) -> Pick(l, f["sale_discount_type"] == k, InvBlue) { f["sale_discount_type"] = if (f["sale_discount_type"] == k) "" else k } } }
                     Input("Purchase price (₹)", f["purchase_price"].orEmpty(), { f["purchase_price"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["purchase_price"], keyboard = KeyboardType.Decimal)
+                    Label("Purchase price is")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { listOf("with_tax" to "With tax", "without_tax" to "Without tax").forEach { (k, l) -> Pick(l, f["purchase_price_type"] == k, InvBlue) { f["purchase_price_type"] = if (f["purchase_price_type"] == k) "" else k } } }
+                    Input("Wholesale price (₹)", f["wholesale_price"].orEmpty(), { f["wholesale_price"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["wholesale_price"], keyboard = KeyboardType.Decimal)
+                    Input("Wholesale minimum quantity", f["wholesale_min_qty"].orEmpty(), { f["wholesale_min_qty"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["wholesale_min_qty"], keyboard = KeyboardType.Decimal)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { listOf("with_tax" to "With tax", "without_tax" to "Without tax").forEach { (k, l) -> Pick("Wholesale " + l.lowercase(), f["wholesale_price_type"] == k, InvBlue) { f["wholesale_price_type"] = if (f["wholesale_price_type"] == k) "" else k } } }
                     Label("Tax rate")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         o.optJSONArray("tax_rates")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().forEach { t -> Pick(t, f["tax_rate"] == t, InvBlue) { f["tax_rate"] = if (f["tax_rate"] == t) "" else t } }
                     }
+                    Input("GST %", f["gst"].orEmpty(), { f["gst"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["gst"], keyboard = KeyboardType.Decimal)
                     Input("HSN code", f["hsn_code"].orEmpty(), { f["hsn_code"] = it }, errors["hsn_code"])
                 }
                 Card("More") {
                     Input("Brand", f["brand_name"].orEmpty(), { f["brand_name"] = it }, errors["brand_name"])
                     Input("Location", f["location"].orEmpty(), { f["location"] = it }, errors["location"])
+                    Input("Colour", f["colour"].orEmpty(), { f["colour"] = it }, errors["colour"])
                     Input("Specifications", f["specifications"].orEmpty(), { f["specifications"] = it }, errors["specifications"], singleLine = false)
+                    Input("Terms", f["terms"].orEmpty(), { f["terms"] = it }, errors["terms"], singleLine = false)
+                }
+                Card("Size", "Optional dimensions and weight") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f)) { Input("Length", f["length"].orEmpty(), { f["length"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["length"], keyboard = KeyboardType.Decimal) }
+                        Box(Modifier.weight(1f)) { Input("Breadth", f["breadth"].orEmpty(), { f["breadth"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["breadth"], keyboard = KeyboardType.Decimal) }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f)) { Input("Height", f["height"].orEmpty(), { f["height"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["height"], keyboard = KeyboardType.Decimal) }
+                        Box(Modifier.weight(1f)) { Input("Diameter", f["diameter"].orEmpty(), { f["diameter"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["diameter"], keyboard = KeyboardType.Decimal) }
+                    }
+                    Input("Weight", f["weight"].orEmpty(), { f["weight"] = it.filter { c -> c.isDigit() || c == '.' } }, errors["weight"], keyboard = KeyboardType.Decimal)
+                }
+                Card("Photo", "A picture of the material (optional)") {
+                    val shown = if (photo != null) photo?.name else if (currentPhoto != null && !removePhoto) "Current picture" else null
+                    PickerField("Picture", shown) { pickPhoto.launch("image/*") }
+                    if (photo != null || (currentPhoto != null && !removePhoto)) Text("Remove picture", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { photo = null; removePhoto = currentPhoto != null }.padding(vertical = 4.dp))
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -441,8 +487,8 @@ fun DocFormScreen(api: ApiClient, b: Branding, uuid: String, kind: String, onBac
     var to by remember { mutableIntStateOf(0) }
     var remarks by remember { mutableStateOf("") }
     val lines = remember { mutableStateListOf<Line>() }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
 
@@ -546,7 +592,7 @@ internal fun PeoplePick(users: List<JSONObject>, current: Set<Int>, b: Branding,
                 users.filter { q.isBlank() || it.optString("name").contains(q, true) }.forEach { u ->
                     val id = u.optInt("id"); val on = id in picked
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { if (on) picked.remove(id) else picked.add(id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        com.example.gavanhomes.ui.common.Initials(u.optString("name"), size = 30.dp)
+                        com.example.gavanhomes.ui.common.PersonAvatar(id, u.optString("name"), 34.dp)
                         Text(u.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                         if (on) Text("✓", color = b.base, fontWeight = FontWeight.ExtraBold)
                     }

@@ -405,7 +405,7 @@ private fun TemplateForm(api: ApiClient, b: Branding, uuid: String, email: Boole
     val original = t.optString("text")
     var text by remember { mutableStateOf(original) }
     var pickModule by remember { mutableStateOf(false) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     val rich = t.optBoolean("rich")
     fun save() {
@@ -486,8 +486,8 @@ fun ComposeScreen(api: ApiClient, b: Branding, uuid: String, channel: String, te
     var source by remember { mutableStateOf<Pair<String, List<JSONObject>>?>(null) }
     var loadingSource by remember { mutableStateOf<String?>(null) }
     var pickTemplate by remember { mutableStateOf(false) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
 
     fun use(t: JSONObject) {

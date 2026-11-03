@@ -93,8 +93,8 @@ fun HrFormScreen(api: ApiClient, b: Branding, slug: String, id: Int?, onBack: ()
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<List<String>>(emptyList()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerListState()
     var saving by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<HrField?>(null) }
     var initial by remember { mutableStateOf<Map<String, String>?>(null) }   // the values as loaded, to tell whether anything was changed

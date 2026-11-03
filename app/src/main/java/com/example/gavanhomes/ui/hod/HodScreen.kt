@@ -344,7 +344,7 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
 @Composable
 private fun DateChip(text: String, onClick: () -> Unit) {
     Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0xFF0F172A)).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp))
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp))
 }
 
 // ─────────────────────────────── overview ───────────────────────────────

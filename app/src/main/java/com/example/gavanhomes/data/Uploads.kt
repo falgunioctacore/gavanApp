@@ -33,6 +33,8 @@ object Uploads {
 object WriteNotice {
     @Volatile var listener: ((String) -> Unit)? = null
     private val quiet = Regex("login|logout|web-session|/thread|/chats|/messages|/read|/discussion|app-info|alerts|/notifications|/typing|/me$|/token|/pin")
+    @Volatile var invalidListener: ((String) -> Unit)? = null
+    fun invalid(message: String?) { val m = message?.trim().orEmpty(); if (m.isNotEmpty()) invalidListener?.invoke(m) }
     fun ok(path: String, message: String?) {
         val text = message?.trim().orEmpty()
         if (text.isEmpty() || text == "null" || quiet.containsMatchIn(path)) return

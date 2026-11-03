@@ -50,11 +50,11 @@ fun PillTabs(tabs: List<PillTab>, selected: Int, accent: Color, onSelect: (Int) 
         val w = widths[selected] ?: 0
         scroll.animateScrollTo((l - (viewport - w) / 2).coerceAtLeast(0))      // keep the open tab in the middle of the bar
     }
-    Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFFEAE7E1)).padding(4.dp).onSizeChanged { viewport = it.width }) {
+    Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (AppTheme.dark) Color(0xFF2A2926) else Color(0xFFEAE7E1)).padding(4.dp).onSizeChanged { viewport = it.width }) {
         Row(Modifier.horizontalScroll(scroll), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             tabs.forEachIndexed { i, t ->
                 val on = i == selected
-                val tabBg by androidx.compose.animation.animateColorAsState(if (on) Color.White else Color.Transparent, androidx.compose.animation.core.tween(260), label = "tab")
+                val tabBg by androidx.compose.animation.animateColorAsState(if (on) (if (AppTheme.dark) Color(0xFF45423D) else Color.White) else Color.Transparent, androidx.compose.animation.core.tween(260), label = "tab")
                 Row(
                     Modifier.onGloballyPositioned { lefts[i] = it.positionInParent().x.toInt(); widths[i] = it.size.width }
                         .then(if (on) Modifier.softShadow(3.dp, RoundedCornerShape(16.dp)) else Modifier)
@@ -65,7 +65,7 @@ fun PillTabs(tabs: List<PillTab>, selected: Int, accent: Color, onSelect: (Int) 
                 ) {
                     Text(t.label, fontSize = 14.sp, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (on) KitInk else KitMuted, maxLines = 1)
                     if (t.count != null && t.count > 0) Box(
-                        Modifier.clip(CircleShape).background(if (on) accent else Color(0xFFD5D1C9)).padding(horizontal = 7.dp, vertical = 2.dp),
+                        Modifier.clip(CircleShape).background(if (on) accent else if (AppTheme.dark) Color(0xFF4A4741) else Color(0xFFD5D1C9)).padding(horizontal = 7.dp, vertical = 2.dp),
                         contentAlignment = Alignment.Center,
                     ) { Text(t.count.toString(), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = if (on) Color.White else KitInk) }
                 }

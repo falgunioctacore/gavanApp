@@ -324,8 +324,8 @@ fun PaymentFormScreen(api: ApiClient, b: Branding, uuid: String, type: String, i
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val f = remember { mutableStateMapOf("transaction_type" to type, "transaction_date" to LocalDate.now().toString(), "transaction_time" to LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")), "payment_mode" to "cash", "method" to "Cash") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val back = leaveGuard(!f["amount"].isNullOrBlank(), onBack)
@@ -411,8 +411,8 @@ fun ExpenseFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBac
     val f = remember { mutableStateMapOf("expense_date" to LocalDate.now().toString(), "payment_type" to "Cash") }
     var gst by remember { mutableStateOf(false) }
     val lines = remember { mutableStateListOf(ExpenseLine()) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     var newCats by remember { mutableStateOf<List<JSONObject>>(emptyList()) }

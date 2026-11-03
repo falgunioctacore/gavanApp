@@ -311,7 +311,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
 private fun FilterButton(text: String, on: Boolean, onClick: () -> Unit) {
     Text(
         text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) com.example.gavanhomes.ui.common.KitInkFill else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 9.dp),
     )
 }
 

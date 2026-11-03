@@ -250,8 +250,8 @@ fun AssetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack:
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val f = remember { mutableStateMapOf("status" to "active") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val title = if (id != null) "Edit asset" else "New asset"
@@ -313,8 +313,8 @@ fun MaintenanceFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, o
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val f = remember { mutableStateMapOf("maintenance_type" to "Routine", "frequency" to "Monthly", "status" to "Scheduled") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val title = if (id != null) "Edit maintenance" else "Schedule maintenance"
@@ -378,8 +378,8 @@ fun TransferFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val f = remember { mutableStateMapOf("transfer_date" to LocalDate.now().toString()) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     val back = leaveGuard(!f["asset_id"].isNullOrBlank(), onBack)

@@ -399,8 +399,8 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
     var photo by remember { mutableStateOf(false) }
     var tier by remember { mutableStateOf(false) }
     var people by remember { mutableStateOf<Set<Int>>(emptySet()) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     // which dropdown is open: "category" | "department" | "lead" | "people"
     var sheet by remember { mutableStateOf<String?>(null) }
@@ -561,15 +561,17 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                                 Text("Assign to", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk, modifier = Modifier.weight(1f))
                                 Text("Done", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { sheet = null }.padding(8.dp))
                             }
-                            Column(Modifier.height(420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            var peopleQuery by remember { mutableStateOf("") }
+                            com.example.gavanhomes.ui.common.SearchBox(peopleQuery, { peopleQuery = it }, "Search by name")
+                            Column(Modifier.height(380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (peopleAll.isEmpty()) Text("This project has no team members yet.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
-                                peopleAll.forEach { p ->
+                                peopleAll.filter { peopleQuery.isBlank() || it.optString("name").contains(peopleQuery.trim(), ignoreCase = true) }.forEach { p ->
                                     val pid = p.optInt("id"); val on = pid in people
                                     Row(
                                         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) b.base.copy(alpha = .14f) else com.example.gavanhomes.ui.common.KitSoft).clickable { people = if (on) people - pid else people + pid }.padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Initials(p.optString("name"), size = 34.dp)
+                                        com.example.gavanhomes.ui.common.PersonAvatar(pid, p.optString("name"), 34.dp)
                                         Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                                         Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) b.base else Color.Transparent).border(2.dp, if (on) b.base else Color(0xFF9E9E9E), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                                             if (on) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)

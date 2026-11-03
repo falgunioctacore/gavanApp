@@ -219,7 +219,7 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
     }
     val src = mapOf("company_name" to "company")
     val f = remember { mutableStateMapOf<String, String>().apply { fields.forEach { (k, _) -> put(k, row.str(src[k] ?: k).orEmpty().takeIf { k != "password" }.orEmpty()) }; row.str("type")?.let { put("type", it) }; row.str("gst_type")?.let { put("gst_type", it) }; row.str("state")?.let { put("state", it) } } }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf<String?>(null) }
     var askDelete by remember { mutableStateOf(false) }
@@ -358,7 +358,7 @@ internal fun GenListSheet(api: ApiClient, b: Branding, uuid: String, l: GenList,
     val f = remember { mutableStateMapOf<String, String>().apply { fields.forEach { (k, _) -> put(k, f0.str(k).orEmpty()) } } }
     var type by remember { mutableStateOf(f0.str("type") ?: "service") }
     var active by remember { mutableStateOf(if (f0.has("is_active")) f0.optBoolean("is_active") else true) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
     val first = fields.first().first

@@ -101,3 +101,23 @@ fun AppToastHost(modifier: Modifier = Modifier) {
     }
 }
 
+
+// ── form messages as toasts ──
+// A form that shows "Enter the name" (a banner, or a message under a field) now also raises it as a toast alert, so it is seen even when
+// the field is scrolled out of view. Used through `var banner by rememberBannerState()` / `var errors by rememberErrorsState()`.
+private class ToastState<T>(private val inner: androidx.compose.runtime.MutableState<T>, private val pick: (T) -> String?) : androidx.compose.runtime.MutableState<T> {
+    override var value: T
+        get() = inner.value
+        set(v) { inner.value = v; pick(v)?.let { AppToast.show(it, AppToast.Kind.Error) } }
+    override fun component1(): T = value
+    override fun component2(): (T) -> Unit = { value = it }
+}
+
+@Composable
+fun rememberBannerState(): androidx.compose.runtime.MutableState<String?> = androidx.compose.runtime.remember { ToastState<String?>(mutableStateOf(null)) { it?.takeIf { s -> s.isNotBlank() } } }
+
+@Composable
+fun rememberBannerListState(): androidx.compose.runtime.MutableState<List<String>> = androidx.compose.runtime.remember { ToastState<List<String>>(mutableStateOf(emptyList())) { it.firstOrNull { s -> s.isNotBlank() } } }
+
+@Composable
+fun rememberErrorsState(): androidx.compose.runtime.MutableState<Map<String, String>> = androidx.compose.runtime.remember { ToastState<Map<String, String>>(mutableStateOf(emptyMap())) { m -> m.values.firstOrNull { it.isNotBlank() } } }

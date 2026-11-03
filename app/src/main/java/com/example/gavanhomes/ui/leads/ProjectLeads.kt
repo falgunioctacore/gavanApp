@@ -301,15 +301,14 @@ private fun LeadList(
         loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 
     when (sheet) {
         "bulk-status" -> ChoiceSheet("Set status", options?.objs("statuses").orEmpty().map { Choice(it.optString("name"), it.optString("name"), tint(it.str("color"))) }, null, b, onClose = { sheet = null }) { sheet = null; bulk("change_status", it) }
         "bulk-label" -> ChoiceSheet("Set label", options?.objs("labels").orEmpty().map { Choice(it.optString("name"), it.optString("name"), labelTintOf(options, it.optString("name"))) }, null, b, onClose = { sheet = null }) { sheet = null; bulk("change_label", it) }
-        "bulk-assign" -> ChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, null, b, onClose = { sheet = null }) { sheet = null; bulk("assign", it) }
+        "bulk-assign" -> PersonChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, null, b, onClose = { sheet = null }) { sheet = null; bulk("assign", it) }
         "bulk-list" -> ChoiceSheet("Move to list", options?.objs("lists").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, null, b, onClose = { sheet = null }) { sheet = null; bulk("move_list", it) }
     }
     if (askDelete) SwalConfirm(
@@ -485,9 +484,8 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
         rows.isEmpty() -> Text("No follow-ups here.", color = KitMuted, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 30.dp))
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 
     if (pickLead) LeadPickSheet(api, uuid, onClose = { pickLead = false }) { lead -> pickLead = false; scheduleFor = lead }

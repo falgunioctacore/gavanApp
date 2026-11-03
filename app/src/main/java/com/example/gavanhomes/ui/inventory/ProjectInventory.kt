@@ -381,7 +381,7 @@ private fun SettingSheet(api: ApiClient, b: Branding, uuid: String, kind: String
     val id = row.optInt("id")
     var name by remember { mutableStateOf(row.str("name").orEmpty()) }
     var code by remember { mutableStateOf(row.str("code").orEmpty()) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     fun save() {
         val e = mutableMapOf<String, String>()
@@ -420,6 +420,7 @@ internal fun Paged(
     action: (@Composable () -> Unit)? = null, onMeta: (JSONObject) -> Unit = {}, item: @Composable (JSONObject) -> Unit,
 ) {
     val rows = remember { mutableStateListOf<JSONObject>() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var page by remember { mutableIntStateOf(1) }
     var lastPage by remember { mutableIntStateOf(1) }
     var total by remember { mutableIntStateOf(0) }
@@ -450,9 +451,8 @@ internal fun Paged(
         loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 }
 
@@ -722,7 +722,7 @@ private fun TransferSheet(api: ApiClient, b: Branding, uuid: String, options: JS
     var amount by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var remarks by remember { mutableStateOf("") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf<String?>(null) }
     val own = options?.objs("materials").orEmpty().filter { it.optBoolean("own") }
@@ -922,7 +922,7 @@ private fun StoreSheet(api: ApiClient, b: Branding, uuid: String, store: JSONObj
     var code by remember { mutableStateOf(store?.str("code").orEmpty()) }
     var location by remember { mutableStateOf(store?.str("location").orEmpty()) }
     var active by remember { mutableStateOf(store?.optBoolean("active", true) ?: true) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     fun save() {
         if (name.isBlank()) { errors = mapOf("name" to "Enter the store's name."); return }

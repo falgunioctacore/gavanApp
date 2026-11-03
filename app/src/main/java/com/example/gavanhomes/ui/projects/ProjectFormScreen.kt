@@ -101,7 +101,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
 
     var step by remember { mutableIntStateOf(0) }
     var saving by remember { mutableStateOf(false) }
-    var banner by remember { mutableStateOf<List<String>>(emptyList()) }
+    var banner by com.example.gavanhomes.ui.common.rememberBannerListState()
     var picker by remember { mutableStateOf<String?>(null) }   // "status" | "types" | "leader" | "members"
     var initial by remember { mutableStateOf<List<Any>?>(null) }   // the values as loaded, to tell whether anything was changed
 

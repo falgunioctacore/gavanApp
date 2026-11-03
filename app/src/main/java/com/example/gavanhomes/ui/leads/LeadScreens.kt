@@ -236,7 +236,7 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
 
         if (sheet == "status") ChoiceSheet("Status", options?.objs("statuses").orEmpty().map { Choice(it.optString("name"), it.optString("name"), tint(it.str("color"))) }, x.str("status"), b, onClose = { sheet = null }) { sheet = null; if (it != x.optString("status")) quick("Status changed", "status" to it) }
         if (sheet == "label") ChoiceSheet("Label", options?.objs("labels").orEmpty().map { Choice(it.optString("name"), it.optString("name"), labelTintOf(options, it.optString("name"))) }, x.str("label"), b, allowNone = true, onClose = { sheet = null }) { sheet = null; if (it != x.optString("label")) quick("Label changed", "label" to it.ifBlank { null }) }
-        if (sheet == "assign") ChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, x.optInt("assigned_to").takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) {
+        if (sheet == "assign") PersonChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, x.optInt("assigned_to").takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) {
             sheet = null; quick("Assigned", "assigned_to" to it.toIntOrNull())
         }
         followupSheet?.let { f -> FollowupSheet(b, options, f, onClose = { followupSheet = null }) { body ->
@@ -287,23 +287,37 @@ internal fun FollowupSheet(b: Branding, options: JSONObject?, f: JSONObject, onC
     var remarks by remember { mutableStateOf(f.optString("remarks").takeIf { it != "null" }.orEmpty()) }
     var assignee by remember { mutableIntStateOf(f.optInt("assigned_to")) }
     var pickAssignee by remember { mutableStateOf(false) }
+    // a type the list doesn't have is a custom one ("Other…"), typed in
+    val knownTypes = options?.objs("followup_types").orEmpty().map { it.optString("name") }
+    var other by remember { mutableStateOf(type.isNotBlank() && type !in knownTypes) }
+    var custom by remember { mutableStateOf(if (type !in knownTypes) type else "") }
+    var fstatus by remember { mutableStateOf("pending") }                  // a new follow-up can start as pending / completed / missed / rescheduled, like the website's
+    val finalType = if (other) custom.trim() else type
     ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (f.has("id")) "Edit follow-up" else "Add follow-up", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             Label("Type")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                options?.objs("followup_types").orEmpty().forEach { t -> Pick(t.optString("name"), type == t.optString("name"), Blue) { type = t.optString("name") } }
+                options?.objs("followup_types").orEmpty().forEach { t -> Pick(t.optString("name"), !other && type == t.optString("name"), Blue) { other = false; type = t.optString("name") } }
+                Pick("Other…", other, Blue) { other = true }
+            }
+            if (other) Input("Custom type", custom, { custom = it })
+            if (!f.has("id")) {
+                Label("Status")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("pending" to "Pending", "completed" to "Completed", "missed" to "Missed", "rescheduled" to "Rescheduled").forEach { (key, label) -> Pick(label, fstatus == key, if (key == "completed") KitGood else if (key == "missed") KitDanger else Blue) { fstatus = key } }
+                }
             }
             PickerField("When", whenLabel(at)) { pickDateTime(context, at) { at = it } }
             PickerField("Assign to", options?.objs("users")?.firstOrNull { it.optInt("id") == assignee }?.optString("name")) { pickAssignee = true }
             Input("Remarks", remarks, { remarks = it }, singleLine = false)
-            SendButton(if (f.has("id")) "Save follow-up" else "Add follow-up", type.isNotBlank()) {
-                onSave(JSONObject().put("followup_type", type).put("remarks", remarks.trim().ifBlank { JSONObject.NULL }).put("next_followup_at", at.ifBlank { JSONObject.NULL })
-                    .put("assigned_to", if (assignee > 0) assignee else JSONObject.NULL).apply { if (f.has("status")) put("status", f.optString("status")) })
+            SendButton(if (f.has("id")) "Save follow-up" else "Add follow-up", finalType.isNotBlank()) {
+                onSave(JSONObject().put("followup_type", finalType).put("remarks", remarks.trim().ifBlank { JSONObject.NULL }).put("next_followup_at", at.ifBlank { JSONObject.NULL })
+                    .put("assigned_to", if (assignee > 0) assignee else JSONObject.NULL).apply { if (f.has("status")) put("status", f.optString("status")) else put("status", fstatus) })
             }
         }
     }
-    if (pickAssignee) ChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { pickAssignee = false }) {
+    if (pickAssignee) PersonChoiceSheet("Assign to", options?.objs("users").orEmpty().map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { pickAssignee = false }) {
         pickAssignee = false; assignee = it.toIntOrNull() ?: 0
     }
 }
@@ -338,14 +352,16 @@ private fun ActivitySheet(onClose: () -> Unit, onSave: (JSONObject) -> Unit) {
     var type by remember { mutableStateOf("Call") }
     var at by remember { mutableStateOf(LocalDate.now().toString() + " 00:00") }
     var note by remember { mutableStateOf("") }
+    var tag by remember { mutableStateOf("") }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Log an activity", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { ActivityTypes.forEach { t -> Pick(t, type == t, Blue) { type = t } } }
             PickerField("When", whenLabel(at) ?: at.take(10)) { pickDateTime(context, at) { at = it } }
             Input("Note", note, { note = it }, singleLine = false)
+            Input("Tag (optional)", tag, { tag = it })
             SendButton("Log activity", true) {
-                onSave(JSONObject().put("activity_type", type).put("activity_date", at.take(10)).put("activity_time", at.drop(11).take(5)).put("note", note.trim().ifBlank { JSONObject.NULL }))
+                onSave(JSONObject().put("activity_type", type).put("activity_date", at.take(10)).put("activity_time", at.drop(11).take(5)).put("note", note.trim().ifBlank { JSONObject.NULL }).put("tag", tag.trim().ifBlank { JSONObject.NULL }))
             }
         }
     }
@@ -355,6 +371,7 @@ private fun ActivitySheet(onClose: () -> Unit, onSave: (JSONObject) -> Unit) {
 @Composable
 private fun LeadActivity(api: ApiClient, b: Branding, id: Int, version: Int, canEdit: Boolean, onLog: () -> Unit) {
     val rows = remember { mutableStateListOf<JSONObject>() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var page by remember { mutableIntStateOf(1) }
     var lastPage by remember { mutableIntStateOf(1) }
     var loading by remember { mutableStateOf(true) }
@@ -399,9 +416,8 @@ private fun LeadActivity(api: ApiClient, b: Branding, id: Int, version: Int, can
             }
         }
         if (rows.isNotEmpty() && page < lastPage && !loading) {
-            var more by remember(page) { mutableStateOf(false) }
-            LaunchedEffect(more) { if (more) load(page + 1) }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+            // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
         }
     }
 }
@@ -431,8 +447,8 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var label by remember { mutableStateOf("") }
     var assignee by remember { mutableIntStateOf(0) }
     var notes by remember { mutableStateOf("") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }           // list · assignee
     var initial by remember { mutableStateOf<List<Any>?>(null) }
@@ -529,7 +545,7 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                     )
                 }
                 if (sheet == "list") ChoiceSheet("Lead list", o.objs("lists").map { Choice(it.optInt("id").toString(), it.optString("name")) }, listId.takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) { sheet = null; listId = it.toIntOrNull() ?: 0 }
-                if (sheet == "assignee") ChoiceSheet("Assigned to", o.objs("users").map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) { sheet = null; assignee = it.toIntOrNull() ?: 0 }
+                if (sheet == "assignee") PersonChoiceSheet("Assigned to", o.objs("users").map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) { sheet = null; assignee = it.toIntOrNull() ?: 0 }
             }
         }
     }

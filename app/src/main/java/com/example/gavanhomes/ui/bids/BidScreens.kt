@@ -320,8 +320,8 @@ fun BidFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: (
     var termsId by remember { mutableIntStateOf(0) }
     var suppliers by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val rows = remember { mutableStateListOf<BidRow>() }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }       // terms · suppliers · items
     var askSend by remember { mutableStateOf(false) }

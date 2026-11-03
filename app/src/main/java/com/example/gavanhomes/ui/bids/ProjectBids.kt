@@ -259,9 +259,8 @@ private fun BidList(
         loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
-        var more by remember(page) { mutableStateOf(false) }
-        LaunchedEffect(more) { if (more) load(page + 1) }
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { more = true }) { Text("Load more") } }
+        // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
     if (askDelete) SwalConfirm(
         title = "Delete ${selected.size} bid${if (selected.size == 1) "" else "s"}?", text = "Bids that suppliers have already answered are kept.", confirmText = "Yes, delete",

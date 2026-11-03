@@ -217,8 +217,8 @@ fun WorkerFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
     var options by remember { mutableStateOf<JSONObject?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf(false) }
     var initial by remember { mutableStateOf<Map<String, String>?>(null) }

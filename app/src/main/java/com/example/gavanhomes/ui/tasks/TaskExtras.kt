@@ -467,7 +467,7 @@ fun TaskAssignTab(api: ApiClient, b: Branding, id: Int, taskName: String, canEdi
                                 .clickable { chosen = if (on) sel - key else sel + key }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Initials(p.optString("name"), size = 32.dp)
+                            com.example.gavanhomes.ui.common.PersonAvatar(p.optString("key").removePrefix("user_").takeIf { p.optString("key").startsWith("user_") }?.toIntOrNull() ?: 0, p.optString("name"), 34.dp)
                             Text(p.optString("name"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 12.dp))
                             Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) b.base else Color.Transparent).border(2.dp, if (on) b.base else Color(0xFF9E9E9E), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                                 if (on) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)

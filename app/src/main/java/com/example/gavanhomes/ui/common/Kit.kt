@@ -124,7 +124,7 @@ internal fun HeroChips(vararg chips: String) {
  */
 @Composable
 internal fun SegTabs(tabs: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    val ink = Color(0xFF0F172A)
+    val ink = if (AppTheme.dark) Color(0xFFF2F0EB) else Color(0xFF0F172A)         // the open tab: near-black on the light page, near-white on the dark one
     @Composable
     fun Tab(i: Int, t: String, modifier: Modifier) {
         val on = i == selected

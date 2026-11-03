@@ -198,7 +198,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
     val link = com.example.gavanhomes.ui.common.DeepLink.pending
     androidx.compose.runtime.LaunchedEffect(link, root != null) {
         if (link != null && link.project == uuid && root != null) {
-            if (link.kind == "target") targetStack.add("detail" to link.id) else taskStack.add("detail" to link.id)
+            when (link.kind) { "target" -> targetStack.add("detail" to link.id); "bid" -> bidStack.add("detail" to link.id); "lead" -> leadStack.add("detail" to link.id); else -> taskStack.add("detail" to link.id) }
             com.example.gavanhomes.ui.common.DeepLink.pending = null
         }
     }
@@ -304,9 +304,22 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             HeroBar(
                 b, current.label, { if (settingsFor != null) settingsFor = null else onBack() },      // ← closes an open settings page first
                 leading = { HeroButton("☰") { scope.launch { drawer.open() } } },
+                showBell = false,            // one bell here; two more round buttons made the header crowded
                 actions = {
-                    if (root?.optBoolean("can_edit") == true) { HeroButton("✎") { onEdit(uuid) }; Spacer(Modifier.size(8.dp)) }
-                    if (current.key == "leads" || current.key == "bids" || current.key == "inventory") { HeroButton("⚙") { settingsFor = if (settingsFor == current.key) null else current.key }; Spacer(Modifier.size(8.dp)) }
+                    val canEdit = root?.optBoolean("can_edit") == true
+                    val hasSettings = current.key == "leads" || current.key == "bids" || current.key == "inventory"
+                    if (canEdit || hasSettings) {
+                        var menu by remember { mutableStateOf(false) }
+                        Box {
+                            HeroButton("⋮") { menu = true }
+                            androidx.compose.material3.DropdownMenu(menu, { menu = false }) {
+                                if (canEdit) androidx.compose.material3.DropdownMenuItem(text = { Text("Edit project") }, onClick = { menu = false; onEdit(uuid) })
+                                if (hasSettings) androidx.compose.material3.DropdownMenuItem(text = { Text(if (settingsFor == current.key) "Close settings" else current.label + " settings") }, onClick = { menu = false; settingsFor = if (settingsFor == current.key) null else current.key })
+                            }
+                        }
+                        Spacer(Modifier.size(8.dp))
+                    }
+                    if (com.example.gavanhomes.ui.common.LocalOpenNotifications.current != null) com.example.gavanhomes.ui.common.NotificationBell()
                 },
             ) {
                 Column {

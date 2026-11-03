@@ -388,7 +388,7 @@ fun IssueDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, versio
             Spacer(Modifier.height(28.dp))
         }
         when (sheet) {
-            "assign" -> ChoiceSheet("Assign to", users.map { Choice(it.optInt("id").toString(), it.optString("name")) }, null, b, onClose = { sheet = null }) { u -> sheet = null; step("assign", JSONObject().put("assigned_to", u.toInt()), "Issue assigned") }
+            "assign" -> com.example.gavanhomes.ui.leads.PersonChoiceSheet("Assign to", users.map { Choice(it.optInt("id").toString(), it.optString("name")) }, null, b, onClose = { sheet = null }) { u -> sheet = null; step("assign", JSONObject().put("assigned_to", u.toInt()), "Issue assigned") }
             "resolve" -> TextSheet("Resolve issue", "How was it fixed?", "Mark resolved", KitGood, onClose = { sheet = null }) { t -> sheet = null; step("resolve", JSONObject().put("resolution_notes", t), "Issue resolved") }
             "comment" -> TextSheet("Add comment", "Comment", "Post comment", b.base, onClose = { sheet = null }) { t -> sheet = null; step("comment", JSONObject().put("comment", t), "Comment added") }
             "feedback" -> FeedbackSheet(onClose = { sheet = null }) { rating, text -> sheet = null; step("feedback", JSONObject().put("rating", rating).put("feedback", text), "Feedback recorded") }
@@ -525,8 +525,8 @@ fun CustomerFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBa
     var loaded by remember { mutableStateOf(id == null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var initial by remember { mutableStateOf<Map<String, String>?>(null) }
     val fields = listOf("name", "email", "mobile_number", "whatsapp_number", "aadhaar_number", "pan_number", "date_of_birth", "gender", "address_line1", "address_line2", "city", "state", "pincode")
@@ -586,8 +586,8 @@ fun VisitFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack:
     var at by remember { mutableStateOf("") }
     var purpose by remember { mutableStateOf("") }
     var details by remember { mutableStateOf("") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(id == null) }
@@ -640,8 +640,8 @@ fun IssueFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack:
     var priority by remember { mutableStateOf("medium") }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf(id == null) }
@@ -692,8 +692,8 @@ fun LoanFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     val scope = rememberCoroutineScope()
     var customer by remember { mutableStateOf<JSONObject?>(null) }
     val f = remember { mutableStateMapOf("status" to "active") }
-    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var banner by remember { mutableStateOf<String?>(null) }
+    var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
+    var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(id == null) }
