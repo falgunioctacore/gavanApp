@@ -238,7 +238,7 @@ private fun save(context: android.content.Context, scope: kotlinx.coroutines.Cor
     }
 }
 
-private val Money = setOf("purchase_price", "current_value", "insurance_premium", "depreciation_rate")
+private val Money = setOf("disposal_value", "purchase_price", "current_value", "insurance_premium", "depreciation_rate")
 
 /**
  * New asset / edit asset — the website's asset form: the basics (name, category, status, location, who has it), purchase (vendor,
@@ -288,8 +288,14 @@ fun AssetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack:
             }
             Card("Purchase") { text("vendor", "Vendor")(); text("invoice_no", "Invoice no.")(); date("purchase_date", "Purchased on")(); num("purchase_price", "Price (₹)")(); num("current_value", "Current value (₹)")() }
             Card("Insurance") { text("insurance_provider", "Provider")(); text("insurance_policy_no", "Policy no.")(); num("insurance_premium", "Premium (₹)")(); date("insurance_expiry_date", "Expires")() }
-            Card("Warranty") { text("warranty_period", "Period")(); text("warranty_vendor", "Vendor")(); date("warranty_expiry_date", "Expires")() }
-            Card("Registration") { text("registration_number", "Registration no.")(); date("registration_expiry_date", "Registration expires")(); date("puc_expiry_date", "PUC expires")() }
+            Card("Warranty & AMC") {
+                text("warranty_period", "Period")(); text("warranty_vendor", "Vendor")(); text("warranty_contact", "Contact")(); date("warranty_expiry_date", "Warranty expires")()
+                text("amc_details", "AMC details")(); date("amc_start_date", "AMC from")(); date("amc_end_date", "AMC to")()
+            }
+            Card("Registration") { text("registration_number", "Registration no.")(); date("registration_expiry_date", "Registration expires")(); date("puc_expiry_date", "PUC expires")(); text("license_details", "Licence details")() }
+            Card("Location link & disposal", "A map link or latitude,longitude") {
+                text("gps_link", "GPS / map link")(); num("disposal_value", "Disposal value (₹)")(); date("disposal_date", "Disposed on")()
+            }
             Card("Depreciation", "Left blank, the category's default is used") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pick("Straight line", f["depreciation_method"] == "straight_line", InvBlue) { f["depreciation_method"] = if (f["depreciation_method"] == "straight_line") "" else "straight_line" }

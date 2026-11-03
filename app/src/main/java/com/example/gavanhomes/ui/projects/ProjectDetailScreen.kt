@@ -516,10 +516,11 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             androidx.compose.runtime.key(procStack.size, pid) {
                 when (kind) {
                     "indent" -> com.example.gavanhomes.ui.procurement.IndentDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
-                    "po" -> com.example.gavanhomes.ui.procurement.PoDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onReceive = { procStack.add("new-receive" to it) }, onOpenIndent = { procStack.add("indent" to it) })
+                    "po" -> com.example.gavanhomes.ui.procurement.PoDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onReceive = { procStack.add("new-receive" to it) }, onOpenIndent = { procStack.add("indent" to it) }, onEdit = { procStack.add("edit-po" to it) })
                     "supplier" -> com.example.gavanhomes.ui.procurement.SupplierDetailScreen(api, b, pid, procVersion, onBack = ::pop, onEdit = { procStack.add("edit-supplier" to it) }, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
                     "new-indent" -> com.example.gavanhomes.ui.procurement.IndentFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })
                     "new-po" -> com.example.gavanhomes.ui.procurement.PoFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })
+                    "edit-po" -> com.example.gavanhomes.ui.procurement.PoFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() }, editId = pid)
                     "new-receive" -> com.example.gavanhomes.ui.procurement.ReceiveFormScreen(api, b, uuid, pid, onBack = ::pop, onSaved = { procVersion++; inventoryVersion++; pop() })
                     else -> com.example.gavanhomes.ui.procurement.SupplierFormScreen(api, b, uuid, pid.takeIf { kind == "edit-supplier" && it > 0 }, onBack = ::pop, onSaved = { procVersion++; pop() })
                 }

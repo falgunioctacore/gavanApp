@@ -37,6 +37,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -218,7 +221,9 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
         else -> listOf("name" to "Name", "gstin" to "GSTIN", "phone" to "Phone", "email" to "Email", "billing_address" to "Billing address")
     }
     val src = mapOf("company_name" to "company")
-    val f = remember { mutableStateMapOf<String, String>().apply { fields.forEach { (k, _) -> put(k, row.str(src[k] ?: k).orEmpty().takeIf { k != "password" }.orEmpty()) }; row.str("type")?.let { put("type", it) }; row.str("gst_type")?.let { put("gst_type", it) }; row.str("state")?.let { put("state", it) } } }
+    val f = remember { mutableStateMapOf<String, String>().apply { fields.forEach { (k, _) -> put(k, row.str(src[k] ?: k).orEmpty().takeIf { k != "password" }.orEmpty()) }; row.str("type")?.let { put("type", it) }; row.str("gst_type")?.let { put("gst_type", it) }; row.str("state")?.let { put("state", it) }; if (kind == "party") put("shipping_address", row.str("shipping_address").orEmpty()) } }
+    var shipping by remember { mutableStateOf(row.optBoolean("shipping_enabled")) }          // a party's separate shipping address
+    var newType by remember { mutableStateOf("") }                                              // a contractor type that is not in the list yet
     var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var saving by remember { mutableStateOf(false) }
     var pick by remember { mutableStateOf<String?>(null) }
@@ -228,10 +233,17 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
     fun save() {
         if (f["name"].isNullOrBlank()) { errors = mapOf("name" to "Enter a name."); return }
         val body = JSONObject(); f.forEach { (k, v) -> if (k == "password") { if (v.isNotBlank()) body.put(k, v) } else body.put(k, v.trim().ifBlank { JSONObject.NULL }) }
+        if (kind == "party") { body.put("shipping_enabled", if (shipping) 1 else 0); if (!shipping) body.put("shipping_address", JSONObject.NULL) }
         if (id > 0) body.put("id", id)
         saving = true; errors = emptyMap()
         scope.launch {
-            try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/general-center/$plural", body) }; AppToast.show(if (id > 0) "Saved" else "Added"); onDone() }
+            try {
+                withContext(Dispatchers.IO) {
+                    if (kind == "contractor" && newType.isNotBlank()) { api.send("POST", "/projects/$uuid/general-center/contractor-types", JSONObject().put("name", newType.trim())); body.put("type", newType.trim()) }
+                    api.send("POST", "/projects/$uuid/general-center/$plural", body)
+                }
+                AppToast.show(if (id > 0) "Saved" else "Added"); onDone()
+            }
             catch (e: ApiException) { errors = e.errors.ifEmpty { mapOf("name" to (e.message ?: "Could not save")) } }
             catch (e: Exception) { errors = mapOf("name" to (e.message ?: "Could not save")) }
             saving = false
@@ -244,10 +256,17 @@ private fun EditSheet(api: ApiClient, b: Branding, uuid: String, kind: String, r
                 Input(if (k == "password" && id > 0) "$label (blank keeps it)" else label, f[k].orEmpty(), { f[k] = if (k == "phone") it.filter { c -> c.isDigit() || c == '+' } else if (k == "gstin") it.uppercase() else it }, errors[k],
                     singleLine = k != "address" && k != "billing_address", keyboard = when (k) { "phone" -> KeyboardType.Phone; "email" -> KeyboardType.Email; else -> KeyboardType.Text }, password = k == "password")
             }
-            if (kind == "contractor") PickerField("Type", f["type"]?.ifBlank { null }, errors["type"]) { pick = "type" }
+            if (kind == "contractor") {
+                PickerField("Type", f["type"]?.ifBlank { null }, errors["type"]) { pick = "type" }
+                Input("…or add a new type", newType, { newType = it }, errors["name"].takeIf { false })
+            }
             if (kind == "party") {
                 PickerField("GST type", f["gst_type"]?.ifBlank { null }, errors["gst_type"]) { pick = "gst" }
                 PickerField("State", f["state"]?.ifBlank { null }, errors["state"]) { pick = "state" }
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { shipping = !shipping }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(shipping, { shipping = it }); Text("Ship to a different address", color = KitInk, fontSize = 14.sp)
+                }
+                if (shipping) Input("Shipping address", f["shipping_address"].orEmpty(), { f["shipping_address"] = it }, errors["shipping_address"], singleLine = false)
             }
             ActionButton(if (saving) "Saving…" else if (id > 0) "Save" else "Add $noun", b.base) { if (!saving) save() }
             if (id > 0 && can.optBoolean("delete_$plural")) SmallAction("Delete this $noun", KitDanger) { askDelete = true }

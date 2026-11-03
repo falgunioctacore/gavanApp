@@ -267,34 +267,36 @@ private fun AdjustSheet(api: ApiClient, b: Branding, uuid: String, m: JSONObject
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    api.send("POST", "/projects/$uuid/inventory-center/materials/${m.optInt("id")}/adjust", JSONObject().put("stock_action", action).put("qty", q)
+                    if (action == "estimate") api.send("POST", "/projects/$uuid/inventory-center/materials/${m.optInt("id")}/estimate", JSONObject().put("estimate_qty", q).put("remarks", comment.trim().ifBlank { JSONObject.NULL }))
+                    else api.send("POST", "/projects/$uuid/inventory-center/materials/${m.optInt("id")}/adjust", JSONObject().put("stock_action", action).put("qty", q)
                         .put("comment", comment.trim().ifBlank { JSONObject.NULL }).put("store_id", if (store > 0) store else JSONObject.NULL))
                 }
-                AppToast.show("Stock updated"); onDone()
+                AppToast.show(if (action == "estimate") "Estimate saved" else "Stock updated"); onDone()
             } catch (e: ApiException) { error = e.errors.values.firstOrNull { it.isNotBlank() } ?: e.message } catch (e: Exception) { error = e.message ?: "Could not update" }
             saving = false
         }
     }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Adjust stock", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
+            Text(if (action == "estimate") "Estimate need" else "Adjust stock", fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = KitInk)
             Text("${m.optString("name")} · ${qty(onHand)} ${m.optString("unit")} on hand", color = KitMuted, fontSize = 13.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pick("−  Use stock", action == "used", InvAmber) { action = "used" }
                 Pick("+  Add stock", action == "add", KitGood) { action = "add" }
+                Pick("≈  Estimate", action == "estimate", b.base) { action = "estimate" }
             }
             Input("Quantity (${m.optString("unit")})", amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal)
-            if (stores.isNotEmpty()) {
+            if (stores.isNotEmpty() && action != "estimate") {
                 Label("Store")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pick("None", store == 0, KitMuted) { store = 0 }
                     stores.forEach { s -> Pick(s.optString("name"), store == s.optInt("id"), b.base) { store = s.optInt("id") } }
                 }
             }
-            Input("Why is it being adjusted?", comment, { comment = it }, singleLine = false)
+            Input(if (action == "estimate") "Note (optional)" else "Why is it being adjusted?", comment, { comment = it }, singleLine = false)
             Banner(error)
             Text(
-                if (saving) "Saving…" else if (action == "used") "Use stock" else "Add stock", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
+                if (saving) "Saving…" else if (action == "used") "Use stock" else if (action == "estimate") "Save estimate" else "Add stock", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),
             )
         }

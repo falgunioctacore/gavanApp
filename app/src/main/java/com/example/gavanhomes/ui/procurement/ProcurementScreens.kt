@@ -188,7 +188,7 @@ fun IndentDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
 /** A purchase order: supplier and amount, the lines with what has arrived, charges, GRNs / deliveries / invoices; Send, Cancel, Receive goods. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onReceive: (Int) -> Unit, onOpenIndent: (Int) -> Unit) {
+fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onReceive: (Int) -> Unit, onOpenIndent: (Int) -> Unit, onEdit: (Int) -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<JSONObject?>(null) }
@@ -214,6 +214,7 @@ fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: (
             }
             FlowRow(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (can.optBoolean("receive")) ActionButton("↓  Receive goods", KitGood) { onReceive(id) }
+                if (can.optBoolean("edit")) ActionButton("✎  Edit", KitInk) { onEdit(id) }
                 if (can.optBoolean("send")) ActionButton("➤  Send to supplier", InvBlue) { askSend = true }
                 if (can.optBoolean("cancel")) ActionButton("✕  Cancel PO", KitDanger) { cancelling = true }
             }
@@ -509,8 +510,12 @@ private class PoLine(val m: JSONObject) {
     var amount by mutableStateOf("")
     var rate by mutableStateOf(m.optDouble("rate", 0.0).takeIf { it > 0 }?.let { plain(it) } ?: "")
     var gst by mutableStateOf(m.optDouble("gst", 0.0).takeIf { it > 0 }?.let { plain(it) } ?: "")
-    fun base() = (amount.toDoubleOrNull() ?: 0.0) * (rate.toDoubleOrNull() ?: 0.0)
-    fun tax() = base() * (gst.toDoubleOrNull() ?: 0.0) / 100
+    var disc by mutableStateOf("")
+    var inclusive by mutableStateOf(false)                  // the rate already includes the tax
+    private fun net() = (amount.toDoubleOrNull() ?: 0.0) * (rate.toDoubleOrNull() ?: 0.0) * (1 - (disc.toDoubleOrNull() ?: 0.0).coerceIn(0.0, 100.0) / 100)
+    private fun pct() = gst.toDoubleOrNull() ?: 0.0
+    fun tax() = if (inclusive) net() * pct() / (100 + pct()) else net() * pct() / 100
+    fun base() = if (inclusive) net() - tax() else net()
 }
 
 /**
@@ -520,7 +525,7 @@ private class PoLine(val m: JSONObject) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, onSaved: () -> Unit) {
+fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, onSaved: () -> Unit, editId: Int? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var vendor by remember { mutableIntStateOf(0) }
@@ -529,6 +534,11 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
     var expected by remember { mutableStateOf("") }
     var remarks by remember { mutableStateOf("") }
     var terms by remember { mutableStateOf("") }
+    var paymentType by remember { mutableStateOf("Cash") }
+    var billNo by remember { mutableStateOf("") }
+    var billDate by remember { mutableStateOf("") }
+    var vendorRemarks by remember { mutableStateOf("") }
+    var loaded by remember { mutableStateOf(editId == null) }
     val lines = remember { mutableStateListOf<PoLine>() }
     var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var banner by com.example.gavanhomes.ui.common.rememberBannerState()
@@ -536,9 +546,29 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
     var sheet by remember { mutableStateOf<String?>(null) }
     val back = leaveGuard(lines.isNotEmpty() || vendor > 0, onBack)
 
-    WithOptions(api, b, uuid, "New purchase order", onBack) { o ->
+    WithOptions(api, b, uuid, if (editId != null) "Edit purchase order" else "New purchase order", onBack) { o ->
         val addresses = o.objs("addresses")
-        LaunchedEffect(addresses.size) { if (addresses.size == 1) { deliverTo = addresses[0].optInt("id"); billTo = deliverTo } }
+        LaunchedEffect(addresses.size) { if (editId == null && addresses.size == 1) { deliverTo = addresses[0].optInt("id"); billTo = deliverTo } }
+        // editing: fill the form from the saved order (its lines keep their quantity, rate, discount and tax)
+        LaunchedEffect(editId) {
+            if (editId == null) return@LaunchedEffect
+            try {
+                val x = withContext(Dispatchers.IO) { api.detail("/procurement-center/pos/$editId") }
+                vendor = x.optInt("vendor_id"); deliverTo = x.optInt("delivery_address_id"); billTo = x.optInt("billing_address_id")
+                expected = x.str("expected_raw") ?: ""; remarks = x.str("remarks") ?: ""; terms = x.str("terms") ?: ""
+                paymentType = x.str("payment_type") ?: "Cash"; billNo = x.str("bill_number") ?: ""; billDate = x.str("bill_date_raw") ?: ""; vendorRemarks = x.str("vendor_remarks") ?: ""
+                val mats = o.objs("materials")
+                x.optJSONArray("lines")?.let { arr -> for (i in 0 until arr.length()) {
+                    val l = arr.getJSONObject(i); val mid = l.optInt("material_id")
+                    val m = mats.firstOrNull { it.optInt("id") == mid } ?: continue
+                    lines.add(PoLine(m).also { p ->
+                        p.amount = plain(l.optDouble("qty", 0.0)); p.rate = plain(l.optDouble("rate", 0.0)); p.gst = l.optDouble("tax_percent", 0.0).takeIf { it > 0 }?.let { plain(it) } ?: ""
+                        p.disc = l.optDouble("discount_percent", 0.0).takeIf { it > 0 }?.let { plain(it) } ?: ""; p.inclusive = l.optString("price_type") == "with_tax"
+                    })
+                } }
+            } catch (ex: Exception) { banner = ex.message ?: "Could not load the purchase order" }
+            loaded = true
+        }
         fun addressLabel(id: Int) = addresses.firstOrNull { it.optInt("id") == id }?.let { a -> listOfNotNull(a.str("company_name"), a.str("address")).joinToString(", ").ifBlank { "Address #${a.optInt("id")}" } }
         fun save() {
             val e = mutableMapOf<String, String>()
@@ -550,24 +580,26 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
             if (e.isNotEmpty()) { errors = e; banner = e.values.first(); return }
             val body = JSONObject().put("vendor_id", vendor).put("delivery_address", deliverTo).put("billing_address", billTo).put("expected_delivery", expected.ifBlank { JSONObject.NULL })
                 .put("remarks", remarks.trim().ifBlank { JSONObject.NULL }).put("terms_conditions", terms.trim().ifBlank { JSONObject.NULL })
-                .put("lines", JSONArray(filled.map { JSONObject().put("material_id", it.m.optInt("id")).put("qty", it.amount.toDouble()).put("rate", it.rate.toDoubleOrNull() ?: 0.0).put("tax_percent", it.gst.toDoubleOrNull() ?: 0.0) }))
+                .put("payment_type", paymentType).put("bill_number", billNo.trim().ifBlank { JSONObject.NULL }).put("bill_date", billDate.ifBlank { JSONObject.NULL }).put("vendor_team_remarks", vendorRemarks.trim().ifBlank { JSONObject.NULL })
+                .put("lines", JSONArray(filled.map { JSONObject().put("material_id", it.m.optInt("id")).put("qty", it.amount.toDouble()).put("rate", it.rate.toDoubleOrNull() ?: 0.0).put("tax_percent", it.gst.toDoubleOrNull() ?: 0.0).put("discount_percent", it.disc.toDoubleOrNull() ?: 0.0).put("price_type", if (it.inclusive) "with_tax" else "without_tax") }))
             errors = emptyMap(); banner = null; saving = true
             scope.launch {
-                try { withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/procurement-center/pos", body) }; AppToast.show("Purchase order created"); onSaved() }
+                try { withContext(Dispatchers.IO) { if (editId != null) api.send("PUT", "/procurement-center/pos/$editId", body) else api.send("POST", "/projects/$uuid/procurement-center/pos", body) }; AppToast.show(if (editId != null) "Purchase order updated" else "Purchase order created"); onSaved() }
                 catch (ex: ApiException) { errors = ex.errors; banner = ex.errors.values.firstOrNull { it.isNotBlank() } ?: ex.message }
                 catch (ex: Exception) { banner = ex.message ?: "Could not save" }
                 saving = false
             }
         }
-        FormPage(b, "New purchase order", back, banner, "Create purchase order", saving, ::save) {
-            Card("Supplier & delivery", "Number ${o.optJSONObject("next")?.str("po") ?: "—"} is given when it is saved") {
+        if (!loaded) { Waiting(b, "Edit purchase order", banner, onBack) { }; return@WithOptions }
+        FormPage(b, if (editId != null) "Edit purchase order" else "New purchase order", back, banner, if (editId != null) "Save changes" else "Create purchase order", saving, ::save) {
+            Card("Supplier & delivery", (if (editId != null) "Changes apply while the order has not been sent" else "Number ${o.optJSONObject("next")?.str("po") ?: "—"} is given when it is saved")) {
                 PickerField("Supplier", o.objs("suppliers").firstOrNull { it.optInt("id") == vendor }?.optString("name"), errors["vendor_id"]) { sheet = "vendor" }
                 if (addresses.isEmpty()) Text("This project has no delivery / billing address yet — add one on the website (Account settings → Addresses).", color = KitDanger, fontSize = 12.sp)
                 PickerField("Deliver to", addressLabel(deliverTo), errors["delivery_address"]) { sheet = "deliver" }
                 PickerField("Bill to", addressLabel(billTo), errors["billing_address"]) { sheet = "bill" }
                 DatePick("Expected delivery", expected, errors["expected_delivery"]) { expected = it }
             }
-            Card("Items", "Quantity, rate (before tax) and GST % for each") {
+            Card("Items", "Quantity, rate, discount % and GST % for each") {
                 errors["items"]?.let { Text(it, color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                 lines.forEachIndexed { i, l ->
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -581,6 +613,11 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
                             Box(Modifier.weight(1f)) { Input("Rate ₹", l.rate, { l.rate = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal) }
                             Box(Modifier.weight(.8f)) { Input("GST %", l.gst, { l.gst = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal) }
                         }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) { Input("Discount %", l.disc, { l.disc = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal) }
+                            Text(if (l.inclusive) "Rate includes tax" else "Rate excludes tax", color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(b.base.copy(alpha = .12f)).clickable { l.inclusive = !l.inclusive }.padding(vertical = 14.dp))
+                        }
                     }
                 }
                 AddRow("+  Add material", b) { sheet = "material" }
@@ -589,12 +626,19 @@ fun PoFormScreen(api: ApiClient, b: Branding, uuid: String, onBack: () -> Unit, 
                     Fact("Before tax", rupees(base)); Fact("GST", rupees(tax)); Fact("Total", rupees(base + tax))
                 }
             }
+            Card("Bill & payment") {
+                PickerField("Payment type", paymentType, null) { sheet = "payment" }
+                Input("Bill number", billNo, { billNo = it }, errors["bill_number"])
+                DatePick("Bill date", billDate, errors["bill_date"]) { billDate = it }
+            }
             Card("Notes") {
                 Input("Remarks", remarks, { remarks = it }, errors["remarks"], singleLine = false)
+                Input("Remarks for the supplier", vendorRemarks, { vendorRemarks = it }, errors["vendor_team_remarks"], singleLine = false)
                 Input("Terms & conditions", terms, { terms = it }, errors["terms_conditions"], singleLine = false)
             }
         }
         when (sheet) {
+            "payment" -> ChoiceSheet("Payment type", o.strings("payment_types").map { Choice(it, it) }, paymentType, b, onClose = { sheet = null }) { paymentType = it; sheet = null }
             "material" -> MaterialPickSheet(o.objs("materials"), b, exclude = lines.map { it.m.optInt("id") }.toSet(), showStock = false, onClose = { sheet = null }) { m -> lines.add(PoLine(m)); sheet = null }
             "vendor" -> ChoiceSheet("Supplier", o.objs("suppliers").map { s -> Choice(s.optInt("id").toString(), listOfNotNull(s.optString("name"), s.str("company_name")).joinToString(" · "), supplierStatus(s.str("approval_status")).second) }, vendor.takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) { vendor = it.toIntOrNull() ?: 0; sheet = null }
             "deliver", "bill" -> ChoiceSheet(if (sheet == "deliver") "Deliver to" else "Bill to", addresses.map { a -> Choice(a.optInt("id").toString(), listOfNotNull(a.str("type")?.replaceFirstChar { it.uppercase() }, a.str("company_name"), a.str("address")).joinToString(" · ")) }, (if (sheet == "deliver") deliverTo else billTo).takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) {

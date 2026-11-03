@@ -100,14 +100,21 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
     ProvideFab(if (!can.optBoolean("create")) emptyList() else listOf(
         FabAction("payment_in", "Payment in", KitGood, "↓"), FabAction("payment_out", "Payment out", KitDanger, "↑"), FabAction("expense", "New expense", InvAmber, "₹"),
     )) { onNew(it) }
-    val pages = listOf(Page("dashboard", "Dashboard"), Page("payments", "Payment in / out"), Page("expenses", "Expenses"), Page("invoices", "Supplier invoices"))
+    val pages = listOf(
+        Page("dashboard", "Dashboard"), Page("payments", "Payment in / out"), Page("expenses", "Expenses"), Page("invoices", "Supplier invoices"),
+        Page("daybook", "Day book"), Page("cash", "Cash in hand"), Page("banks", "Bank accounts"), Page("cheques", "Cheques"),
+    )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
     ModulePages("Accounts", pages.map { it.label }, index) { view = pages[it].key }
     when (pages[index].key) {
         "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "accounting", version); Dashboard(o, onOpen) { view = it } }
         "payments" -> PaymentList(api, b, uuid, version, options) { onOpen("payment", it) }
         "expenses" -> ExpenseList(api, b, uuid, version, options) { onOpen("expense", it) }
-        else -> InvoiceList(api, b, uuid, version) { onOpen("invoice", it) }
+        "invoices" -> InvoiceList(api, b, uuid, version) { onOpen("invoice", it) }
+        "daybook" -> DayBookPage(api, b, uuid, version)
+        "cash" -> CashPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
+        "banks" -> BankAccountsPage(api, b, uuid, version, can.optBoolean("create"))
+        else -> ChequesPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
     }
 }
 

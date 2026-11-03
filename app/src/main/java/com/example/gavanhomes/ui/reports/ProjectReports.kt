@@ -68,6 +68,8 @@ import com.example.gavanhomes.ui.tasks.Card
 import com.example.gavanhomes.ui.tasks.objs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.example.gavanhomes.ui.common.AppToast
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.NumberFormat
@@ -253,14 +255,48 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
     var meta by remember { mutableStateOf<JSONObject?>(null) }
     LaunchedEffect(search) { delay(350); settled = search }
     val period = sel["date"]?.firstOrNull()
-    val query = "&tab=$tab" + range(period) + (if (settled.isBlank()) "" else "&search=${enc(settled.trim())}")
+    var from by remember { mutableStateOf("") }                         // a custom range overrides the period
+    var to by remember { mutableStateOf("") }
+    val custom = from.isNotBlank() || to.isNotBlank()
+    val dates = if (custom) (if (from.isNotBlank()) "&date_from=$from" else "") + (if (to.isNotBlank()) "&date_to=$to" else "") else range(period)
+    val query = "&tab=$tab" + dates + (if (settled.isBlank()) "" else "&search=${enc(settled.trim())}")
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
+    // every row of the report (as filtered) as a CSV in Downloads, with a notification to open / share it
+    fun export() {
+        if (exporting) return
+        exporting = true
+        scope.launch {
+            try {
+                val csv = withContext(Dispatchers.IO) {
+                    val rows = mutableListOf<JSONObject>(); var page = 1; var last = 1
+                    do {
+                        val r = api.get("/projects/$uuid/report-center/report?page=$page$query")
+                        r.optJSONArray("data")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let(rows::add) }
+                        last = r.optInt("last_page", 1); page++
+                    } while (page <= last && page <= 50)
+                    if (rows.isEmpty()) return@withContext null
+                    val keys = rows.first().keys().asSequence().filter { !it.startsWith("_") }.toList()
+                    fun cell(v: String) = "\"" + v.replace("\"", "\"\"") + "\""
+                    (listOf(keys.joinToString(",") { cell(label(it)) }) + rows.map { r -> keys.joinToString(",") { cell(r.optString(it)) } }).joinToString("\n")
+                }
+                if (csv == null) { AppToast.show("Nothing to export for this report and period."); return@launch }
+                val name = "$tab-${LocalDate.now()}.csv"
+                val uri = withContext(Dispatchers.IO) { com.example.gavanhomes.ui.common.Downloads.save(context, name, "text/csv", ("\uFEFF" + csv).toByteArray()) }
+                com.example.gavanhomes.ui.common.Downloads.notifyReady(context, "Report ready", name, "text/csv", uri)
+                AppToast.show("Saved to Downloads/GavanHomes")
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not export") }
+            exporting = false
+        }
+    }
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize().background(KitPage)) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize().verticalScroll(scroll)) {
-            HeroBar(b, "Report", onBack) {
+            HeroBar(b, "Report", onBack, actions = { com.example.gavanhomes.ui.common.HeroButton(if (exporting) "…" else "⤓") { export() } }) {
                 Column {
                     Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(Periods.firstOrNull { it.first == period }?.second ?: "All time", color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
+                    Text(if (custom) listOf(from.ifBlank { "start" }, to.ifBlank { "today" }).joinToString(" → ") else Periods.firstOrNull { it.first == period }?.second ?: "All time", color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
                     meta?.let { Spacer(Modifier.height(14.dp)); HeroChips("${it.optInt("total")} rows", "${it.optJSONArray("charts")?.length() ?: 0} charts") }
                 }
             }
@@ -270,6 +306,11 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
                 onApply = { m -> val next = m.mapValues { (_, v) -> v.take(1).toSet() }.filterValues { it.isNotEmpty() }; if (next != sel) { sel = next; meta = null } },
                 countWith = { m -> if (m == sel) meta?.optInt("total") ?: -1 else -1 },
             )
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) { com.example.gavanhomes.ui.inventory.DatePick("From", from, null) { from = it; meta = null } }
+                Box(Modifier.weight(1f)) { com.example.gavanhomes.ui.inventory.DatePick("To", to, null) { to = it; meta = null } }
+            }
+            if (custom) Text("Clear dates", color = InvBlue, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp).clip(RoundedCornerShape(10.dp)).clickable { from = ""; to = ""; meta = null }.padding(vertical = 4.dp))
             val m = meta
             m?.optString("unavailable")?.takeIf { it.isNotBlank() }?.let { why ->
                 Column(Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {

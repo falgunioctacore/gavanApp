@@ -129,6 +129,7 @@ private fun DaySheet(api: ApiClient, b: Branding, uuid: String, version: Int, da
     val scope = rememberCoroutineScope()
     val marks = remember(date, version) { mutableStateMapOf<Int, String>() }     // marked here, before the list reloads
     val ot = remember(date, version) { mutableStateMapOf<Int, Int>() }
+    val rowOf = remember(date, version) { mutableStateMapOf<Int, Int>() }          // the saved attendance row of a worker marked here (needed for overtime)
     val today = LocalDate.now()
 
     fun call(ok: String?, run: () -> JSONObject, done: () -> Unit = {}) {
@@ -191,13 +192,23 @@ private fun DaySheet(api: ApiClient, b: Branding, uuid: String, version: Int, da
                 listOf("present" to "P", "half_day" to "½", "absent" to "A").forEach { (k, l) ->
                     val on = status == k; val c = markStyle(k).second
                     Box(Modifier.size(44.dp).clip(CircleShape).background(if (on) c else c.copy(alpha = .12f)).clickable {
-                        if (!on) { marks[id] = k; if (k == "absent") ot[id] = 0; call(null, { api.send("POST", "/projects/$uuid/attendance-center/mark", JSONObject().put("worker_id", id).put("status", k).put("attendance_date", date.toString())) }, onMarked) }
+                        if (!on) {
+                            marks[id] = k; if (k == "absent") ot[id] = 0
+                            scope.launch {
+                                try {
+                                    val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/attendance-center/mark", JSONObject().put("worker_id", id).put("status", k).put("attendance_date", date.toString())) }
+                                    r.optInt("attendance_id").takeIf { it > 0 }?.let { rowOf[id] = it }
+                                    if (k != "absent") ot[id] = r.optInt("overtime")
+                                    onMarked()
+                                } catch (e: Exception) { marks.remove(id); AppToast.show(e.message ?: "Could not save") }
+                            }
+                        }
                     }, contentAlignment = Alignment.Center) { Text(l, color = if (on) Color.White else c, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp) }
                 }
                 Spacer(Modifier.weight(1f))
                 // overtime: only on a day already marked present / half (it needs the saved attendance row)
-                val aid = w.optInt("attendance_id")
-                if (aid > 0 && status != "absent" && marks[id] == null) Row(verticalAlignment = Alignment.CenterVertically) {
+                val aid = rowOf[id] ?: w.optInt("attendance_id")
+                if (aid > 0 && status != "absent") Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("OT", color = KitMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Text("−", color = KitInk, fontSize = 18.sp, modifier = Modifier.padding(start = 6.dp).clip(CircleShape).background(com.example.gavanhomes.ui.common.KitSoft).clickable(enabled = hours > 0) {
                         ot[id] = hours - 1; call(null, { api.send("PUT", "/attendance-center/$aid/overtime", JSONObject().put("overtime_hours", hours - 1)) })
