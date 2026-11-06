@@ -183,6 +183,7 @@ fun ProjectInventory(
             FabAction("return", "Material return", InvBlue, "↙").takeIf { can.optBoolean("inventory") },
             FabAction("transfer", "Stock transfer", InvAmber, "⇄").takeIf { can.optBoolean("inventory") },
             FabAction("store", "Store / site", KitGood, "⌂").takeIf { can.optBoolean("inventory") },
+            FabAction("request", "Material request", InvAmber, "✎").takeIf { can.optBoolean("request") },      // the website's Material Request: an indent, raised in Procurement
         ),
     ) { kind -> if (kind == "transfer" || kind == "store") sheet = kind else onNew(kind) }
     val tabs = listOfNotNull(
@@ -192,6 +193,7 @@ fun ProjectInventory(
         Tab("issues", "Issues").takeIf { can.optBoolean("inventory") },
         Tab("returns", "Returns").takeIf { can.optBoolean("inventory") },
         Tab("transfers", "Transfers").takeIf { can.optBoolean("inventory") },
+        Tab("adjust", "Stock adjustment").takeIf { can.optBoolean("edit") },
         Tab("alerts", "Stock alerts"),
         Tab("audit", "Audit trail").takeIf { can.optBoolean("inventory") },
     )
@@ -207,6 +209,7 @@ fun ProjectInventory(
         "issues" -> DocList(api, b, "/projects/$uuid/inventory-center/issues", version + local, "issue", options) { onOpen("issue", it) }
         "returns" -> DocList(api, b, "/projects/$uuid/inventory-center/returns", version + local, "return", options) { onOpen("return", it) }
         "transfers" -> TransferList(api, b, uuid, version + local, can, options, onChanged = ::changed)
+        "adjust" -> AdjustList(api, b, uuid, version + local, options, onChanged = ::changed)
         "alerts" -> AlertList(api, b, uuid, version + local, options, periodQuery(period)) { onOpen("material", it) }
         else -> AuditList(api, b, uuid, version + local, options)
     }
@@ -1061,4 +1064,31 @@ private fun AuditList(api: ApiClient, b: Branding, uuid: String, version: Int, o
             }
         }
     }
+}
+
+/**
+ * Stock adjustment, like the website's page of the same name: every material with its balance, and an Adjust button that corrects it
+ * (add or use stock, with a reason) — the same entry the material's own "Adjust stock" makes. Data: GET …/inventory-center/materials · POST …/materials/{id}/adjust.
+ */
+@Composable
+internal fun AdjustList(api: ApiClient, b: Branding, uuid: String, version: Int, options: JSONObject?, onChanged: () -> Unit) {
+    var adjusting by remember { mutableStateOf<JSONObject?>(null) }
+    FilteredList(
+        api, b, "/projects/$uuid/inventory-center/materials", version, "Search material, code or category…",
+        groups = emptyList(), sorts = listOf("name" to "Name A–Z", "stock" to "Lowest stock first"), empty = "No materials in this project yet.", noun = "material",
+    ) { m ->
+        RowCard({ adjusting = m }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(m.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(listOfNotNull(m.str("code"), m.str("category")).joinToString(" · ").ifEmpty { "No code" }, color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${qty(m.optDouble("on_hand", 0.0))} ${m.optString("unit")}", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Text("Adjust  ›", color = InvBlue, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+    adjusting?.let { m -> AdjustSheet(api, b, uuid, m, options?.objs("stores").orEmpty(), onClose = { adjusting = null }) { adjusting = null; onChanged() } }
 }

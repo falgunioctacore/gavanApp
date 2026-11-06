@@ -245,7 +245,7 @@ private fun Tile(value: String, label: String, modifier: Modifier, tint: Color) 
 /** Stock Adjustment: use or add stock, the quantity, which store, and why (website: materials/{id}/update-stock). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun AdjustSheet(api: ApiClient, b: Branding, uuid: String, m: JSONObject, stores: List<JSONObject>, onClose: () -> Unit, onDone: () -> Unit) {
+internal fun AdjustSheet(api: ApiClient, b: Branding, uuid: String, m: JSONObject, stores: List<JSONObject>, onClose: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var action by remember { mutableStateOf("used") }

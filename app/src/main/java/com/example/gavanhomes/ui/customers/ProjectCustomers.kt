@@ -136,6 +136,7 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
     }
     val can = o.optJSONObject("can") ?: JSONObject()
     ProvideFab(listOfNotNull(
+        FabAction("booking", "New booking", KitGood, "▤").takeIf { can.optBoolean("create_booking") },
         FabAction("customer", "New customer", KitInk, "☺").takeIf { can.optBoolean("create_customer") },
         FabAction("visit", "Schedule visit", InvBlue, "⌂").takeIf { can.optBoolean("create_visit") },
         FabAction("issue", "Raise issue", KitDanger, "!").takeIf { can.optBoolean("create_issue") },

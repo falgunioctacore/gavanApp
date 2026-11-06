@@ -345,7 +345,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             else if (current.key == "attendance")com.example.gavanhomes.ui.attendance.ProjectAttendance(api, b, uuid, attVersion, onOpen = { attStack.add("worker" to it) }, onNew = { attStack.add("new-worker" to 0) })
             else if (current.key == "customers")com.example.gavanhomes.ui.customers.ProjectCustomers(api, b, uuid, custVersion, onOpen = { kind, id -> custStack.add(kind to id) }, onNew = { kind -> custStack.add("new-$kind" to 0) })
             else if (current.key == "procurements")com.example.gavanhomes.ui.procurement.ProjectProcurement(api, b, uuid, procVersion, onOpen = { kind, id -> procStack.add(kind to id) }, onNew = { kind -> procStack.add("new-$kind" to 0) }, onChanged = { procVersion++ })
-            else if (current.key == "inventory") com.example.gavanhomes.ui.inventory.ProjectInventory(api, b, uuid, inventoryVersion, onOpen = { kind, id -> inventoryStack.add(kind to id) }, onNew = { kind -> inventoryStack.add("new-$kind" to 0) }, onChanged = { inventoryVersion++ },
+            else if (current.key == "inventory") com.example.gavanhomes.ui.inventory.ProjectInventory(api, b, uuid, inventoryVersion, onOpen = { kind, id -> inventoryStack.add(kind to id) }, onNew = { kind -> if (kind == "request") procStack.add("new-indent" to 0) else inventoryStack.add("new-$kind" to 0) }, onChanged = { inventoryVersion++ },
                 settingsOpen = settingsFor == "inventory", onCloseSettings = { settingsFor = null })
             else if (current.key == "targets") com.example.gavanhomes.ui.targets.ProjectTargets(api, b, uuid, targetsVersion, onOpen = { targetStack.add("detail" to it) }, onNew = { targetStack.add("form" to 0) },
                 onEdit = { targetStack.add("form" to it) }, onOpenAt = { id, tabKey -> targetStack.add("detail:$tabKey" to id) }, showListSignal = targetsListSignal)
@@ -496,7 +496,9 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 val open = { k: String, i: Int -> custStack.add(k to i); Unit }
                 val saved = { custVersion++; pop() }
                 when (kind) {
-                    "booking" -> com.example.gavanhomes.ui.customers.BookingDetailScreen(api, b, cid, custVersion, onBack = ::pop, onChanged = { custVersion++ }, onOpenCustomer = { open("customer", it) })
+                    "booking" -> com.example.gavanhomes.ui.customers.BookingDetailScreen(api, b, cid, custVersion, onBack = ::pop, onChanged = { custVersion++ }, onOpenCustomer = { open("customer", it) }, onEdit = { open("edit-booking", it) })
+                    "new-booking" -> com.example.gavanhomes.ui.customers.BookingFormScreen(api, b, uuid, null, cid.takeIf { it > 0 }, onBack = ::pop, onSaved = saved, unit = (-cid).takeIf { cid < 0 })      // a positive id is the lead it starts from, a negative one the unit
+                    "edit-booking" -> com.example.gavanhomes.ui.customers.BookingFormScreen(api, b, uuid, cid, null, onBack = ::pop, onSaved = saved)
                     "customer" -> com.example.gavanhomes.ui.customers.CustomerDetailScreen(api, b, uuid, cid, custVersion, onBack = ::pop, onEdit = { open("edit-customer", it) }, onChanged = { custVersion++ }, onOpen = open)
                     "visit" -> com.example.gavanhomes.ui.customers.VisitDetailScreen(api, b, cid, custVersion, onBack = ::pop, onEdit = { open("edit-visit", it) }, onChanged = { custVersion++ })
                     "issue" -> com.example.gavanhomes.ui.customers.IssueDetailScreen(api, b, uuid, cid, custVersion, onBack = ::pop, onEdit = { open("edit-issue", it) }, onChanged = { custVersion++ })
@@ -534,7 +536,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             if (kind.startsWith("detail")) androidx.compose.runtime.key(leadStack.size, lid) {
                 com.example.gavanhomes.ui.leads.LeadDetailScreen(
                     api, b, lid, leadsVersion, initialTab = when (kind.substringAfter(':', "")) { "followups" -> 1; "tasks" -> 2; "activity" -> 3; else -> 0 }, onBack = ::pop, onEdit = { leadStack.add("form" to it) },
-                    onOpenTask = { taskStack.add("detail" to it) }, onChanged = { leadsVersion++ },
+                    onOpenTask = { taskStack.add("detail" to it) }, onChanged = { leadsVersion++ }, onBook = { custStack.add("new-booking" to it) },
                 )
             } else com.example.gavanhomes.ui.leads.LeadFormScreen(api, b, uuid, lid.takeIf { it > 0 }, onBack = ::pop, onSaved = { leadsVersion++; pop() })
         }
@@ -576,6 +578,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     StatusPill(u.str("status"))
                 }
                 UnitLabels.forEach { (k, label) -> Fact(label, if (k == "price") money(u.str(k)) else u.str(k)) }
+                UnitBooking(api, b, uuid, u.optInt("id"), onBook = { unit = null; custStack.add("new-booking" to -u.optInt("id")) }, onOpenBooking = { unit = null; custStack.add("booking" to it) })
                 val docs = UnitDocs.filter { !u.str(it.first).isNullOrBlank() }
                 if (docs.isNotEmpty()) {
                     Text("DOCUMENTS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.6.sp)
@@ -583,6 +586,25 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 }
             }
         }
+    }
+}
+
+/** The unit sheet's booking part, like the website's unit pop-up: a free unit offers "Book this unit"; a held one shows its booking and opens it. */
+@Composable
+private fun UnitBooking(api: ApiClient, b: Branding, uuid: String, unitId: Int, onBook: () -> Unit, onOpenBooking: (Int) -> Unit) {
+    var d by remember(unitId) { mutableStateOf<JSONObject?>(null) }
+    LaunchedEffect(unitId) { d = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/customer-center/unit-booking/$unitId") } }.getOrNull() }
+    val x = d ?: return
+    if (x.optBoolean("can_book")) {
+        Text("▤  Book this unit", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(b.base).clickable { onBook() }.padding(vertical = 14.dp))
+    }
+    x.optJSONObject("booking")?.let { bk ->
+        Text("BOOKING DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.6.sp)
+        Fact("Customer", bk.str("customer")); Fact("Mobile", bk.str("mobile")); Fact("Reference", bk.str("ref")); Fact("Booked on", prettyDate(bk.str("date")))
+        Fact("Sale value", money(bk.optDouble("value", 0.0).toString())); Fact("Received", money(bk.optDouble("paid", 0.0).toString())); Fact("Still due", money(bk.optDouble("due", 0.0).toString()))
+        Fact("Payment plan", bk.str("plan"))
+        Text("Open booking  ›", color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { onOpenBooking(bk.optInt("id")) }.padding(vertical = 6.dp))
     }
 }
 

@@ -124,14 +124,17 @@ private fun FactsCard(title: String, o: JSONObject?) {
 /** A booking: buyer, unit and sale value; paid vs due; the applicant, co-applicant and property; the cost sheet; payments. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BookingDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onOpenCustomer: (Int) -> Unit) {
+fun BookingDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onOpenCustomer: (Int) -> Unit, onEdit: (Int) -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var askDelete by remember { mutableStateOf(false) }
     Detail(api, b, "Booking", "/customer-center/bookings/$id", version, onBack) { x, _ ->
         val can = x.optJSONObject("can") ?: JSONObject()
         Column(Modifier.fillMaxSize().background(KitPage).verticalScroll(rememberScrollState())) {
-            HeroBar(b, "Booking", onBack, actions = { if (can.optBoolean("delete_booking")) DeleteButton { askDelete = true } }) {
+            HeroBar(b, "Booking", onBack, actions = {
+                if (can.optBoolean("edit_booking") && x.str("status") != "cancelled") { HeroButton("✎") { onEdit(id) }; Spacer(Modifier.size(8.dp)) }
+                if (can.optBoolean("delete_booking")) DeleteButton { askDelete = true }
+            }) {
                 Column {
                     Text(x.optString("customer"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                     Text(listOfNotNull(x.str("unit"), x.str("unit_type")).joinToString(" · ").ifEmpty { x.optString("ref") }, color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
@@ -153,6 +156,13 @@ fun BookingDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBa
             FactsCard("Applicant", x.optJSONObject("applicant"))
             FactsCard("Co-applicant", x.optJSONObject("co_applicant"))
             FactsCard("Property", x.optJSONObject("property"))
+            x.optJSONObject("files")?.takeIf { it.length() > 0 }?.let { fl ->
+                Card("Documents", "Tap to open") {
+                    fl.keys().forEach { k -> fl.optJSONObject(k)?.let { d ->
+                        com.example.gavanhomes.ui.leads.SmallAction(d.optString("label"), InvBlue) { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(d.optString("url")))) }.onFailure { AppToast.show("No app can open this file") } }
+                    } }
+                }
+            }
             val costs = x.objs("costs")
             if (costs.isNotEmpty()) Card("Cost sheet") { costs.forEach { c -> Fact(c.optString("name"), rupees(c.optDouble("amount", 0.0))) }; Fact("Total", rupees(value)) }
             val pays = x.objs("payments")

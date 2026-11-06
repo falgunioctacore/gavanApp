@@ -97,7 +97,7 @@ private val Blue = Color(0xFF1E5FAE)
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onEdit: (Int) -> Unit, onOpenTask: (Int) -> Unit, onChanged: () -> Unit, initialTab: Int = 0) {
+fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onEdit: (Int) -> Unit, onOpenTask: (Int) -> Unit, onChanged: () -> Unit, initialTab: Int = 0, onBook: ((Int) -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<JSONObject?>(null) }
@@ -186,6 +186,9 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
                             PickerField("Label", x.str("label")) { if (canEdit) sheet = "label" }
                         }
                         Card("Assigned to") { PickerField("Owner", x.str("assignee")) { if (canEdit) sheet = "assign" } }
+                        if (onBook != null && x.optJSONObject("can")?.optBoolean("book") == true) Card("Booking", "Ready to book a unit for this lead?") {
+                            SmallAction("▤  Create booking from this lead", KitGood) { onBook(id) }
+                        }
                         Card("Notes", "Anything worth remembering") {
                             Input("Notes", notes, { notes = it }, singleLine = false, readOnly = !canEdit)
                             if (canEdit && notes != x.optString("notes").takeIf { it != "null" }.orEmpty()) SendButton("Save notes", true) { quick("Notes saved", "notes" to notes.trim()) }
