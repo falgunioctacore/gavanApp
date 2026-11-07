@@ -48,7 +48,6 @@ import com.example.gavanhomes.ui.common.ModulePages
 import com.example.gavanhomes.ui.common.ProvideFab
 import com.example.gavanhomes.ui.inventory.FilteredList
 import com.example.gavanhomes.ui.inventory.GrnList
-import com.example.gavanhomes.ui.inventory.GrnSheet
 import com.example.gavanhomes.ui.inventory.InvAmber
 import com.example.gavanhomes.ui.inventory.InvBlue
 import com.example.gavanhomes.ui.inventory.InvPurple
@@ -169,18 +168,16 @@ fun ProjectProcurement(api: ApiClient, b: Branding, uuid: String, version: Int, 
     val v = version + local
 
     when (pages[index].key) {
-        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "procurements", version); Dashboard(o, onOpen, onDelivery = { delivery = it }, onPage = { view = it }) }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "procurements", version); Dashboard(o, onOpen, onDelivery = { onOpen("delivery", it) }, onPage = { view = it }) }
         "indents" -> IndentList(api, b, uuid, v) { onOpen("indent", it) }
         "pos" -> PoList(api, b, uuid, v, options) { onOpen("po", it) }
-        "deliveries" -> DeliveryList(api, b, uuid, v, options) { delivery = it }
-        "grn" -> GrnList(api, b, uuid, v, JSONObject().put("vendors", options?.optJSONArray("suppliers") ?: JSONArray()), note = false) { grn = it }
+        "deliveries" -> DeliveryList(api, b, uuid, v, options) { onOpen("delivery", it) }
+        "grn" -> GrnList(api, b, uuid, v, JSONObject().put("vendors", options?.optJSONArray("suppliers") ?: JSONArray()), note = false) { onOpen("grn", it) }
         "suppliers" -> SupplierList(api, b, uuid, v) { onOpen("supplier", it) }
         "comparison" -> Comparison(api, b, uuid, v) { onOpen("supplier", it) }
         else -> Approvals(api, b, uuid, v, onOpen)
     }
 
-    if (grn > 0) GrnSheet(api, b, grn) { grn = 0 }
-    if (delivery > 0) DeliverySheet(api, b, delivery, onClose = { delivery = 0 }) { local++; onChanged() }
 }
 
 // ───────────────────────────── dashboard ─────────────────────────────
@@ -278,22 +275,34 @@ private fun IndentList(api: ApiClient, b: Branding, uuid: String, version: Int, 
         ),
         sorts = NewestOldest, empty = "No indents here.", noun = "indent",
     ) { i ->
+        val tone = i.str("priority")?.let { priorityTint(it) } ?: InvAmber
+        val closed = i.str("status")?.lowercase() == "closed"
+        val late = !closed && i.str("required_date")?.let { runCatching { java.time.LocalDate.parse(it.take(10)).isBefore(java.time.LocalDate.now()) }.getOrDefault(false) } == true && i.str("po_status")?.lowercase() != "closed"
         RowCard({ onOpen(i.optInt("id")) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(42.dp).clip(CircleShape).background(InvAmber.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text("✎", color = InvAmber, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold) }
+                Box(Modifier.size(42.dp).clip(CircleShape).background(tone.copy(alpha = .14f)), contentAlignment = Alignment.Center) { Text("✎", color = tone, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold) }
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(i.optString("number"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                    Text(listOfNotNull(prettyDay(i.str("date")), i.str("by")).joinToString(" · "), color = KitMuted, fontSize = 12.sp)
+                    Text(i.optString("number"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(listOfNotNull(i.str("by"), prettyDay(i.str("date"))).joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text("${i.optInt("items")} item${if (i.optInt("items") == 1) "" else "s"}", color = KitMuted, fontSize = 12.sp)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${i.optInt("items")}", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                    Text(if (i.optInt("items") == 1) "item" else "items", color = KitMuted, fontSize = 11.sp)
+                }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 indentStatus(i.str("status")).let { (l, c) -> Chip(l, c) }
-                fulfilment(i.str("po_status")).let { (l, c) -> Chip(l, c) }
                 i.str("priority")?.let { Chip(it, priorityTint(it)) }
-                i.str("required_date")?.let { Chip("Needed " + (prettyDay(it) ?: it), KitMuted) }
+                i.str("required_date")?.let { Chip((if (late) "Overdue · " else "Needed ") + (prettyDay(it) ?: it), if (late) KitDanger else KitMuted) }
             }
             (i.str("purpose") ?: i.str("remarks"))?.let { Text(it, color = KitMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            if (!i.isNull("ordered_pct")) {
+                val pct = i.optInt("ordered_pct")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { ProBar(pct / 100f, if (pct >= 100) KitGood else InvBlue) }
+                    Text(if (pct >= 100) "All on POs" else if (pct == 0) "Not ordered yet" else "$pct% on POs", color = if (pct >= 100) KitGood else KitMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 10.dp))
+                }
+            }
         }
     }
 }

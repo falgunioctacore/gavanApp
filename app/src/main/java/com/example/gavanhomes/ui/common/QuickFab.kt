@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.sp
 class FabAction(val key: String, val label: String, val color: Color = KitInk, val glyph: String = "+")
 
 /** How far a screen's scroll-to-top button moves up to clear the floating + button. */
-val FabLift: Dp = 72.dp
+val FabLift: Dp = 64.dp
 
 /**
  * The app's create button: a round + at the bottom-right of the screen. A tap always fans the actions out above it (even a single
@@ -71,9 +71,9 @@ fun BoxScope.QuickFab(b: Branding, actions: List<FabAction>, onPick: (String) ->
             }
         }
         Box(
-            Modifier.size(58.dp).softShadow(10.dp, CircleShape).clip(CircleShape).background(if (open) KitInkFill else b.base).clickable { open = !open },
+            Modifier.size(50.dp).softShadow(8.dp, CircleShape).clip(CircleShape).background(if (open) KitInkFill else b.base).clickable { open = !open },
             contentAlignment = Alignment.Center,
-        ) { Text(if (open) "✕" else "+", color = Color.White, fontSize = if (open) 22.sp else 30.sp, fontWeight = FontWeight.Bold) }
+        ) { Text(if (open) "✕" else "+", color = Color.White, fontSize = if (open) 19.sp else 26.sp, fontWeight = FontWeight.Bold) }
     }
 }
 

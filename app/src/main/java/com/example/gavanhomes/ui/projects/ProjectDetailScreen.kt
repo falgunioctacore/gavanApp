@@ -408,6 +408,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
             androidx.compose.runtime.key(inventoryStack.size, iid) {
                 when (kind) {
+                    "grn" -> com.example.gavanhomes.ui.inventory.GrnDetailScreen(api, b, iid, inventoryVersion, onBack = ::pop, onOpenGrn = { inventoryStack.add("grn" to it) })
                     "material" -> com.example.gavanhomes.ui.inventory.MaterialDetailScreen(api, b, uuid, iid, inventoryVersion, onBack = ::pop, onEdit = { inventoryStack.add("edit-material" to it) }, onChanged = { inventoryVersion++ })
                     "new-material", "edit-material" -> com.example.gavanhomes.ui.inventory.MaterialFormScreen(api, b, uuid, iid.takeIf { it > 0 }, onBack = ::pop, onSaved = { inventoryVersion++; pop() })
                     "new-issue", "new-return" -> com.example.gavanhomes.ui.inventory.DocFormScreen(api, b, uuid, kind.removePrefix("new-"), onBack = ::pop, onSaved = { inventoryVersion++; pop() })
@@ -518,7 +519,9 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
             androidx.compose.runtime.key(procStack.size, pid) {
                 when (kind) {
                     "indent" -> com.example.gavanhomes.ui.procurement.IndentDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
-                    "po" -> com.example.gavanhomes.ui.procurement.PoDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onReceive = { procStack.add("new-receive" to it) }, onOpenIndent = { procStack.add("indent" to it) }, onEdit = { procStack.add("edit-po" to it) })
+                    "po" -> com.example.gavanhomes.ui.procurement.PoDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onReceive = { procStack.add("new-receive" to it) }, onOpenIndent = { procStack.add("indent" to it) }, onEdit = { procStack.add("edit-po" to it) }, onOpenGrn = { procStack.add("grn" to it) }, onOpenDelivery = { procStack.add("delivery" to it) })
+                    "grn" -> com.example.gavanhomes.ui.inventory.GrnDetailScreen(api, b, pid, procVersion, onBack = ::pop, onOpenPo = { procStack.add("po" to it) }, onOpenGrn = { procStack.add("grn" to it) })
+                    "delivery" -> com.example.gavanhomes.ui.procurement.DeliveryDetailScreen(api, b, pid, procVersion, onBack = ::pop, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
                     "supplier" -> com.example.gavanhomes.ui.procurement.SupplierDetailScreen(api, b, pid, procVersion, onBack = ::pop, onEdit = { procStack.add("edit-supplier" to it) }, onChanged = { procVersion++ }, onOpenPo = { procStack.add("po" to it) })
                     "new-indent" -> com.example.gavanhomes.ui.procurement.IndentFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })
                     "new-po" -> com.example.gavanhomes.ui.procurement.PoFormScreen(api, b, uuid, onBack = ::pop, onSaved = { procVersion++; pop() })

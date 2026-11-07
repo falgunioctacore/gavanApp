@@ -4,6 +4,7 @@ import com.example.gavanhomes.ui.common.AppToast
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,6 +71,7 @@ import com.example.gavanhomes.ui.inventory.Banner
 import com.example.gavanhomes.ui.inventory.DatePick
 import com.example.gavanhomes.ui.inventory.InvAmber
 import com.example.gavanhomes.ui.inventory.InvBlue
+import com.example.gavanhomes.ui.inventory.InvPurple
 import com.example.gavanhomes.ui.inventory.MaterialPickSheet
 import com.example.gavanhomes.ui.inventory.SaveBar
 import com.example.gavanhomes.ui.inventory.Waiting
@@ -122,6 +124,19 @@ private fun LineRow(title: String, sub: String?, right: String, rightTint: Color
     }
 }
 
+/** A row of small totals under a page header — value on top (tinted), label under it. */
+@Composable
+private fun StatTiles(tiles: List<Triple<String, String, Color>>) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tiles.forEach { (v, l, c) ->
+            Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 10.dp, vertical = 12.dp)) {
+                Text(v, color = c, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(l, color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
 // ───────────────────────────── indent details ─────────────────────────────
 
 /** An indent: status, who and when, the materials asked for (and how much is already on a PO), the POs raised; Close / Delete. */
@@ -152,6 +167,13 @@ fun IndentDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
                 "Close indent", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitInkFill).clickable { ask = "close" }.padding(vertical = 14.dp),
             )
+            val iLines = x.objs("lines")
+            val asked = iLines.sumOf { it.optDouble("qty", 0.0) }; val ordered = iLines.sumOf { minOf(it.optDouble("fulfilled", 0.0), it.optDouble("qty", 0.0)) }
+            StatTiles(listOf(
+                Triple(iLines.size.toString(), "Materials", InvBlue),
+                Triple(if (asked > 0) "${(ordered / asked * 100).toInt()}%" else "—", "On a PO", if (asked > 0 && ordered >= asked) KitGood else InvAmber),
+                Triple(x.objs("pos").size.toString(), "Purchase orders", KitInk),
+            ))
             Card("Details") {
                 Fact("Purpose", x.str("purpose")); Fact("Needed by", prettyDay(x.str("required_date"))); Fact("Expected delivery", prettyDay(x.str("expected")))
                 Fact("Department", x.str("department")); Fact("Site location", x.str("site_location"))
@@ -188,7 +210,7 @@ fun IndentDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBac
 /** A purchase order: supplier and amount, the lines with what has arrived, charges, GRNs / deliveries / invoices; Send, Cancel, Receive goods. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onReceive: (Int) -> Unit, onOpenIndent: (Int) -> Unit, onEdit: (Int) -> Unit = {}) {
+fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onReceive: (Int) -> Unit, onOpenIndent: (Int) -> Unit, onEdit: (Int) -> Unit = {}, onOpenGrn: (Int) -> Unit = {}, onOpenDelivery: (Int) -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<JSONObject?>(null) }
@@ -218,6 +240,13 @@ fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: (
                 if (can.optBoolean("send")) ActionButton("➤  Send to supplier", InvBlue) { askSend = true }
                 if (can.optBoolean("cancel")) ActionButton("✕  Cancel PO", KitDanger) { cancelling = true }
             }
+            val pLines = x.objs("lines")
+            StatTiles(listOf(
+                Triple(pLines.size.toString(), "Items", InvBlue),
+                Triple("${x.optInt("received_pct")}%", "Received", if (x.optInt("received_pct") >= 100) KitGood else InvAmber),
+                Triple(x.objs("grns").size.toString(), "Receipts", KitGood),
+                Triple(x.objs("deliveries").size.toString(), "Deliveries", InvPurple),
+            ))
             Card("Details") {
                 Fact("Supplier", x.str("vendor")); Fact("Expected delivery", prettyDay(x.str("expected"))); Fact("Payment", x.str("payment_type"))
                 Fact("Bill no.", x.str("bill_number")); Fact("Bill date", prettyDay(x.str("bill_date"))); Fact("Raised by", x.str("by"))
@@ -241,8 +270,8 @@ fun PoDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: (
                 Fact("Total", rupees(x.optDouble("total", 0.0)))
             }
             val grns = x.objs("grns"); val dels = x.objs("deliveries"); val invs = x.objs("invoices")
-            if (grns.isNotEmpty()) Card("Goods received (GRN)") { grns.forEach { g -> LineRow(g.optString("number"), prettyDay(g.str("date")), "Qty ${qty(g.optDouble("qty", 0.0))}", KitGood) } }
-            if (dels.isNotEmpty()) Card("Deliveries") { dels.forEach { dl -> deliveryStatus(dl.str("status")).let { (l, c) -> LineRow(dl.optString("number"), dl.str("expected")?.let { "due " + prettyDay(it) }, l, c) } } }
+            if (grns.isNotEmpty()) Card("Goods received (GRN)", "Tap to open") { grns.forEach { g -> Box(Modifier.clickable { onOpenGrn(g.optInt("id")) }) { LineRow(g.optString("number"), prettyDay(g.str("date")), "Qty ${qty(g.optDouble("qty", 0.0))}  ›", KitGood) } } }
+            if (dels.isNotEmpty()) Card("Deliveries", "Tap to open") { dels.forEach { dl -> deliveryStatus(dl.str("status")).let { (l, c) -> Box(Modifier.clickable { onOpenDelivery(dl.optInt("id")) }) { LineRow(dl.optString("number"), dl.str("expected")?.let { "due " + prettyDay(it) }, "$l  ›", c) } } } }
             if (invs.isNotEmpty()) Card("Invoices") { invs.forEach { v -> LineRow(v.str("number") ?: "Invoice", listOfNotNull(prettyDay(v.str("date")), v.str("status")?.replaceFirstChar { it.uppercase() }).joinToString(" · "), rupees(v.optDouble("amount", 0.0))) } }
             Spacer(Modifier.height(28.dp))
         }
@@ -278,63 +307,144 @@ private fun ReasonSheet(title: String, label: String, button: String, c: Color, 
 
 // ───────────────────────────── delivery (sheet) ─────────────────────────────
 
-/** A delivery: vehicle and driver, the items; Approve arrival, then accept it in full, in part (quantity per item) or reject it. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/**
+ * A delivery, as a page like the app's other details: the header (number, PO · supplier, status / acceptance / GRN), a progress strip
+ * (Pending → … → Delivered), then cards — Next step (approve arrival, then accept in full, in part or reject), Items (a quantity per
+ * item when accepting in part), Dispatch & supplier, Documents and Remarks.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DeliverySheet(api: ApiClient, b: Branding, id: Int, onClose: () -> Unit, onChanged: () -> Unit) {
+fun DeliveryDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onChanged: () -> Unit, onOpenPo: (Int) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<JSONObject?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     var mode by remember { mutableStateOf<String?>(null) }           // partial · rejected
     val accepted = remember { mutableStateMapOf<Int, String>() }
     var reason by remember { mutableStateOf("") }
-    LaunchedEffect(id, attempt) { d = runCatching { withContext(Dispatchers.IO) { api.detail("/procurement-center/deliveries/$id") } }.getOrNull() }
+    LaunchedEffect(id, version, attempt) { error = null; try { d = withContext(Dispatchers.IO) { api.detail("/procurement-center/deliveries/$id") } } catch (e: Exception) { error = e.message ?: "Could not load" } }
+    val x = d ?: return Waiting(b, "Delivery", error, onBack) { attempt++ }
     fun accept(type: String) {
         val body = JSONObject().put("acceptance_type", type)
         if (type == "partial") body.put("accepted_qty", JSONObject().apply { accepted.forEach { (k, v) -> put(k.toString(), v.toDoubleOrNull() ?: 0.0) } })
         if (type == "rejected") body.put("rejection_reason", reason.trim())
         act(context, scope, "Delivery processed", { api.send("POST", "/procurement-center/deliveries/$id/accept", body) }) { mode = null; attempt++; onChanged() }
     }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val x = d
-            if (x == null) { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }; return@Column }
-            val can = x.optJSONObject("can") ?: JSONObject()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(x.optString("number"), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
-                    Text(listOfNotNull(x.str("po"), x.str("supplier")).joinToString(" · "), color = KitMuted, fontSize = 13.sp)
-                }
-                deliveryStatus(x.str("status")).let { (l, c) -> Chip(l, c) }
+    val can = x.optJSONObject("can") ?: JSONObject()
+    val status = x.str("status")
+    val acceptance = x.str("acceptance_type")
+    val approved = x.optBoolean("arrival_approved")
+    val (statusLabel, statusColor) = deliveryStatus(status)
+    val lines = x.objs("lines")
+    val docs = x.objs("documents")
+    val acceptLabel = when (acceptance) { "full" -> "Fully accepted"; "partial" -> "Partially accepted"; "rejected" -> "Rejected"; else -> null }
+
+    Column(Modifier.fillMaxSize().background(KitPage).verticalScroll(rememberScrollState())) {
+        HeroBar(b, "Delivery", onBack) {
+            Column {
+                Text(x.optString("number"), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                Text(listOfNotNull(x.str("po"), x.str("supplier")).joinToString(" · ").ifEmpty { "Delivery" }, color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
+                Spacer(Modifier.height(14.dp))
+                HeroChips(*listOfNotNull(statusLabel, acceptLabel, x.str("grn_no")?.let { "GRN $it" }).toTypedArray())
             }
-            Fact("Vehicle", x.str("vehicle")); Fact("Driver", x.str("driver")); Fact("Dispatched", prettyDay(x.str("dispatched")))
-            Fact("Expected", prettyDay(x.str("expected"))); Fact("Arrived", prettyDay(x.str("arrived"))); Fact("GRN", x.str("grn_no"))
-            Fact("Remarks", x.str("remarks")); Fact("Rejected because", x.str("rejection_reason"))
+        }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // progress strip
+            val steps = x.optJSONArray("steps")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+            val at = steps.indexOf(status)
+            if (steps.isNotEmpty()) Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 6.dp, vertical = 14.dp)) {
+                steps.forEachIndexed { i, s ->
+                    val done = i < at; val now = i == at
+                    val tone = if (done || now) (if (s == "rejected") KitDanger else KitGood) else KitMuted.copy(alpha = .45f)
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(24.dp).clip(CircleShape).background(if (done) tone else if (now) tone.copy(alpha = .18f) else Color.Transparent).border(2.dp, tone, CircleShape), contentAlignment = Alignment.Center) {
+                            if (done) Text("✓", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                            else if (now) Box(Modifier.size(8.dp).clip(CircleShape).background(tone))
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Text(s.replace('_', ' ').replaceFirstChar { it.uppercase() }, fontSize = 9.5.sp, fontWeight = if (now) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (now || done) KitInk else KitMuted, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
+            }
             x.str("driver_phone")?.let { com.example.gavanhomes.ui.tasks.PhoneActions(it) }
-            Label("Items")
-            x.objs("lines").forEach { l ->
-                LineRow(l.optString("name"), "Ordered ${qty(l.optDouble("ordered", 0.0))} · delivered ${qty(l.optDouble("delivered", 0.0))}" + (if (!l.isNull("accepted")) " · accepted ${qty(l.optDouble("accepted", 0.0))}" else ""),
+        }
+
+        StatTiles(listOf(
+            Triple(lines.size.toString(), "Items", InvBlue),
+            Triple(qty(lines.sumOf { it.optDouble("ordered", 0.0) }), "Ordered qty", InvAmber),
+            Triple(qty(lines.sumOf { it.optDouble("delivered", 0.0) }), "Delivered qty", KitGood),
+        ))
+        // what to do / what happened
+        Card(if (acceptance != null) "Outcome" else "Next step") {
+            // 1 · arrival
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("1 · Arrival", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk)
+                    if (approved) Text("✓ Approved" + (x.str("arrival_approved_at")?.let { " · " + (prettyDay(it) ?: it) } ?: ""), color = KitGood, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    else if (!can.optBoolean("approve")) Text("The supplier must mark it Arrived first", color = KitMuted, fontSize = 12.sp)
+                    else Text("It has arrived — approve it to go on", color = KitMuted, fontSize = 12.sp)
+                }
+                if (can.optBoolean("approve")) ActionButton("✓  Approve", KitGood) { act(context, scope, "Arrival approved", { api.send("POST", "/procurement-center/deliveries/$id/approve", JSONObject()) }) { attempt++; onChanged() } }
+            }
+            // 2 · acceptance
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("2 · Acceptance", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = if (approved || acceptance != null) KitInk else KitMuted)
+                when {
+                    acceptance == "full" -> Text("✓ Fully accepted" + (x.str("accepted_at")?.let { " · " + (prettyDay(it) ?: it) } ?: ""), color = KitGood, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    acceptance == "partial" -> Text("Partially accepted" + (x.str("accepted_at")?.let { " · " + (prettyDay(it) ?: it) } ?: ""), color = InvAmber, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    acceptance == "rejected" -> { Text("✕ Rejected", color = KitDanger, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold); x.str("rejection_reason")?.let { Text(it, color = KitMuted, fontSize = 12.sp) } }
+                    can.optBoolean("accept") -> when (mode) {
+                        null -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ActionButton("Accept all", KitGood) { accept("full") }
+                            ActionButton("Accept part", InvBlue) { mode = "partial" }
+                            ActionButton("Reject", KitDanger) { mode = "rejected" }
+                        }
+                        "partial" -> {
+                            Text("Enter the accepted quantity for each item below, then confirm.", color = KitMuted, fontSize = 12.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton("Accept these quantities", KitGood) { accept("partial") }; SmallAction("Back", KitInk) { mode = null } }
+                        }
+                        else -> {
+                            Input("Why is it being rejected?", reason, { reason = it }, singleLine = false)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton("Reject delivery", KitDanger) { if (reason.isNotBlank()) accept("rejected") }; SmallAction("Back", KitInk) { mode = null } }
+                        }
+                    }
+                    else -> Text("Approve the arrival first", color = KitMuted, fontSize = 12.sp)
+                }
+            }
+        }
+
+        Card("Items", "${lines.size} item" + if (lines.size == 1) "" else "s") {
+            if (lines.isEmpty()) Text("No items recorded for this delivery.", color = KitMuted, fontSize = 13.sp)
+            lines.forEach { l ->
+                LineRow(l.optString("name"), "Ordered ${qty(l.optDouble("ordered", 0.0))} · delivered ${qty(l.optDouble("delivered", 0.0))}" + (if (acceptance != null && !l.isNull("accepted")) " · accepted ${qty(l.optDouble("accepted", 0.0))}" else ""),
                     "${qty(l.optDouble("delivered", 0.0))} ${l.optString("unit")}") {
                     if (mode == "partial") Input("Accepted (max ${qty(l.optDouble("delivered", 0.0))})", accepted[l.optInt("id")] ?: plain(l.optDouble("delivered", 0.0)), { accepted[l.optInt("id")] = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal)
                 }
             }
-            if (can.optBoolean("approve")) ActionButton("✓  Approve arrival", KitGood) { act(context, scope, "Arrival approved", { api.send("POST", "/procurement-center/deliveries/$id/approve", JSONObject()) }) { attempt++; onChanged() } }
-            if (can.optBoolean("accept")) when (mode) {
-                null -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton("Accept all", KitGood) { accept("full") }
-                    ActionButton("Accept part", InvBlue) { mode = "partial" }
-                    ActionButton("Reject", KitDanger) { mode = "rejected" }
-                }
-                "partial" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton("Accept these quantities", KitGood) { accept("partial") }; SmallAction("Back", KitInk) { mode = null } }
-                else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Input("Why is it being rejected?", reason, { reason = it }, singleLine = false)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton("Reject delivery", KitDanger) { if (reason.isNotBlank()) accept("rejected") }; SmallAction("Back", KitInk) { mode = null } }
+        }
+
+        Card("Dispatch & supplier") {
+            Fact("Dispatched", prettyDay(x.str("dispatched"))); Fact("Expected arrival", prettyDay(x.str("expected"))); Fact("Actual arrival", prettyDay(x.str("arrived")))
+            Fact("Vehicle", x.str("vehicle")); Fact("Driver", x.str("driver")); Fact("Driver mobile", x.str("driver_phone"))
+            Fact("Supplier", x.str("supplier")); Fact("Supplier email", x.str("supplier_email"))
+            x.str("po")?.let { po -> Text("Open $po  ›", color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { onOpenPo(x.optInt("po_id")) }.padding(vertical = 6.dp)) }
+        }
+
+        Card("Documents", "${docs.count { it.optBoolean("uploaded") }} of ${docs.size} uploaded") {
+            docs.forEach { dc ->
+                val up = dc.optBoolean("uploaded"); val missing = !up && dc.optBoolean("on_record")
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (up) KitGood.copy(alpha = .08f) else if (missing) KitDanger.copy(alpha = .07f) else KitMuted.copy(alpha = .07f)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(dc.optString("label"), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = KitInk)
+                        Text(if (up) "Uploaded" else if (missing) "File missing on server" else "Not uploaded", fontSize = 12.sp, color = if (up) KitGood else if (missing) KitDanger else KitMuted)
+                    }
+                    if (up) SmallAction("View  ›", InvBlue) { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(dc.optString("url")))) }.onFailure { AppToast.show("No app can open this file") } }
                 }
             }
-            if (!can.optBoolean("approve") && !can.optBoolean("accept") && x.str("status") != "delivered" && x.str("status") != "rejected" && !x.optBoolean("arrival_approved"))
-                Text("Arrival can be approved once the supplier marks it arrived.", color = KitMuted, fontSize = 12.sp)
         }
+        x.str("remarks")?.let { Card("Remarks") { Text(it, color = KitInk, fontSize = 13.sp, lineHeight = 19.sp) } }
+        Spacer(Modifier.height(28.dp))
     }
 }
 
@@ -383,6 +493,11 @@ fun SupplierDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onB
             Fact("Registration", x.str("company_registration")); Fact("PAN", x.str("pan"))
         }
         val pos = x.objs("recent_pos")
+        StatTiles(listOf(
+            Triple(x.optInt("pos").toString(), "Purchase orders", InvBlue),
+            Triple(rupees(x.optDouble("spend", 0.0)), "Total spend", InvAmber),
+            Triple(if (x.optInt("pos") > 0) rupees(x.optDouble("spend", 0.0) / x.optInt("pos")) else "—", "Avg. PO", KitGood),
+        ))
         if (pos.isNotEmpty()) Card("Recent purchase orders") { pos.forEach { p -> MiniRow(p.optString("number"), prettyDay(p.str("date")) ?: "", rupees(p.optDouble("total", 0.0)), poStatus(p.str("status"))) { onOpenPo(p.optInt("id")) } } }
         Spacer(Modifier.height(28.dp))
     }

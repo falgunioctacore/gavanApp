@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -202,10 +203,10 @@ fun ProjectInventory(
     fun changed() { local++; onChanged() }
 
     when (tabs[index].key) {
-        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "inventory", version); Dashboard(b, o, period, { period = it }, can, onOpen, onGrn = { grn = it }, onAlerts = { view = "alerts" }) }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "inventory", version); Dashboard(b, o, period, { period = it }, can, onOpen, onGrn = { onOpen("grn", it) }, onAlerts = { view = "alerts" }) }
         "materials" -> MaterialList(api, b, uuid, version + local, options, periodQuery(period), onOpen)
         "stores" -> StoreList(api, b, uuid, version + local, can, onChanged = ::changed)
-        "grn" -> GrnList(api, b, uuid, version + local, options) { grn = it }
+        "grn" -> GrnList(api, b, uuid, version + local, options) { onOpen("grn", it) }
         "issues" -> DocList(api, b, "/projects/$uuid/inventory-center/issues", version + local, "issue", options) { onOpen("issue", it) }
         "returns" -> DocList(api, b, "/projects/$uuid/inventory-center/returns", version + local, "return", options) { onOpen("return", it) }
         "transfers" -> TransferList(api, b, uuid, version + local, can, options, onChanged = ::changed)
@@ -218,7 +219,6 @@ fun ProjectInventory(
         "transfer" -> TransferSheet(api, b, uuid, options, onClose = { sheet = null }) { sheet = null; changed() }
         "store" -> StoreSheet(api, b, uuid, null, onClose = { sheet = null }) { sheet = null; changed() }
     }
-    if (grn > 0) GrnSheet(api, b, grn) { grn = 0 }
 }
 
 // ───────────────────────────── dashboard ─────────────────────────────
@@ -993,34 +993,81 @@ internal fun GrnList(api: ApiClient, b: Branding, uuid: String, version: Int, op
     if (note) Text("New receipts are made against a purchase order in Procurements.", color = KitMuted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(16.dp))
 }
 
-/** A GRN: PO, vendor, invoice and the received lines. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * A goods receipt (GRN), as a page like the app's other details: the header (number, vendor · site · date, "Stock received" and its tag),
+ * a row of totals (items, quantity, cost, invoice), then cards — Receipt info, Vendor & invoice, Received materials, Linked records
+ * (the PO, the indent, the PO's other receipts) and Remarks. [onOpenPo] is null where the purchase order can't be opened from here.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun GrnSheet(api: ApiClient, b: Branding, id: Int, onClose: () -> Unit) {
+fun GrnDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onOpenPo: ((Int) -> Unit)? = null, onOpenGrn: (Int) -> Unit = {}) {
     var g by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(id) { try { g = withContext(Dispatchers.IO) { api.detail("/inventory-center/grns/$id") } } catch (e: Exception) { error = e.message ?: "Could not load" } }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val x = g
-            if (x == null) { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { if (error == null) com.example.gavanhomes.ui.common.EstateLoader(b.base) else Text(error ?: "", color = KitMuted) }; return@Column }
-            Text(x.optString("number"), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = KitInk)
-            Text("Material receipt", color = KitMuted, fontSize = 13.sp)
-            Fact("Received", com.example.gavanhomes.ui.leads.whenLabel(x.str("date")))
-            Fact("Purchase order", x.str("po")); Fact("Vendor", x.str("vendor")); Fact("Invoice no.", x.str("invoice_no"))
-            if (x.has("invoice_amount") && !x.isNull("invoice_amount")) Fact("Invoice amount", rupees(x.optDouble("invoice_amount", 0.0)))
-            Fact("Received by", x.str("by")); Fact("Remarks", x.str("remarks"))
-            Label("Items")
-            x.objs("lines").forEach { l ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(l.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("${qty(l.optDouble("qty", 0.0))} ${l.optString("unit")} × ${rupees(l.optDouble("rate", 0.0))}", color = KitMuted, fontSize = 12.sp)
-                    }
-                    Text(rupees(l.optDouble("amount", 0.0)), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+    var attempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(id, version, attempt) { error = null; try { g = withContext(Dispatchers.IO) { api.detail("/inventory-center/grns/$id") } } catch (e: Exception) { error = e.message ?: "Could not load" } }
+    val x = g ?: return Waiting(b, "Receipt", error, onBack) { attempt++ }
+    val lines = x.objs("lines")
+    val totals = x.optJSONObject("totals") ?: JSONObject()
+    val day = x.str("date")?.take(10)
+    val time = x.str("date")?.drop(11)?.takeIf { it.length >= 4 }
+    val invoice = if (x.has("invoice_amount") && !x.isNull("invoice_amount")) x.optDouble("invoice_amount", 0.0) else null
+    val others = x.objs("other_grns")
+    val indent = x.optJSONObject("indent")
+
+    Column(Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage).verticalScroll(rememberScrollState())) {
+        com.example.gavanhomes.ui.common.HeroBar(b, "Receipt", onBack) {
+            Column {
+                Text(x.optString("number"), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                Text(listOfNotNull(x.str("vendor"), x.str("project")).joinToString(" · ").ifEmpty { "Material receipt" }, color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
+                Spacer(Modifier.height(14.dp))
+                com.example.gavanhomes.ui.common.HeroChips(*listOfNotNull("Stock received", x.str("tags")?.replaceFirstChar { it.uppercase() }, day?.let { prettyDay(it) }).toTypedArray())
+            }
+        }
+        // totals
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOfNotNull(
+                Triple(totals.optInt("items", lines.size).toString(), "Items", InvBlue),
+                Triple(qty(totals.optDouble("qty", 0.0)), "Total qty", KitGood),
+                Triple(rupees(totals.optDouble("cost", 0.0)), "Total cost", InvAmber),
+                invoice?.let { Triple(rupees(it), "Invoice", KitDanger) },
+            ).forEach { (v, l, c) ->
+                Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(horizontal = 10.dp, vertical = 12.dp)) {
+                    Text(v, color = c, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(l, color = KitMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
+        Card("Receipt info") {
+            Fact("GRN no.", x.str("number")); Fact("Date", prettyDay(day)); Fact("Time", time)
+            Fact("Created by", x.str("by")); Fact("Site", x.str("project")); Fact("Challan", x.str("challan")?.substringAfterLast('/'))
+        }
+        if (x.str("vendor") != null || x.str("invoice_no") != null || invoice != null) Card("Vendor & invoice") {
+            Fact("Vendor", x.str("vendor")); Fact("Vendor email", x.str("vendor_email")); Fact("Invoice no.", x.str("invoice_no"))
+            invoice?.let { Fact("Invoice amount", rupees(it)) }
+        }
+        Card("Received materials", "${lines.size} item" + if (lines.size == 1) "" else "s") {
+            if (lines.isEmpty()) Text("No materials recorded in this GRN.", color = KitMuted, fontSize = 13.sp)
+            lines.forEach { l ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(l.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(if (l.optDouble("rate", 0.0) > 0) "${qty(l.optDouble("qty", 0.0))} ${l.optString("unit")} × ${rupees(l.optDouble("rate", 0.0))}" else "${qty(l.optDouble("qty", 0.0))} ${l.optString("unit")}", color = KitMuted, fontSize = 12.sp)
+                    }
+                    Text(if (l.optDouble("amount", 0.0) > 0) rupees(l.optDouble("amount", 0.0)) else "—", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                }
+            }
+        }
+        if (x.str("po") != null) Card("Linked records") {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val po = x.str("po")
+                if (po != null) Text("PO: $po" + if (onOpenPo != null) "  ›" else "", color = InvBlue, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(InvBlue.copy(alpha = .1f)).then(if (onOpenPo != null) Modifier.clickable { onOpenPo(x.optInt("po_id")) } else Modifier).padding(horizontal = 12.dp, vertical = 8.dp))
+                indent?.let { Text("Indent: ${it.optString("no")}", color = InvAmber, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(InvAmber.copy(alpha = .12f)).padding(horizontal = 12.dp, vertical = 8.dp)) }
+                others.forEach { o -> Text("Other GRN: ${o.optString("number")}  ›", color = KitGood, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(KitGood.copy(alpha = .1f)).clickable { onOpenGrn(o.optInt("id")) }.padding(horizontal = 12.dp, vertical = 8.dp)) }
+            }
+        }
+        x.str("remarks")?.let { Card("Remarks") { Text(it, color = KitInk, fontSize = 13.sp, lineHeight = 19.sp) } }
+        Spacer(Modifier.height(28.dp))
     }
 }
 
