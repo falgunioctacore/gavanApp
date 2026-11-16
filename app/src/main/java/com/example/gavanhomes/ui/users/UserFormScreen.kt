@@ -235,9 +235,10 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
 
                         when (tab.coerceAtMost(tabs.size - 1)) {
                             0 -> {
-                                if (!editing) FormCard("From HR record", "Fills in name, email, phone and department — still editable.") {
+                                if (!editing) FormCard("Select employee (optional)", "Pick an existing employee to fill in their name, email, phone and department. Or skip this and type the details yourself.") {
                                     val emp = employees.firstOrNull { it.optInt("id").toString() == form.get("employee_id") }
-                                    PickerField("Employee", emp?.str("name")) { picker = "employee" }
+                                    if (employees.isEmpty()) Text("No employees yet — just fill in the details below.", color = com.example.gavanhomes.ui.common.KitMuted, fontSize = 13.sp)
+                                    else PickerField("Employee", emp?.str("name")) { picker = "employee" }
                                 }
                                 FormCard("Profile") {
                                     f("first_name", "First name *")
@@ -340,11 +341,14 @@ fun UserFormScreen(api: ApiClient, b: Branding, id: Int?, onBack: () -> Unit, on
     // ── option pickers ──
     when (picker) {
         "employee" -> ChoiceSheet(
-            "HR employee", employees.map { Choice(it.optInt("id"), listOfNotNull(it.str("name"), it.str("designation")).joinToString(" — ")) },
+            "Select employee (optional)", employees.map { Choice(it.optInt("id"), listOfNotNull(it.str("name"), it.str("designation")).joinToString(" — ")) },
             setOf(form.get("employee_id").toIntOrNull() ?: -1), multi = false, allowNone = true, onDismiss = { picker = null },
         ) { ids ->
             val emp = employees.firstOrNull { it.optInt("id") == ids.firstOrNull() }
+            val hadEmployee = form.get("employee_id").isNotBlank()
             form.text["employee_id"] = emp?.optInt("id")?.toString().orEmpty()
+            // "None" after an employee was chosen: take back what that choice filled in, so the form really is empty
+            if (emp == null && hadEmployee) listOf("first_name", "last_name", "email", "phone_number", "department_id").forEach { form.text[it] = "" }
             if (emp != null) {
                 val full = emp.str("name").orEmpty().trim()
                 form.text["first_name"] = full.substringBefore(' ')

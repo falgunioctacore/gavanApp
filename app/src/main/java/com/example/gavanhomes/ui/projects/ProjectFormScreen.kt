@@ -73,7 +73,7 @@ import org.json.JSONObject
 
 /** Everything the user can change in the form, as one comparable value. */
 private fun snapshot(f: ProjectForm): List<Any> = listOf(
-    f.text.toMap(), f.active, f.reraRegistered, f.developerPartner, f.types, f.memberIds, f.partners.size, f.unitCount,
+    f.text.toMap(), f.active, f.reraRegistered, f.developerPartner, f.types, f.memberIds, f.partners.size, f.developers.size, f.developers.map { listOf(it.name, it.entityType, it.cin, it.reraNumber, it.signatoryName, it.pan, it.gst, it.address, it.isLead, it.logo.picked != null) }, f.partners.map { listOf(it.name, it.aadhar, it.pan, it.mobile, it.email, it.developer, it.aadharFront.picked != null, it.panDoc.picked != null) }, f.unitCount, f.milestones.map { listOf(it.name, it.mode, it.value, it.dueType, it.dueValue) }, f.chargeModes.toMap(),
     f.files.values.count { it.picked != null },
 )
 
@@ -130,7 +130,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
                     (0 until arr.length()).map { i ->
                         val c = arr.getJSONObject(i)
                         val ops = c.optJSONArray("options")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
-                        InvColumn(c.getString("key"), c.getString("label"), c.getString("type"), ops, c.optBoolean("required"))
+                        InvColumn(c.getString("key"), c.getString("label"), c.getString("type"), ops, c.optBoolean("required"), c.optString("csv").ifBlank { null })
                     }
                 }
             }
@@ -150,6 +150,21 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
         banner = emptyList(); form.errors = emptyMap()
         if (form.get("name").isBlank()) { form.errors = mapOf("name" to "Enter a project name"); step = 0; banner = listOf("Please enter the project name."); return }
         if (form.get("status_id").isBlank()) { form.errors = mapOf("status_id" to "Choose a status"); step = 0; banner = listOf("Please choose a status."); return }
+        val formProblems = mutableListOf<String>()
+        form.developers.forEachIndexed { i, d -> d.problems().forEach { (k, m) -> formProblems += "Developer ${i + 1}: $m"; form.errors = form.errors + ("developers.$i.$k" to m) } }
+        if (form.developerPartner) form.partners.forEachIndexed { i, p -> p.problems().forEach { (k, m) -> formProblems += "Partner ${i + 1}: $m"; form.errors = form.errors + ("partners.$i.$k" to m) } }
+        if (formProblems.isNotEmpty()) { banner = formProblems.take(4); step = 0; return }
+        // every unit needs its number, and a number may be used only once per type — the server rejects anything else
+        val unitProblems = mutableListOf<String>()
+        form.types.sorted().forEach { t ->
+            val seen = HashSet<String>()
+            form.unitsOf(t).forEachIndexed { i, u ->
+                val k = u.key
+                if (k == null) unitProblems += "$t: unit ${i + 1} has no number — fill it in or delete the unit."
+                else if (!seen.add(k)) unitProblems += "$t: number ${u.values.entries.firstOrNull { it.key.endsWith("_no") && it.value.isNotBlank() }?.value ?: k} is used twice."
+            }
+        }
+        if (unitProblems.isNotEmpty()) { banner = unitProblems.take(4); step = 1; return }
         saving = true
         scope.launch {
             try {
@@ -185,10 +200,10 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
                     if (step == 0) Column(
                         Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
                     ) {
-                        BasicInfoStep(form, statuses, people, b, context, pick, view) { picker = it }
+                        BasicInfoStep(form, statuses, people, b, context, pick, view, { picker = it }, api)
                         Spacer(Modifier.height(8.dp))
                     } else Box(Modifier.widthIn(max = 720.dp).fillMaxSize().imePadding()) {
-                        InventoryStep(form, columns, b, pick, view)
+                        InventoryStep(form, columns, b, pick, view, api, uuid)
                     }
                 }
 

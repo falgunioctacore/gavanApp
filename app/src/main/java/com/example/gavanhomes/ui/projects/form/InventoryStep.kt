@@ -56,6 +56,17 @@ import com.example.gavanhomes.ui.common.KitMuted
 import com.example.gavanhomes.ui.common.Pill
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.SwalConfirm
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.gavanhomes.data.ApiClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 private val Amber = Color(0xFFC47A1A)
 private val Blue = Color(0xFF2F6FE4)
@@ -64,10 +75,12 @@ private fun statusColor(s: String?): Color = when (s) { "available" -> KitGood; 
 private fun cap(s: String) = s.replaceFirstChar { it.uppercase() }
 
 /** Step 2 of the website's form: the unit inventory, one list per selected property type. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InventoryStep(
     form: ProjectForm, columns: Map<String, List<InvColumn>>, b: Branding,
     pick: (FileSlot) -> Unit, view: (String) -> Unit,
+    api: ApiClient? = null, uuid: String? = null,
 ) {
     val types = form.types.sorted()
     if (types.isEmpty()) {
@@ -82,13 +95,66 @@ fun InventoryStep(
     if (current !in types) current = types.first()
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<UnitState?>(null) }
+    var statusFilter by remember { mutableStateOf<String?>(null) }
+    val selected = remember { mutableStateListOf<Long>() }            // UnitState.id of the chosen units
+    var selecting by remember { mutableStateOf(false) }               // the "Select" button — or a long-press — turns tick boxes on
+    val selectMode = selecting || selected.isNotEmpty()
+    var confirmBulk by remember { mutableStateOf(false) }
+    var undoIds by remember { mutableStateOf<List<Int>>(emptyList()) }   // server ids deleted a moment ago — "Undo" brings them back
+    var importMode by remember { mutableStateOf(ImportMode.Merge) }
+    val scope = rememberCoroutineScope()
 
     val cols = columns[current].orEmpty()
     val idKey = cols.firstOrNull()?.key ?: "unit_no"
     val units = form.unitsOf(current)
     val shown = units.withIndex().filter { (_, u) ->
         val q = query.trim().lowercase()
-        q.isEmpty() || u.values.values.any { it.lowercase().contains(q) }
+        (statusFilter == null || u.values["status"] == statusFilter) && (q.isEmpty() || u.values.values.any { it.lowercase().contains(q) })
+    }
+    // units that repeat a number already above them, or have no number — the leftovers of the old duplicate bug
+    val seenKeys = HashSet<String>()
+    val extras = units.filter { u -> val k = u.key; k == null || !seenKeys.add(k) }.map { it.id }.toSet()
+    val protectedStatuses = setOf("booked", "sold")
+
+    fun clearSelection() { selected.clear(); selecting = false }
+
+    /** Delete units: saved ones go through the server at once (so the list and the dashboard agree) and can be undone. */
+    fun removeUnits(list: List<UnitState>) {
+        val doomed = list.filter { it.values["status"] !in protectedStatuses }
+        val kept = list.size - doomed.size
+        val saved = doomed.mapNotNull { it.savedId }
+        val finish = { ids: Set<Int> ->
+            units.removeAll { u -> u in doomed && (u.savedId == null || u.savedId in ids) }
+            clearSelection()
+            if (kept > 0) AppToast.show("$kept booked / sold unit${if (kept == 1) "" else "s"} cannot be deleted")
+        }
+        if (saved.isEmpty() || api == null || uuid == null) { finish(emptySet()); return }
+        scope.launch {
+            try {
+                val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/units/delete", JSONObject().put("ids", JSONArray(saved))) }
+                val deleted = r.optJSONObject("data")?.optJSONArray("deleted")?.let { a -> (0 until a.length()).map { a.getInt(it) } } ?: emptyList()
+                finish(deleted.toSet())
+                undoIds = deleted
+                AppToast.show(r.optString("message", "Deleted"))
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete") }
+        }
+    }
+
+    fun undoDelete() {
+        val ids = undoIds; undoIds = emptyList()
+        if (api == null || uuid == null || ids.isEmpty()) return
+        scope.launch {
+            try {
+                val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/units/restore", JSONObject().put("ids", JSONArray(ids))) }
+                val rows = r.optJSONObject("data")?.optJSONArray("units")
+                if (rows != null) for (i in 0 until rows.length()) {
+                    val row = rows.getJSONObject(i)
+                    val list = form.unitsOf(row.optString("type"))
+                    if (list.none { it.savedId == row.optString("id").toIntOrNull() }) list.add(UnitState(row))
+                }
+                AppToast.show(r.optString("message", "Restored"))
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not restore") }
+        }
     }
 
     // ── CSV import (same flow as the website: sample file, choose CSV, review, import) ──
@@ -107,7 +173,7 @@ fun InventoryStep(
     }
     val saveSample = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
-            val ok = runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(sampleCsv(cols).toByteArray()) } }.isSuccess
+            val ok = runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(sampleCsv(current, cols).toByteArray()) } }.isSuccess
             AppToast.show(if (ok) "Sample CSV saved" else "Could not save the file")
         }
     }
@@ -132,6 +198,10 @@ fun InventoryStep(
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("${units.size} unit${if (units.size == 1) "" else "s"}", color = KitMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                if (units.isNotEmpty()) Text(
+                    if (selectMode) "Done" else "☑ Select", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                    modifier = Modifier.padding(end = 8.dp).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { if (selectMode) clearSelection() else selecting = true }.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
                 Text(
                     "+ Add unit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                     modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F172A))
@@ -152,22 +222,80 @@ fun InventoryStep(
             }
         }
 
+        // leftovers of the old duplicate bug (no number / the same number twice): say so, and offer to select them
+        if (extras.isNotEmpty() && !selectMode) item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(14.dp)).background(Amber.copy(alpha = .14f)).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("⚠ ${extras.size} unit${if (extras.size == 1) "" else "s"} with no number or a number used twice", color = Amber, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, modifier = Modifier.weight(1f))
+                Text("Select them", color = Amber, fontWeight = FontWeight.ExtraBold, fontSize = 12.5.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { selected.clear(); selected.addAll(extras) }.padding(8.dp))
+            }
+        }
+        if (undoIds.isNotEmpty()) item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F172A)).padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${undoIds.size} unit${if (undoIds.size == 1) "" else "s"} deleted", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Text("UNDO", color = Color(0xFF7DD3FC), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { undoDelete() }.padding(8.dp))
+                Text("✕", color = Color.White.copy(alpha = .6f), fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { undoIds = emptyList() }.padding(8.dp))
+            }
+        }
+        // status filter (so "select all" can mean "all booked", "all available" …)
+        if (units.size > 6) item {
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf<String?>(null, "available", "reserved", "booked", "sold").forEach { st ->
+                    val on = statusFilter == st
+                    Text(
+                        if (st == null) "All" else cap(st), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.White else KitInk,
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) Color(0xFF0F172A) else com.example.gavanhomes.ui.common.KitSoft).clickable { statusFilter = st }.padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+            }
+        }
+        // selection bar
+        if (selectMode) item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F172A)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${selected.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Text("Select all", color = Color(0xFF7DD3FC), fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { selected.clear(); selected.addAll(shown.map { it.value.id }) }.padding(8.dp))
+                    Text("Cancel", color = Color.White.copy(alpha = .7f), fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { clearSelection() }.padding(8.dp))
+                }
+                Text(
+                    if (selected.isEmpty()) "Tick the units to delete" else "Delete ${selected.size}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 6.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (selected.isEmpty()) KitDanger.copy(alpha = .45f) else KitDanger).clickable(enabled = selected.isNotEmpty()) { confirmBulk = true }.padding(vertical = 11.dp),
+                )
+            }
+        }
         if (units.isEmpty()) item {
             Text("No units yet. Tap “Add unit”.", color = KitMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(40.dp))
         }
         itemsIndexed(shown, key = { _, v -> v.value.id }) { _, (index, u) ->
-            UnitCard(u, index, idKey, form.errors.keys.any { it.startsWith("inventory.${slugOf(current)}.$index.") }) { editing = u }
+            UnitCard(
+                u, index, idKey, form.errors.keys.any { it.startsWith("inventory.${slugOf(current)}.$index.") },
+                picked = if (!selectMode) null else u.id in selected,
+                onLongPress = { if (u.id !in selected) selected.add(u.id) },
+            ) { if (!selectMode) editing = u else if (u.id in selected) selected.remove(u.id) else selected.add(u.id) }
         }
     }
 
     if (importing) ImportSheet(
-        type = current, cols = cols, result = csv,
+        type = current, cols = cols, existing = units.size, result = csv, mode = importMode, onMode = { importMode = it },
         onChoose = { chooseCsv.launch(arrayOf("*/*")) },
         onSample = { saveSample.launch(sampleName) },
         onImport = {
             val rows = csv?.valid.orEmpty()
-            rows.forEach { r -> units.add(UnitState().also { u -> r.forEach { (k, v) -> if (v.isNotBlank()) u.values[k] = v } }) }
-            AppToast.show("Imported ${rows.size} unit${if (rows.size == 1) "" else "s"}")
+            // Replace all: the old units go first (booked / sold ones stay); then every row either updates the unit with that number or is added
+            if (importMode == ImportMode.Replace && units.isNotEmpty()) removeUnits(units.toList())
+            var added = 0; var updated = 0; var skipped = 0
+            rows.forEach { r ->
+                val key = unitKeyOf(r)
+                val existing = units.firstOrNull { it.key == key }
+                if (existing != null) { if (importMode != ImportMode.AddNew) { r.forEach { (k, v) -> if (v.isNotBlank()) existing.values[k] = v }; updated++ } else skipped++ }
+                else { units.add(UnitState().also { u -> r.forEach { (k, v) -> if (v.isNotBlank()) u.values[k] = v } }); added++ }
+            }
+            AppToast.show("Imported: $added new" + (if (updated > 0) ", $updated updated" else "") + (if (skipped > 0) ", $skipped already there (left as they are)" else ""))
             importing = false; csv = null
         },
         onDismiss = { importing = false; csv = null },
@@ -176,15 +304,27 @@ fun InventoryStep(
     editing?.let { u ->
         UnitEditor(
             u, cols, form, current, units.indexOf(u), pick, view,
-            onDismiss = { editing = null },
+            onDismiss = { if (u.key == null && u.savedId == null) units.remove(u); editing = null },   // a new unit left without a number is dropped, not kept blank
             onDuplicate = { units.add(units.indexOf(u) + 1, u.duplicate()); editing = null },
-            onDelete = { units.remove(u); editing = null },
+            onDelete = { editing = null; removeUnits(listOf(u)) },
+        )
+    }
+
+    if (confirmBulk) {
+        val chosen = units.filter { it.id in selected }
+        val locked = chosen.count { it.values["status"] in protectedStatuses }
+        SwalConfirm(
+            title = "Delete ${chosen.size - locked} unit${if (chosen.size - locked == 1) "" else "s"}?",
+            text = (if (locked > 0) "$locked booked / sold unit${if (locked == 1) " is" else "s are"} kept. " else "") + "You can undo right after.",
+            confirmText = "Yes, delete",
+            onCancel = { confirmBulk = false }, onConfirm = { confirmBulk = false; removeUnits(chosen) },
         )
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean, onClick: () -> Unit) {
+private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean, picked: Boolean?, onLongPress: () -> Unit, onClick: () -> Unit) {
     val title = u.values[idKey]?.takeIf { it.isNotBlank() } ?: "Unit ${index + 1}"
     val status = u.values["status"]
     val facts = listOfNotNull(
@@ -196,9 +336,10 @@ private fun UnitCard(u: UnitState, index: Int, idKey: String, hasError: Boolean,
     )
     Row(
         Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(3.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp))
-            .background(if (hasError) KitDanger.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitCard).clickable { onClick() }.padding(14.dp),
+            .background(if (picked == true) KitGood.copy(alpha = .16f) else if (hasError) KitDanger.copy(alpha = .08f) else com.example.gavanhomes.ui.common.KitCard).combinedClickable(onLongClick = onLongPress, onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (picked != null) Text(if (picked) "☑" else "☐", fontSize = 20.sp, color = if (picked) KitGood else KitMuted, modifier = Modifier.padding(end = 10.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = KitInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (facts.isNotEmpty()) Text(facts.joinToString(" · "), fontSize = 12.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)

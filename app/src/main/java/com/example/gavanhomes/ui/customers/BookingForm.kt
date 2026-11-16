@@ -111,6 +111,13 @@ private val Stages = listOf(
 private val DocChecks = listOf("doc_pan" to "PAN card", "doc_aadhaar" to "Aadhaar card", "doc_photos" to "Photographs", "doc_address" to "Address proof", "doc_cheque" to "Booking cheque", "doc_income" to "Income proof",
     "doc_co_applicant" to "Co-applicant documents", "doc_booking" to "Signed booking form")
 
+/** One milestone of a plot booking's own schedule: what is due, how much, and when. */
+private class PlotRow(name: String, amount: String, due: String) {
+    var name by mutableStateOf(name)
+    var amount by mutableStateOf(amount)
+    var due by mutableStateOf(due)
+}
+
 private fun num(s: String?) = s?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 private fun money2(v: Double) = if (v == 0.0) "" else (Math.round(v * 100) / 100.0).let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() }
 
@@ -140,6 +147,8 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val f = remember { mutableStateMapOf<String, String>() }
+    val plotRows = remember { mutableStateListOf<PlotRow>() }             // a plot project's schedule for this booking
+    var plotTouched by remember { mutableStateOf(false) }                   // the person changed it — no more automatic recalculation
     val touched = remember { mutableStateListOf<String>() }               // schedule rows the person typed — never overwritten
     var o by remember { mutableStateOf<JSONObject?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -188,6 +197,35 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
     fun bsp() = num(f["cost_bsp"])
     fun total() = CostLines.sumOf { num(f[it.first]) }
     fun base() = if (bsp() > 0) bsp() else total()
+    val isPlot = id == null && (opts.optJSONArray("plot_schedule")?.length() ?: 0) > 0
+    /** The project's plot milestones turned into dated rows: % of the total (or fixed ₹), due on a date / N days / N months after the booking date / as monthly EMIs. */
+    fun regenPlot() {
+        val ms = opts.optJSONArray("plot_schedule") ?: return
+        val total = total(); if (total <= 0) return
+        val start = runCatching { java.time.LocalDate.parse(f["booking_date"].orEmpty().take(10)) }.getOrDefault(java.time.LocalDate.now())
+        val rows = mutableListOf<PlotRow>()
+        for (i in 0 until ms.length()) {
+            val m = ms.getJSONObject(i)
+            val v = m.optDouble("value", 0.0)
+            val amount = if (m.optString("mode") == "amount") v else total * v / 100.0
+            val name = m.optString("name").ifBlank { "Instalment" }
+            val dv = m.opt("due_value")?.toString().orEmpty()
+            val n = dv.toDoubleOrNull()?.toInt() ?: 0
+            when (m.optString("due_type")) {
+                "emi" -> {
+                    val c = n.coerceAtLeast(1); val each = Math.round(amount / c * 100) / 100.0
+                    for (k in 1..c) rows += PlotRow("$name ($k/$c)", money2(if (k == c) Math.round((amount - each * (c - 1)) * 100) / 100.0 else each), start.plusMonths(k.toLong()).toString())
+                }
+                "date" -> rows += PlotRow(name, money2(amount), dv.take(10))
+                "days" -> rows += PlotRow(name, money2(amount), start.plusDays(n.toLong()).toString())
+                else -> rows += PlotRow(name, money2(amount), start.plusMonths(n.toLong()).toString())
+            }
+        }
+        // rounding: the last row takes the odd paise so the schedule equals the total
+        val diff = total - rows.sumOf { num(it.amount) }
+        if (rows.isNotEmpty() && kotlin.math.abs(diff) in 0.005..1.0) rows.last().amount = money2(num(rows.last().amount) + diff)
+        plotRows.clear(); plotRows.addAll(rows)
+    }
     // BSP = carpet × rate, then the auto-percentage charges, booking amount and the stage amounts (unless typed)
     fun recalc() {
         val area = num(f["carpet_area"]); val rate = num(f["rate_per_sqft"])
@@ -202,6 +240,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
         }
         f["total_consideration"] = money2(total()); f["amount_in_words"] = inWords(total())
         f["schedule_total"] = money2(Stages.sumOf { (k, _) -> num(f["schedule_${k}_amount"]) })
+        if (isPlot && !plotTouched) regenPlot()
     }
     fun pickUnit(u: JSONObject) {
         f["inv_id"] = u.optInt("id").toString(); f["flat_no"] = u.str("number").orEmpty(); f["tower_wing"] = u.str("wing").orEmpty(); f["floor"] = u.opt("floor")?.toString()?.takeIf { it != "null" }.orEmpty()
@@ -216,6 +255,10 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
         f.forEach { (k, v) -> val t = v.trim(); if (t.isNotEmpty() && k !in DocChecks.map { it.first } && k != "loan_required" && k != "existing_loan") j.put(k, t) }
         DocChecks.forEach { (k, _) -> j.put(k, if (f[k] == "1") 1 else 0) }
         j.put("loan_required", if (f["loan_required"] == "1") 1 else 0); j.put("existing_loan", if (f["existing_loan"] == "1") 1 else 0)
+        if (isPlot && plotRows.isNotEmpty()) {
+            j.put("custom_schedule", org.json.JSONArray(plotRows.map { org.json.JSONObject().put("name", it.name.trim()).put("amount", num(it.amount)).put("due", it.due) }).toString())
+            j.put("schedule_total", plotRows.sumOf { num(it.amount) }.toString())
+        }
         if (draft) j.put("save_as_draft", 1)
         return j
     }
@@ -236,6 +279,8 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
         f["co_mobile"]?.takeIf { it.isNotBlank() && !Regex("^\\d{10}$").matches(it) }?.let { e["co_mobile"] = "Must be a 10-digit number." }
         listOf("applicant_pan", "co_pan").forEach { k -> f[k]?.takeIf { it.isNotBlank() && !Regex("^[A-Z]{5}[0-9]{4}[A-Z]$").matches(it.uppercase()) }?.let { e[k] = "Format ABCDE1234F." } }
         listOf("applicant_aadhaar", "co_aadhaar").forEach { k -> f[k]?.takeIf { it.isNotBlank() && it.length != 12 }?.let { e[k] = "Must be 12 digits." } }
+        if (isPlot && plotRows.isNotEmpty() && !draft && kotlin.math.abs(plotRows.sumOf { num(it.amount) } - total()) > 1) e["schedule_total"] = "The payment schedule must add up to the total (" + rupees(total()) + ")."
+        if (isPlot && plotRows.any { it.name.isBlank() || num(it.amount) <= 0 }) e["schedule_total"] = "Every schedule milestone needs a name and an amount."
         if (e.isNotEmpty()) { errors = e; banner = e.values.first(); return }
         recalc()
         errors = emptyMap(); banner = null
@@ -305,7 +350,28 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
                     PickerField("Payment mode", f["payment_mode"]?.ifBlank { null }) { sheet = "mode" }
                     T("bank_name", "Bank"); T("bank_branch", "Branch"); T("transaction_no", "Cheque / transaction no."); Dt("payment_date", "Payment date")
                 }
-                Card("Payment plan & schedule", "Amounts follow the project's percentages — change any you need") {
+                if (isPlot) Card("Payment schedule (plot)", "From the project's plot schedule — change any name, amount or date") {
+                    if (plotRows.isEmpty()) Text("Pick the unit first — the schedule is worked out from the total.", color = KitMuted, fontSize = 13.sp)
+                    plotRows.forEachIndexed { i, r ->
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Input("Milestone", r.name, { r.name = it; plotTouched = true })
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                                Box(Modifier.weight(1.1f)) { Input("Amount (₹)", r.amount, { r.amount = it.filter { c -> c.isDigit() || c == '.' }; plotTouched = true }, keyboard = KeyboardType.Decimal) }
+                                Box(Modifier.weight(.9f)) { DatePick("Due", r.due, null) { r.due = it; plotTouched = true } }
+                            }
+                            Text("Remove", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { plotRows.removeAt(i); plotTouched = true }.padding(4.dp))
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("+ Add milestone", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { plotRows.add(PlotRow("", "", f["booking_date"].orEmpty())); plotTouched = true }.padding(horizontal = 14.dp, vertical = 10.dp))
+                        Text("↻ Recalculate", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { plotTouched = false; regenPlot() }.padding(horizontal = 14.dp, vertical = 10.dp))
+                    }
+                    val sum = plotRows.sumOf { num(it.amount) }
+                    Fact("Schedule total", rupees(sum))
+                    if (plotRows.isNotEmpty() && kotlin.math.abs(sum - total()) > 1) Text("The schedule must add up to the total consideration (" + rupees(total()) + ").", color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Dt("possession_date", "Possession date")
+                }
+                if (!isPlot) Card("Payment plan & schedule", "Amounts follow the project's percentages — change any you need") {
                     Label("Plan")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         opts.objs("plans").forEach { p -> Pick(p.optString("label"), f["payment_plan"] == p.optString("key"), InvBlue) { f["payment_plan"] = p.optString("key") } }

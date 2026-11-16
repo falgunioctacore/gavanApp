@@ -143,9 +143,11 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     }
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
     var pickFollowup by remember { mutableStateOf(false) }          // + → Schedule follow-up: open the lead picker on the Follow-ups tab
-    ProvideFab(listOfNotNull(FabAction("lead", "New lead", KitInk).takeIf { canCreate }, FabAction("followup", "Schedule follow-up", Amber, "◷"))) { key ->
-        if (key == "lead") onNew() else { view = 2; pickFollowup = true }
+    var importOpen by remember { mutableStateOf(false) }            // + → Import leads (CSV / phone contacts)
+    ProvideFab(listOfNotNull(FabAction("lead", "New lead", KitInk).takeIf { canCreate }, FabAction("import", "Import leads", Blue, "↑").takeIf { canCreate }, FabAction("followup", "Schedule follow-up", Amber, "◷"))) { key ->
+        if (key == "lead") onNew() else if (key == "import") importOpen = true else { view = 2; pickFollowup = true }
     }
+    if (importOpen) LeadImportSheet(api, b, uuid, options, onDismiss = { importOpen = false }, onDone = { attempt++ })
 
     when (view) {
         0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "leads", version); LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 } }

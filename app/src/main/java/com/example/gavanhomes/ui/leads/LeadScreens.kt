@@ -453,7 +453,9 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var errors by com.example.gavanhomes.ui.common.rememberErrorsState()
     var banner by com.example.gavanhomes.ui.common.rememberBannerState()
     var saving by remember { mutableStateOf(false) }
-    var sheet by remember { mutableStateOf<String?>(null) }           // list · assignee
+    var sheet by remember { mutableStateOf<String?>(null) }           // list · assignee · source · interest
+    var customSource by remember { mutableStateOf(false) }            // "Other": the source is typed
+    var customInterest by remember { mutableStateOf(false) }          // "Other": what the lead is interested in is typed
     var initial by remember { mutableStateOf<List<Any>?>(null) }
     fun snapshot(): List<Any> = listOf(name, phone, alt, email, company, source, interested, listId, status, label, assignee, notes)
     fun s(v: String?) = v?.takeIf { it != "null" }.orEmpty()
@@ -518,11 +520,13 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                             Input("Company", company, { company = it })
                         }
                         Card("Where from?", "Source, list and interest") {
-                            Input("Lead source", source, { source = it }, errors["lead_source"])
-                            val sources = o.optJSONArray("sources")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().take(8)
-                            if (sources.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { sources.forEach { src -> Pick(src, source == src, Blue) { source = src } } }
+                            val sources = o.optJSONArray("sources")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().filter { it != "Import" }
+                            PickerField("Lead source", source.ifBlank { null }, errors["lead_source"]) { sheet = "source" }
+                            if (customSource || (source.isNotBlank() && source !in sources)) Input("Type the source", source.takeIf { it != "Other" }.orEmpty(), { source = it }, errors["lead_source"])
                             PickerField("Lead list", o.objs("lists").firstOrNull { it.optInt("id") == listId }?.optString("name"), errors["list_id"]) { sheet = "list" }
-                            Input("Interested in", interested, { interested = it }, singleLine = false)
+                            val units = o.optJSONArray("units")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+                            if (units.isNotEmpty()) PickerField("Interested in (plot / unit)", interested.ifBlank { null }) { sheet = "interest" }
+                            if (units.isEmpty() || customInterest || (interested.isNotBlank() && interested !in units)) Input("Interested in", interested, { interested = it }, singleLine = false)
                         }
                         Card("Status & owner") {
                             Label("Status")
@@ -547,6 +551,8 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (saving) KitMuted else b.base).clickable(enabled = !saving) { save() }.padding(vertical = 15.dp),
                     )
                 }
+                if (sheet == "source") ChoiceSheet("Lead source", (o.optJSONArray("sources")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().filter { it != "Import" }).map { Choice(it, it) }, source.takeIf { it.isNotBlank() }, b, onClose = { sheet = null }) { sheet = null; if (it == "Other") { customSource = true; source = "" } else { customSource = false; source = it } }
+                if (sheet == "interest") ChoiceSheet("Interested in", (listOf("Not decided yet") + (o.optJSONArray("units")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()) + "Other…").map { Choice(it, it) }, interested.takeIf { it.isNotBlank() }, b, onClose = { sheet = null }) { sheet = null; when (it) { "Not decided yet" -> { customInterest = false; interested = "" }; "Other…" -> { customInterest = true; interested = "" }; else -> { customInterest = false; interested = it } } }
                 if (sheet == "list") ChoiceSheet("Lead list", o.objs("lists").map { Choice(it.optInt("id").toString(), it.optString("name")) }, listId.takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) { sheet = null; listId = it.toIntOrNull() ?: 0 }
                 if (sheet == "assignee") PersonChoiceSheet("Assigned to", o.objs("users").map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) { sheet = null; assignee = it.toIntOrNull() ?: 0 }
             }
