@@ -186,9 +186,13 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
                             PickerField("Label", x.str("label")) { if (canEdit) sheet = "label" }
                         }
                         Card("Assigned to") { PickerField("Owner", x.str("assignee")) { if (canEdit) sheet = "assign" } }
-                        if (onBook != null && x.optJSONObject("can")?.optBoolean("book") == true) Card("Booking", "Ready to book a unit for this lead?") {
-                            SmallAction("▤  Create booking from this lead", KitGood) { onBook(id) }
+                        if (onBook != null && x.optJSONObject("can")?.optBoolean("book") == true) Card("Convert to Booking", "The lead's name, mobile and email are filled in. You choose the unit, amount and payment schedule.") {
+                            Text("▤  Convert to Booking", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(KitGood).clickable { onBook(id) }.padding(vertical = 15.dp))
                         }
+                        x.optJSONObject("booking")?.let { bk -> Card("Booking", "This lead has been converted") {
+                            Fact("Booking", bk.str("ref") ?: "#" + bk.optInt("id")); Fact("Status", bk.str("status")?.replaceFirstChar { it.uppercase() }); Fact("Booked on", bk.str("date"))
+                        } }
                         Card("Notes", "Anything worth remembering") {
                             Input("Notes", notes, { notes = it }, singleLine = false, readOnly = !canEdit)
                             if (canEdit && notes != x.optString("notes").takeIf { it != "null" }.orEmpty()) SendButton("Save notes", true) { quick("Notes saved", "notes" to notes.trim()) }

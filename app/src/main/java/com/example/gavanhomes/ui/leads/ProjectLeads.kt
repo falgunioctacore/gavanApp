@@ -113,7 +113,7 @@ private val Sorts = listOf("newest" to "Newest first", "oldest" to "Oldest first
  * Data: GET /projects/{uuid}/lead-center/overview · options · list · followups.
  */
 @Composable
-fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int, String) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit, settingsOpen: Boolean = false, onCloseSettings: () -> Unit = {}) {
+fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int, String) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit, settingsOpen: Boolean = false, onCloseSettings: () -> Unit = {}, onBook: (Int) -> Unit = {}) {
     var view by remember { mutableIntStateOf(0) }                    // 0 Dashboard · 1 Leads · 2 Follow-ups
     var overview by remember { mutableStateOf<JSONObject?>(null) }
     var options by remember { mutableStateOf<JSONObject?>(null) }
@@ -151,7 +151,7 @@ fun ProjectLeads(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
 
     when (view) {
         0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "leads", version); LeadDashboard(o, options, canCreate, onNew, onOpen) { key -> sel = mapOf("quick" to setOf(key)); query = ""; view = 1 } }
-        1 -> LeadList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ })
+        1 -> LeadList(api, b, uuid, version, o, options, sel, { sel = it }, query, { query = it }, sort, { sort = it }, canCreate, onNew, onOpen, onChanged = { attempt++ }, onBook = onBook)
         2 -> FollowupList(api, b, uuid, version, options, onOpen, pickLead0 = pickFollowup) { pickFollowup = false }
         3 -> LeadLists(api, b, uuid, version, onOpenList = { id -> sel = mapOf("list_id" to setOf(id.toString())); query = ""; view = 1 }, onChanged = { attempt++ })
         4 -> ExportRequests(api, b, uuid, version, options)
@@ -220,7 +220,7 @@ private fun queryOf(sel: Map<String, Set<String>>, sort: Int): String = buildStr
 private fun LeadList(
     api: ApiClient, b: Branding, uuid: String, version: Int, o: JSONObject, options: JSONObject?,
     sel: Map<String, Set<String>>, setSel: (Map<String, Set<String>>) -> Unit, query: String, setQuery: (String) -> Unit, sort: Int, setSort: (Int) -> Unit,
-    canCreate: Boolean, onNew: () -> Unit, onOpen: (Int, String) -> Unit, onChanged: () -> Unit,
+    canCreate: Boolean, onNew: () -> Unit, onOpen: (Int, String) -> Unit, onChanged: () -> Unit, onBook: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -281,9 +281,11 @@ private fun LeadList(
                 add(com.example.gavanhomes.ui.common.BulkAction("status", "Status", "◔")); add(com.example.gavanhomes.ui.common.BulkAction("label", "Label", "#"))
                 add(com.example.gavanhomes.ui.common.BulkAction("assign", "Assign", "☺")); add(com.example.gavanhomes.ui.common.BulkAction("list", "Move", "↪"))
             }
+            // one lead chosen: turn it into a booking
+            if (selected.size == 1 && can?.optBoolean("book") == true) add(0, com.example.gavanhomes.ui.common.BulkAction("book", "Booking", "▤"))
             if (canDelete) add(com.example.gavanhomes.ui.common.BulkAction("delete", "Delete", "🗑", danger = true))
         },
-        onAction = { when (it) { "status" -> sheet = "bulk-status"; "label" -> sheet = "bulk-label"; "assign" -> sheet = "bulk-assign"; "list" -> sheet = "bulk-list"; "delete" -> askDelete = true } },
+        onAction = { when (it) { "book" -> { val id = selected.firstOrNull(); if (id != null) { selected.clear(); onBook(id) } }; "status" -> sheet = "bulk-status"; "label" -> sheet = "bulk-label"; "assign" -> sheet = "bulk-assign"; "list" -> sheet = "bulk-list"; "delete" -> askDelete = true } },
         onSelectAll = { selected.clear(); selected.addAll(rows.map { it.optInt("id") }) }, onClear = { selected.clear() },
     ))
 
