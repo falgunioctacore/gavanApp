@@ -76,15 +76,16 @@ import java.text.NumberFormat
 import java.time.LocalDate
 import java.util.Locale
 
-private const val AssetGroup = "Assets · all projects"
-private val GroupGlyph = mapOf("Overview" to "◎", "Work" to "✔", "Sales & leads" to "⚑", "Stock" to "▣", "Money" to "₹", AssetGroup to "⚙")
-private val GroupTint = mapOf("Overview" to KitInk, "Work" to InvBlue, "Sales & leads" to InvPurple, "Stock" to InvAmber, "Money" to KitGood, AssetGroup to Color(0xFF4A8AAD))
-private val GroupBlurb = mapOf("Overview" to "The project at a glance, and its profit & loss", AssetGroup to "Asset reports across every project you can see", "Work" to "Tasks, targets, operations and attendance", "Sales & leads" to "Leads, follow-ups, sales and bids",
-    "Stock" to "Inventory, stock levels and items", "Money" to "Expenses, purchases, cash flow and parties")
+private const val AssetGroup = "Asset Reports · all projects"
+private val GroupGlyph = mapOf("Main reports" to "◎", "Expense Reports" to "₹", "Item / Stock Reports" to "▣", "Party Reports" to "☺", "Transaction Reports" to "⇄", "Customers & collection" to "⌂", "Channel partners" to "★", "Target tracking" to "◉", AssetGroup to "⚙")
+private val GroupTint = mapOf("Main reports" to KitInk, "Expense Reports" to KitDanger, "Item / Stock Reports" to InvAmber, "Party Reports" to InvPurple, "Transaction Reports" to KitGood, "Customers & collection" to InvBlue, "Channel partners" to InvPurple, "Target tracking" to InvBlue, AssetGroup to Color(0xFF4A8AAD))
+private val GroupBlurb = mapOf("Main reports" to "Tasks, targets, leads, follow-ups, bids, inventory, attendance, sales, operations and business intelligence", "Expense Reports" to "Where the money was spent — by category and item",
+    "Item / Stock Reports" to "Stock levels, item profit, discounts and unit / plot inventory", "Party Reports" to "Statements, profit and sale / purchase by party", "Transaction Reports" to "Bookings, purchases, day book, cash flow, profit & loss and balance sheet",
+    "Customers & collection" to "Customer journey, dues and lead sources", "Channel partners" to "Partner business, commission and the annual league", "Target tracking" to "Progress of targets against their goals", AssetGroup to "Asset reports across every project you can see")
 private val Palette = listOf(InvBlue, KitGood, InvAmber, InvPurple, KitDanger, KitMuted)
 
 /** The report each group's dashboard card shows (the first of these this person may open). */
-private val Featured = listOf("business-intelligence", "asset-register", "task-reports", "target-reports", "leads-pipeline", "sale-report", "inventory-report", "stock-summary", "cash-flow-report", "expense-report")
+private val Featured = listOf("task-reports", "expense-report", "stock-summary", "party-statement", "sale-report", "customer-journey", "cp-business", "target-progress", "asset-register")
 
 private fun tint(group: String) = GroupTint[group] ?: InvBlue
 
@@ -337,7 +338,8 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
                 }
             }
             if (m == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
-            Paged(api, b, "/projects/$uuid/report-center/report", query, 0, if (m?.optString("unavailable").isNullOrBlank()) "Nothing in this report for the period." else "", "row", onMeta = { meta = it }) { r ->
+            Text("Data" + if (search.isNotBlank() || custom || period != null) " · filtered — the download has exactly these rows" else "", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp).padding(top = 10.dp))
+            Paged(api, b, "/projects/$uuid/report-center/report", query, 0, if (m?.optString("unavailable").isNullOrBlank()) "Nothing in this report for the period." else "", "row", action = { Text(if (exporting) "Preparing…" else "⤓  Download CSV", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(b.base).clickable { export() }.padding(horizontal = 14.dp, vertical = 8.dp)) }, onMeta = { meta = it }) { r ->
                 val cols = r.keys().asSequence().toList()
                 RowCard(null) {
                     cols.firstOrNull()?.let { Text(r.optString(it), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
