@@ -125,6 +125,9 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
         catch (e: Exception) { error = e.message ?: "Could not load customers" }
     }
     LaunchedEffect(uuid, version) { options = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/customer-center/options") } }.getOrNull() }
+    var tiles by remember { mutableStateOf<JSONObject?>(null) }       // the live count / due badge of each page of the menu
+    LaunchedEffect(uuid, version) { tiles = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/customer-center/journey/dashboard") } }.getOrNull()?.optJSONObject("tiles") }
+    fun badge(key: String, label: String) = tiles?.optInt(key, 0)?.takeIf { it > 0 }?.let { "$label · $it" } ?: label
 
     val o = overview
     if (o == null) {
@@ -143,19 +146,30 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
         FabAction("loan", "New loan", KitGood, "₹").takeIf { can.optBoolean("create_loan") },
     )) { onNew(it) }
 
+    // the pages follow the customer journey, in order — then the service pages (visits, issues) that can come at any time
     val pages = listOfNotNull(
-        Page("dashboard", "Dashboard"), Page("bookings", "Bookings").takeIf { can.optBoolean("bookings") }, Page("payments", "Payments").takeIf { can.optBoolean("bookings") },
-        Page("customers", "Customers"), Page("visits", "Client visits").takeIf { can.optBoolean("visits") },
-        Page("issues", "Issues").takeIf { can.optBoolean("issues") }, Page("loans", "Loans").takeIf { can.optBoolean("loans") },
+        Page("dashboard", "Dashboard"), Page("customers", badge("customers", "Customers")),
+        Page("bookings", badge("bookings", "Bookings")).takeIf { can.optBoolean("bookings") }, Page("plans", badge("payment_plans", "Payment plans")).takeIf { can.optBoolean("bookings") },
+        Page("payments", badge("collections", "Collections")).takeIf { can.optBoolean("bookings") }, Page("agreements", badge("agreements_legal", "Agreements & legal")).takeIf { can.optBoolean("bookings") },
+        Page("loans", badge("loans", "Loans")).takeIf { can.optBoolean("loans") }, Page("dastavej", badge("dastavej", "Dastavej")).takeIf { can.optBoolean("bookings") },
+        Page("handover", badge("handover", "Handover")).takeIf { can.optBoolean("bookings") },
+        Page("visits", badge("visits_today", "Client visits")).takeIf { can.optBoolean("visits") }, Page("issues", badge("issues_open", "Issues")).takeIf { can.optBoolean("issues") },
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
     ModulePages("Bookings & customers", pages.map { it.label }, index) { view = pages[it].key }
 
     when (pages[index].key) {
-        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "customers", version); Dashboard(o, onOpen) { view = it } }
+        "dashboard" -> {
+            JourneyDashboard(api, b, uuid, version, onOpen = { onOpen("journey", it) }, onTile = { view = it })
+            com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "customers", version); Dashboard(o, onOpen) { view = it }
+        }
         "bookings" -> BookingList(api, b, uuid, version) { onOpen("booking", it) }
         "payments" -> PaymentList(api, b, uuid, version) { onOpen("booking", it) }
-        "customers" -> CustomerList(api, b, uuid, version) { onOpen("customer", it) }
+        "customers" -> JourneyCustomerList(api, b, uuid, version) { onOpen("journey", it) }
+        "plans" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(3), chips = false) { onOpen("journey", it) }
+        "agreements" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(5, 6), chips = false) { onOpen("journey", it) }
+        "dastavej" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(9), chips = false) { onOpen("journey", it) }
+        "handover" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(10, 11), chips = false) { onOpen("journey", it) }
         "visits" -> VisitList(api, b, uuid, version) { onOpen("visit", it) }
         "issues" -> IssueList(api, b, uuid, version, options) { onOpen("issue", it) }
         else -> LoanList(api, b, uuid, version) { onOpen("loan", it) }
