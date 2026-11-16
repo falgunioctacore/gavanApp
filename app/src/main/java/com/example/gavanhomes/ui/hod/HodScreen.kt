@@ -113,6 +113,7 @@ private val Secs = listOf(
     Sec("Pipeline", "▽", "Leads → calls → visits → bookings"),
     Sec("Needs attention", "⏱", "Follow-ups that slipped"),
     Sec("Reports", "↗", "Daily, weekly and monthly"),
+    Sec("Channel partners", "◈", "One list of partners, across all projects"),
 )
 private const val OVERVIEW = 0
 private const val STAFF = 1
@@ -120,6 +121,7 @@ private const val SITES = 2
 private const val FUNNEL = 3
 private const val DELAYS = 4
 private const val REPORTS = 5
+private const val CPS = 6
 
 private val Periods = listOf("Today", "Weekly", "Monthly", "LastMonth", "Quarter", "Year", "All", "Customize")
 private val PeriodLabel = mapOf(
@@ -224,6 +226,18 @@ fun HodScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Uni
     val d = root?.optJSONObject("data")
     val canTargets = root?.optJSONObject("can")?.optBoolean("targets") == true
     val sec = Secs[section]
+
+    // Channel partners: the central CP list — a partner registers once and works across all projects
+    if (section == CPS) {
+        Column(Modifier.fillMaxSize().background(KitPage)) {
+            com.example.gavanhomes.ui.common.ModulePages("Sales", Secs.map { it.label }, section) { onSection(it) }
+            Column(Modifier.weight(1f).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                HeroBar(b, "Channel partners", onBack)
+                com.example.gavanhomes.ui.cp.ChannelPartnerScreen(api, b, null)
+            }
+        }
+        return
+    }
 
     val pageSlot = remember { androidx.compose.runtime.mutableStateListOf<com.example.gavanhomes.ui.common.PageSpec>() }
     Box(Modifier.fillMaxSize()) {

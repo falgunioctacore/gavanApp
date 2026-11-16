@@ -104,6 +104,9 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
     var banner by com.example.gavanhomes.ui.common.rememberBannerListState()
     var picker by remember { mutableStateOf<String?>(null) }   // "status" | "types" | "leader" | "members"
     var initial by remember { mutableStateOf<List<Any>?>(null) }   // the values as loaded, to tell whether anything was changed
+    var askDelete by remember { mutableStateOf(false) }             // Delete project (super admin): a typed confirmation first
+    var typedName by remember { mutableStateOf("") }
+    var deleting by remember { mutableStateOf(false) }
 
     // ── document picker: one launcher; each button says which slot it fills ──
     var target by remember { mutableStateOf<FileSlot?>(null) }
@@ -184,7 +187,7 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
     val back = leaveGuard(initial != null && snapshot(form) != initial, onBack)
     Column(Modifier.fillMaxSize().background(KitPage)) {
         // compact: the form is long, so the header stays slim (the project's name is in the first field)
-        HeroBar(b, if (editing) "Edit project" else "New project", back, compact = true)
+        HeroBar(b, if (editing) "Edit project" else "New project", back, compact = true, actions = { if (editing && !loading) com.example.gavanhomes.ui.common.DeleteButton { askDelete = true; typedName = "" } })
 
         when {
             loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
@@ -221,6 +224,32 @@ fun ProjectFormScreen(api: ApiClient, b: Branding, uuid: String?, onBack: () -> 
                         contentAlignment = Alignment.Center,
                     ) { Text(if (saving) "Saving…" else if (editing) "Save changes" else "Create project", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
                 }
+            }
+        }
+    }
+
+    // ── delete the project ──
+    if (askDelete && uuid != null) {
+        val projectName = form.get("name")
+        androidx.compose.ui.window.Dialog(onDismissRequest = { if (!deleting) askDelete = false }) {
+            Column(Modifier.clip(RoundedCornerShape(22.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Delete this project?", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text("${projectName.ifBlank { "This project" }} and all its units are removed. A project that has bookings can't be deleted. This can't be undone from the app.", color = KitMuted, fontSize = 13.sp)
+                Text("Type the project name to confirm:", color = KitInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                com.example.gavanhomes.ui.projects.form.Input(projectName, typedName, { typedName = it })
+                val ok = projectName.isNotBlank() && typedName.trim().equals(projectName.trim(), ignoreCase = true) && !deleting
+                Text(if (deleting) "Deleting…" else "Delete project", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (ok) KitDanger else Color(0xFFC9C7C2)).clickable(enabled = ok) {
+                        deleting = true
+                        scope.launch {
+                            try {
+                                val r = withContext(Dispatchers.IO) { api.delete("/projects/$uuid") }
+                                AppToast.show(r.optString("message", "Project deleted")); askDelete = false; onSaved()
+                            } catch (e: Exception) { AppToast.show(e.message ?: "Could not delete the project") }
+                            deleting = false
+                        }
+                    }.padding(vertical = 14.dp))
+                Text("Cancel", color = KitMuted, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(enabled = !deleting) { askDelete = false }.padding(vertical = 10.dp))
             }
         }
     }

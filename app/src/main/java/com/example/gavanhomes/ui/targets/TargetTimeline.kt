@@ -101,6 +101,8 @@ fun TargetCalendar(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
         var month by remember { mutableStateOf(YearMonth.now()) }
         var picked by remember { mutableStateOf<LocalDate?>(LocalDate.now()) }
         val byDay = rows.filter { day(it.str("due_date")) != null }.groupBy { day(it.str("due_date"))!! }
+        // the targets running on a date: from the start date to the due date
+        fun running(date: LocalDate) = rows.filter { t -> val e = day(t.str("due_date")); val s = day(t.str("start_date")) ?: day(t.str("created_date")) ?: e; e != null && s != null && !date.isBefore(s) && !date.isAfter(e) }
         val today = LocalDate.now()
 
         Card(month.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " + month.year) {
@@ -123,6 +125,7 @@ fun TargetCalendar(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
                         if (n < 1 || n > month.lengthOfMonth()) { Spacer(Modifier.weight(1f).aspectRatio(1f)); continue }
                         val date = month.atDay(n)
                         val list = byDay[date].orEmpty()
+                        val span = running(date)
                         val on = picked == date
                         Box(
                             Modifier.weight(1f).aspectRatio(1f).padding(2.dp).clip(RoundedCornerShape(12.dp))
@@ -131,8 +134,8 @@ fun TargetCalendar(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(n.toString(), fontSize = 14.sp, fontWeight = if (date == today || list.isNotEmpty()) FontWeight.ExtraBold else FontWeight.Medium, color = if (on) Color.White else KitInk)
-                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(7.dp).padding(top = 2.dp)) {
-                                    list.take(3).forEach { Box(Modifier.size(5.dp).clip(CircleShape).background(if (on) Color.White else statusTint(it.optString("status")))) }
+                                Column(Modifier.height(9.dp).padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                    span.take(2).forEach { Box(Modifier.fillMaxWidth(.9f).height(3.dp).clip(RoundedCornerShape(2.dp)).background(if (on) Color.White else healthColor(it.str("health")).takeIf { c -> it.str("health") != null } ?: statusTint(it.optString("status")))) }
                                 }
                             }
                         }
@@ -142,9 +145,9 @@ fun TargetCalendar(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
         }
 
         val sel = picked
-        val list = sel?.let { byDay[it] }.orEmpty()
-        Card(sel?.format(DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.ENGLISH)) ?: "Pick a day", if (list.isEmpty()) "Nothing due" else "${list.size} due") {
-            if (list.isEmpty()) Text("No targets are due on this day.", color = KitMuted, fontSize = 14.sp)
+        val list = sel?.let { running(it) }.orEmpty()
+        Card(sel?.format(DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.ENGLISH)) ?: "Pick a day", if (list.isEmpty()) "Nothing running" else "${list.size} running · ${sel?.let { byDay[it]?.size ?: 0 } ?: 0} due") {
+            if (list.isEmpty()) Text("No targets are running on this day.", color = KitMuted, fontSize = 14.sp)
             list.forEach { t ->
                 val tint = statusTint(t.optString("status"))
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(tint.copy(alpha = .1f)).clickable { onOpen(t.optInt("id")) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -153,7 +156,10 @@ fun TargetCalendar(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
                         Text(t.optString("name"), color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(listOfNotNull(t.str("target_no"), t.str("department")).joinToString(" · "), color = KitMuted, fontSize = 12.sp)
                     }
-                    Text(t.optString("status"), color = tint, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(if (day(t.str("due_date")) == sel) "Due today" else t.optString("status"), color = tint, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        if (!t.isNull("goal")) Text("${t.optInt("pct")}% · " + healthLabel(t.str("health")), color = healthColor(t.str("health")), fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                    }
                 }
             }
         }
@@ -208,8 +214,9 @@ fun TargetGantt(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen:
                     Text(listOfNotNull(t.str("target_no"), t.str("department")?.let { "Dept: $it" }, prettyDay(t.str("due_date"))?.let { "Due $it" }).joinToString(" · "), color = KitMuted, fontSize = 11.sp)
                     Box(Modifier.padding(top = 6.dp).fillMaxWidth().horizontalScroll(scroll)) {
                         Box(Modifier.width(trackWidth).height(26.dp)) {
-                            Box(Modifier.offset(left, 0.dp).width(width).height(26.dp).clip(RoundedCornerShape(7.dp)).background(color), contentAlignment = Alignment.CenterEnd) {
-                                Text("${t.optInt("progress")}%", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, modifier = Modifier.padding(end = 8.dp))
+                            Box(Modifier.offset(left, 0.dp).width(width).height(26.dp).clip(RoundedCornerShape(7.dp)).background(color.copy(alpha = .28f)), contentAlignment = Alignment.CenterStart) {
+                                Box(Modifier.fillMaxWidth(t.optInt("progress").coerceIn(0, 100) / 100f).height(26.dp).background(color))
+                                Text("${t.optInt("progress")}%", color = if (t.optInt("progress") >= 45) Color.White else KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp))
                             }
                         }
                     }

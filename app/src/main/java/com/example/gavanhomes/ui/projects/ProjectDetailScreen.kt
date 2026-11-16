@@ -119,6 +119,7 @@ private val Sections = listOf(
 private val ModuleSections = listOf(
     Section("Leads", "Enquiries, follow-ups and the sales pipeline", "⚑", "leads", "Sales & customers"),
     Section("Bookings & customers", "Bookings, payments, site visits, issues, loans", "◍", "customers", "Sales & customers"),
+    Section("CP Registration", "Channel partners, levels and commission", "◈", "cp", "Sales & customers"),
     Section("Communications", "WhatsApp, SMS and email to buyers", "✉", "communications", "Sales & customers"),
     Section("Tasks", "Site work and its progress", "✔", "tasks", "Construction"),
     Section("Milestones & targets", "Goals and how far they are", "◎", "targets", "Construction"),
@@ -334,6 +335,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                 onEdit = { taskStack.add("form" to it) }, onOpenAt = { id, tabKey -> taskStack.add("detail:$tabKey" to id) }, showListSignal = tasksListSignal)
             else if (current.key == "bids") com.example.gavanhomes.ui.bids.ProjectBids(api, b, uuid, bidsVersion, onOpen = { bidStack.add("detail" to it) }, onNew = { bidStack.add("form" to 0) }, onNewFromTask = { bidStack.add("formtask" to it) }, settingsOpen = settingsFor == "bids", onCloseSettings = { settingsFor = null })
             else if (current.key == "leads") com.example.gavanhomes.ui.leads.ProjectLeads(api, b, uuid, leadsVersion, onOpen = { id, tabKey -> leadStack.add("detail:$tabKey" to id) }, onNew = { leadStack.add("form" to 0) }, onEdit = { leadStack.add("form" to it) }, settingsOpen = settingsFor == "leads", onCloseSettings = { settingsFor = null }, onBook = { custStack.add("new-booking" to it) })
+            else if (current.key == "cp") com.example.gavanhomes.ui.cp.ChannelPartnerScreen(api, b, uuid)
             else if (current.key == "communications") com.example.gavanhomes.ui.comms.ProjectComms(api, b, uuid, commsVersion) { ch, t -> compose = ch to t }
             else if (current.key == "files") com.example.gavanhomes.ui.files.ProjectFiles(api, b, uuid, 0)
             else if (current.key == "discussion") com.example.gavanhomes.ui.discussion.ProjectDiscussion(api, b, uuid, chatsVersion) { c, n -> chat = c to n }

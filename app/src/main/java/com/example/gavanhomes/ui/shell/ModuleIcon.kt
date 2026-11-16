@@ -51,6 +51,10 @@ fun ModuleIcon(key: String, color: Color, size: Dp = 22.dp, bold: Boolean = fals
                 circle(12f, 8f, 4f)
                 line(path { m(4f, 21f); c(4f, 16.5f, 7.6f, 14f, 12f, 14f); c(16.4f, 14f, 20f, 16.5f, 20f, 21f) })
             }
+            "cp" -> {
+                circle(8f, 8.5f, 3f); circle(16f, 8.5f, 3f)
+                line(path { m(2.5f, 20f); c(2.5f, 16f, 5f, 13.5f, 8f, 13.5f); m(21.5f, 20f); c(21.5f, 16f, 19f, 13.5f, 16f, 13.5f); m(9f, 17f); l(15f, 17f) })
+            }
             "professionals" -> {
                 box(3f, 7f, 18f, 13f, 2.5f)
                 line(path { m(9f, 7f); l(9f, 5f); l(15f, 5f); l(15f, 7f); m(3f, 13f); l(21f, 13f); m(11f, 13f); l(13f, 13f) })

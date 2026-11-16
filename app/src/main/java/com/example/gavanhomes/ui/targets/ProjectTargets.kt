@@ -193,6 +193,8 @@ private fun TargetDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit
         Meter(rate / 100f, KitGood)
     }
 
+    com.example.gavanhomes.ui.targets.TargetProgressCards(o.objs("progress_cards"), onOpen)
+
     // priorities
     Card("By priority", "Targets per priority and how many are done") {
         o.objs("priorities").chunked(2).forEach { row ->

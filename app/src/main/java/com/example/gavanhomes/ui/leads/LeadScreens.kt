@@ -201,6 +201,7 @@ fun LeadDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBack:
                             Fact("Lead list", x.str("list"))
                             Fact("Source", x.str("source"))
                             Fact("Interested in", x.str("interested_in"))
+                            x.optJSONObject("cp")?.let { c -> Fact("Channel partner", c.optString("code") + " · " + c.optString("name") + (x.str("cp_at")?.let { t -> " · tagged $t" } ?: "")) } ?: x.str("cp_name")?.let { Fact("Channel partner", "$it (not registered)") }
                             Fact("Customer", x.str("customer"))
                             Fact("Created", listOfNotNull(prettyDay(x.str("created_at")), x.str("created_by")?.let { "by $it" }).joinToString(" "))
                         }
@@ -459,9 +460,13 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var saving by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<String?>(null) }           // list · assignee · source · interest
     var customSource by remember { mutableStateOf(false) }            // "Other": the source is typed
+    var customCp by remember { mutableStateOf(false) }                 // the partner is not in the list: their name is typed
+    var cpId by remember { mutableIntStateOf(0) }                      // the Channel Partner who gave the lead (registered, approved)
+    var cpName by remember { mutableStateOf("") }                      // … or a partner who is not registered with us yet
+    var dup by remember { mutableStateOf<JSONObject?>(null) }         // this mobile is already a lead: a warning, before a commission dispute starts
     var customInterest by remember { mutableStateOf(false) }          // "Other": what the lead is interested in is typed
     var initial by remember { mutableStateOf<List<Any>?>(null) }
-    fun snapshot(): List<Any> = listOf(name, phone, alt, email, company, source, interested, listId, status, label, assignee, notes)
+    fun snapshot(): List<Any> = listOf(name, phone, alt, email, company, source, interested, listId, status, label, assignee, notes, cpId, cpName)
     fun s(v: String?) = v?.takeIf { it != "null" }.orEmpty()
 
     LaunchedEffect(attempt) {
@@ -472,15 +477,24 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                 val x = withContext(Dispatchers.IO) { api.detail("/lead-center/$id") }
                 name = s(x.optString("name")); phone = s(x.optString("phone")); alt = s(x.optString("alt_phone")); email = s(x.optString("email")); company = s(x.optString("company"))
                 source = s(x.optString("source")); interested = s(x.optString("interested_in")); listId = x.optInt("list_id"); status = s(x.optString("status")); label = s(x.optString("label"))
-                assignee = x.optInt("assigned_to"); notes = s(x.optString("notes"))
+                assignee = x.optInt("assigned_to"); notes = s(x.optString("notes")); cpId = x.optInt("cp_id"); cpName = s(x.optString("cp_name"))
             } else if (o.objs("lists").size == 1) listId = o.objs("lists").first().optInt("id")
             options = o
         } catch (e: Exception) { loadError = e.message ?: "Could not load the form" }
         initial = snapshot()
     }
 
+    LaunchedEffect(phone) {
+        dup = null
+        if (phone.length != 10) return@LaunchedEffect
+        kotlinx.coroutines.delay(350)
+        dup = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/lead-center/duplicate?phone=$phone" + (if (id != null) "&except=$id" else "")) } }.getOrNull()?.optJSONObject("data")
+    }
+
     fun save() {
         val problems = mutableMapOf<String, String>()
+        val isCp = source.contains("channel partner", true)
+        if (isCp && cpId <= 0 && cpName.isBlank()) problems["cp_id"] = "Pick the channel partner, or type the name if they are not registered"
         if (name.isBlank()) problems["client_name"] = "Enter the client's name"
         if (!Regex("^\\d{10}$").matches(phone)) problems["phone_number"] = "Enter a 10-digit mobile number."
         if (alt.isNotBlank() && !Regex("^\\d{10}$").matches(alt)) problems["alternate_phone_number"] = "Enter a 10-digit mobile number."
@@ -490,6 +504,7 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         val nul = JSONObject.NULL
         val body = JSONObject().put("client_name", name.trim()).put("phone_number", phone).put("alternate_phone_number", alt.ifBlank { nul }).put("email", email.trim().ifBlank { nul })
             .put("company_name", company.trim().ifBlank { nul }).put("lead_source", source.trim()).put("interested_in", interested.trim().ifBlank { nul }).put("list_id", listId)
+            .put("cp_id", if (isCp && cpId > 0) cpId else nul).put("cp_name", if (isCp && cpId <= 0) cpName.trim().ifBlank { nul } else nul)
             .put("status", status.ifBlank { nul }).put("label", label.ifBlank { nul }).put("assigned_to", if (assignee > 0) assignee else nul).put("notes", notes.trim().ifBlank { nul })
         errors = emptyMap(); banner = null; saving = true
         scope.launch {
@@ -519,6 +534,8 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                         Card("Who is the lead?", "Name and how to reach them") {
                             Input("Client name", name, { name = it }, errors["client_name"])
                             Input("Mobile number", phone, { phone = it.filter(Char::isDigit).take(10) }, errors["phone_number"], keyboard = KeyboardType.Phone)
+                            dup?.let { d -> Text("⚠ " + d.optString("message"), color = com.example.gavanhomes.ui.common.KitDanger, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(com.example.gavanhomes.ui.common.KitDanger.copy(alpha = .1f)).padding(12.dp)) }
                             Input("Alternate number", alt, { alt = it.filter(Char::isDigit).take(10) }, errors["alternate_phone_number"], keyboard = KeyboardType.Phone)
                             Input("Email", email, { email = it }, errors["email"], keyboard = KeyboardType.Email)
                             Input("Company", company, { company = it })
@@ -527,6 +544,15 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                             val sources = o.optJSONArray("sources")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().filter { it != "Import" }
                             PickerField("Lead source", source.ifBlank { null }, errors["lead_source"]) { sheet = "source" }
                             if (customSource || (source.isNotBlank() && source !in sources)) Input("Type the source", source.takeIf { it != "Other" }.orEmpty(), { source = it }, errors["lead_source"])
+                            if (source.contains("channel partner", true)) {
+                                val picked = o.objs("cps").firstOrNull { it.optInt("id") == cpId }
+                                PickerField("Channel partner (CP)", when {
+                                    picked != null -> picked.optString("code") + " · " + picked.optString("name") + "  ✓ Registered"
+                                    cpName.isNotBlank() -> cpName + "  (not registered)"
+                                    else -> null
+                                }, errors["cp_id"]) { sheet = "cp" }
+                                if (cpId <= 0 && (cpName.isNotBlank() || customCp)) Input("Partner name (not registered with us)", cpName, { cpName = it })
+                            }
                             PickerField("Lead list", o.objs("lists").firstOrNull { it.optInt("id") == listId }?.optString("name"), errors["list_id"]) { sheet = "list" }
                             val units = o.optJSONArray("units")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
                             if (units.isNotEmpty()) PickerField("Interested in (plot / unit)", interested.ifBlank { null }) { sheet = "interest" }
@@ -556,6 +582,7 @@ fun LeadFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                     )
                 }
                 if (sheet == "source") ChoiceSheet("Lead source", (o.optJSONArray("sources")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty().filter { it != "Import" }).map { Choice(it, it) }, source.takeIf { it.isNotBlank() }, b, onClose = { sheet = null }) { sheet = null; if (it == "Other") { customSource = true; source = "" } else { customSource = false; source = it } }
+                if (sheet == "cp") ChoiceSheet("Channel partner (CP)", o.objs("cps").map { Choice(it.optInt("id").toString(), it.optString("code") + " · " + it.optString("name") + (it.str("firm")?.let { f -> " · $f" } ?: "") + "  ✓ Registered") } + Choice("none", "Not registered with us — type the name"), cpId.takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) { sheet = null; if (it == "none") { cpId = 0; customCp = true } else { cpId = it.toIntOrNull() ?: 0; cpName = ""; customCp = false } }
                 if (sheet == "interest") ChoiceSheet("Interested in", (listOf("Not decided yet") + (o.optJSONArray("units")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()) + "Other…").map { Choice(it, it) }, interested.takeIf { it.isNotBlank() }, b, onClose = { sheet = null }) { sheet = null; when (it) { "Not decided yet" -> { customInterest = false; interested = "" }; "Other…" -> { customInterest = true; interested = "" }; else -> { customInterest = false; interested = it } } }
                 if (sheet == "list") ChoiceSheet("Lead list", o.objs("lists").map { Choice(it.optInt("id").toString(), it.optString("name")) }, listId.takeIf { it > 0 }?.toString(), b, onClose = { sheet = null }) { sheet = null; listId = it.toIntOrNull() ?: 0 }
                 if (sheet == "assignee") PersonChoiceSheet("Assigned to", o.objs("users").map { Choice(it.optInt("id").toString(), it.optString("name")) }, assignee.takeIf { it > 0 }?.toString(), b, allowNone = true, onClose = { sheet = null }) { sheet = null; assignee = it.toIntOrNull() ?: 0 }

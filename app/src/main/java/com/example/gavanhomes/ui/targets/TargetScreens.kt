@@ -240,7 +240,8 @@ Card("Files", if (files.isEmpty()) "Documents for this target" else "${files.siz
                             }
                             PickerField("Department", d.str("department")) { if (canEdit) departmentSheet = true }
                         }
-                        Card("Progress", "${d.optInt("progress")}% complete") {
+                        TargetProgressCard(api, b, id, d, canEdit) { attempt++; onChanged() }
+                        if (d.optJSONObject("progress_info")?.isNull("goal") != false) Card("Progress", "${d.optInt("progress")}% complete") {
                             var p by remember(d.optInt("progress")) { mutableFloatStateOf(d.optInt("progress").toFloat()) }
                             Slider(
                                 value = p, onValueChange = { if (canEdit) p = it }, valueRange = 0f..100f, steps = 19, enabled = canEdit,
@@ -390,6 +391,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
     var departmentId by remember { mutableIntStateOf(0) }
     var type by remember { mutableStateOf("") }
     var value by remember { mutableStateOf("") }
+    var source by remember { mutableStateOf("") }                      // where the progress comes from ("" = typed in by hand)
     var leadId by remember { mutableIntStateOf(0) }
     var budget by remember { mutableStateOf("") }
     var tower by remember { mutableStateOf("") }
@@ -405,7 +407,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
     // which dropdown is open: "category" | "department" | "lead" | "people"
     var sheet by remember { mutableStateOf<String?>(null) }
     var initial by remember { mutableStateOf<List<Any>?>(null) }
-    fun snapshot(): List<Any> = listOf(name, description, priority, start, due, statusId, progress.toInt(), categoryId, departmentId, type, value, leadId, budget, tower, unit, bonus, gps, photo, tier, people)
+    fun snapshot(): List<Any> = listOf(name, description, priority, start, due, statusId, progress.toInt(), categoryId, departmentId, type, value, source, leadId, budget, tower, unit, bonus, gps, photo, tier, people)
 
     LaunchedEffect(attempt) {
         loadError = null
@@ -416,7 +418,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                 name = d.optString("name"); description = d.str("description").orEmpty(); priority = d.str("priority") ?: "Medium"
                 start = d.str("start_date").orEmpty().take(10); due = d.str("due_date").orEmpty().take(10); statusId = d.optInt("status_id"); progress = d.optInt("progress").toFloat()
                 categoryId = d.optInt("category_id"); departmentId = d.optInt("department_id"); type = d.str("target_type").orEmpty(); value = d.str("target_value").orEmpty()
-                leadId = d.optInt("lead_employee_id"); budget = d.str("budget_code").orEmpty(); tower = d.str("tower_block").orEmpty(); unit = d.str("unit_floor").orEmpty(); bonus = d.str("bonus").orEmpty()
+                source = d.str("progress_source").orEmpty(); leadId = d.optInt("lead_employee_id"); budget = d.str("budget_code").orEmpty(); tower = d.str("tower_block").orEmpty(); unit = d.str("unit_floor").orEmpty(); bonus = d.str("bonus").orEmpty()
                 gps = d.optBoolean("gps_verification_required"); photo = d.optBoolean("mandatory_photo_uploads"); tier = d.optBoolean("four_tier_approvals_required")
                 people = d.optJSONArray("assignee_ids")?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet()
             }
@@ -435,7 +437,7 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
         val body = JSONObject().put("name", name.trim()).put("description", description.trim()).put("priority", priority)
             .put("start_date", start.ifBlank { nul }).put("due_date", due.ifBlank { nul })
             .put("category_id", if (categoryId > 0) categoryId else nul).put("department_id", if (departmentId > 0) departmentId else nul)
-            .put("target_type", type.ifBlank { nul }).put("target_value", value.ifBlank { nul }).put("lead_employee_id", if (leadId > 0) leadId else nul)
+            .put("target_type", type.ifBlank { nul }).put("target_value", value.ifBlank { nul }).put("progress_source", source.ifBlank { nul }).put("lead_employee_id", if (leadId > 0) leadId else nul)
             .put("budget_code", budget.ifBlank { nul }).put("tower_block", tower.ifBlank { nul }).put("unit_floor", unit.ifBlank { nul }).put("bonus", bonus.ifBlank { nul })
             .put("gps_verification_required", gps).put("mandatory_photo_uploads", photo).put("four_tier_approvals_required", tier)
             .put("assignee_id", JSONArray(people.sorted()))
@@ -492,11 +494,17 @@ fun TargetFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack
                                 Pick("None", type.isEmpty(), KitMuted) { type = "" }
                                 (o.optJSONArray("types")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()).forEach { tp -> Pick(tp, type == tp, Blue) { type = tp } }
                             }
-                            Input("Target value", value, { value = it }, errors["target_value"])
+                            Input("Target value (₹ or a number — e.g. 10 Cr, 50 L, 1,00,00,000)", value, { value = it }, errors["target_value"])
+                            com.example.gavanhomes.ui.targets.parseAmount(value)?.let { Text("= " + com.example.gavanhomes.ui.targets.amountText(it, "rupees"), color = KitGood, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                            Label("Progress comes from")
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Pick("By hand", source.isEmpty(), KitMuted) { source = "" }
+                                o.objs("sources").forEach { sc -> Pick(sc.optString("label").substringBefore(" — "), source == sc.optString("key"), Blue) { source = sc.optString("key") } }
+                            }
                             PickerField("Category", o.objs("categories").firstOrNull { it.optInt("id") == categoryId }?.optString("name")) { sheet = "category" }
                             PickerField("Department", o.objs("departments").firstOrNull { it.optInt("id") == departmentId }?.optString("name")) { sheet = "department" }
                             Input("Budget code", budget, { budget = it })
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (!o.optBoolean("plot")) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Box(Modifier.weight(1f)) { Input("Tower / block", tower, { tower = it }) }
                                 Box(Modifier.weight(1f)) { Input("Unit / floor", unit, { unit = it }) }
                             }

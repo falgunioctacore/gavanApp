@@ -41,6 +41,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -419,6 +420,12 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onAdd = { userId = null; screen = "userForm" },
                             onEditUser = { id -> userId = id; screen = "userForm" },
                         )
+                    }
+                    "cp" -> androidx.compose.foundation.layout.Column(
+                        androidx.compose.ui.Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage).verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    ) {
+                        com.example.gavanhomes.ui.common.HeroBar(branding, "Channel partners", ::backToTeam)
+                        com.example.gavanhomes.ui.cp.ChannelPartnerScreen(api, branding, null)
                     }
                     "professionals" -> androidx.compose.runtime.key(proVersion) {
                         ProfessionalsScreen(
