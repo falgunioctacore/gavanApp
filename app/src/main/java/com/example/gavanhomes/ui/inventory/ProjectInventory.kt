@@ -420,7 +420,7 @@ private fun SettingSheet(api: ApiClient, b: Branding, uuid: String, kind: String
 @Composable
 internal fun Paged(
     api: ApiClient, b: Branding, path: String, query: String, version: Int, empty: String, noun: String,
-    action: (@Composable () -> Unit)? = null, onMeta: (JSONObject) -> Unit = {}, item: @Composable (JSONObject) -> Unit,
+    action: (@Composable () -> Unit)? = null, onMeta: (JSONObject) -> Unit = {}, nearEnd: Boolean = false, item: @Composable (JSONObject) -> Unit,
 ) {
     val rows = remember { mutableStateListOf<JSONObject>() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -455,6 +455,8 @@ internal fun Paged(
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
+        // nearEnd: the screen says the reader has scrolled close to the bottom, so the next page loads by itself
+        if (nearEnd) LaunchedEffect(page, rows.size) { load(page + 1) }
         Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
     }
 }

@@ -553,7 +553,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
         Box(Modifier.fillMaxSize().background(KitPage).pointerInput(Unit) { detectTapGestures { } }) {
             if (kind.startsWith("detail")) androidx.compose.runtime.key(taskStack.size, tid) {
                 TaskDetailScreen(
-                    api, b, tid, tasksVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 1; "discussion" -> 2; "activity" -> 3; "assign" -> 4; else -> 0 }, onBack = ::pop, onEdit = { taskStack.add("form" to it) }, onOpenTask = { taskStack.add("detail" to it) },
+                    api, b, tid, tasksVersion, initialTab = when (kind.substringAfter(':', "")) { "files" -> 2; "discussion", "activity" -> 1; else -> 0 }, startAssign = kind.endsWith(":assign"), onBack = ::pop, onEdit = { taskStack.add("form" to it) }, onOpenTask = { taskStack.add("detail" to it) },
                     onChanged = { tasksVersion++ },
                 )
             } else TaskFormScreen(api, b, uuid, tid.takeIf { it > 0 }, onBack = ::pop, onSaved = { tasksVersion++; if (tid == 0) tasksListSignal++; pop() })

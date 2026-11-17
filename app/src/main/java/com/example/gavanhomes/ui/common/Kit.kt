@@ -66,7 +66,7 @@ internal suspend fun ApiClient.listAll(resource: String, maxPages: Int = 8): Lis
 
 /** Brand-gradient header with a back button (and [leading], e.g. the drawer ☰, beside it on the left) and title; [content] sits under the title row. */
 @Composable
-internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, leading: (@Composable () -> Unit)? = null, content: @Composable () -> Unit = {}) {
+internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}, compact: Boolean = false, showBell: Boolean = true, showChat: Boolean = true, leading: (@Composable () -> Unit)? = null, content: @Composable () -> Unit = {}) {
     val drift by rememberDrift()
     Box(
         Modifier.fillMaxWidth()
@@ -88,7 +88,7 @@ internal fun HeroBar(b: Branding, title: String, onBack: () -> Unit, actions: @C
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 actions()
-                if (showBell && !compact && LocalOpenNotifications.current != null) { Spacer(Modifier.size(8.dp)); ChatBell(); Spacer(Modifier.size(8.dp)); NotificationBell() }
+                if (showBell && !compact && LocalOpenNotifications.current != null) { if (showChat) { Spacer(Modifier.size(8.dp)); ChatBell() }; Spacer(Modifier.size(8.dp)); NotificationBell() }
             }
             if (!compact) {
                 Spacer(Modifier.height(18.dp))

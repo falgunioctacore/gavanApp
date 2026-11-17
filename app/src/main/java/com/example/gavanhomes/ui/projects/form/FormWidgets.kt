@@ -183,7 +183,8 @@ private fun Chip(text: String, filled: Boolean = false, onClick: () -> Unit) {
 }
 
 /** Reads a document the user picked; null (with a toast) when it is too big or can't be read. */
-fun readPicked(context: Context, uri: Uri): PickedFile? {
+fun readPicked(context: Context, uri: Uri, maxMb: Int = 5): PickedFile? {
+    val maxBytes = maxMb * 1024L * 1024L
     val resolver = context.contentResolver
     val mime = resolver.getType(uri) ?: "application/octet-stream"
     var name = "document"
@@ -195,11 +196,11 @@ fun readPicked(context: Context, uri: Uri): PickedFile? {
             if (s >= 0) size = c.getLong(s)
         }
     }
-    if (size > MaxFileBytes) { AppToast.show("That file is over 5 MB"); return null }
+    if (size > maxBytes) { AppToast.show("That file is over $maxMb MB"); return null }
     val bytes = runCatching { resolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
     if (bytes == null) { AppToast.show("Could not read that file"); return null }
-    if (bytes.size > MaxFileBytes) { AppToast.show("That file is over 5 MB"); return null }
-    val ext = when { mime.contains("pdf") -> "pdf"; mime.contains("png") -> "png"; mime.contains("jp") -> "jpg"; else -> null }
+    if (bytes.size > maxBytes) { AppToast.show("That file is over $maxMb MB"); return null }
+    val ext = when { mime.contains("pdf") -> "pdf"; mime.contains("png") -> "png"; mime.contains("jp") -> "jpg"; mime.contains("mpeg") && mime.startsWith("audio") -> "mp3"; mime.contains("m4a") || mime.contains("mp4a") -> "m4a"; else -> null }
     if (ext != null && !name.lowercase().endsWith(".$ext") && !(ext == "jpg" && name.lowercase().endsWith(".jpeg"))) name = "$name.$ext"
     return PickedFile(name, mime, bytes)
 }

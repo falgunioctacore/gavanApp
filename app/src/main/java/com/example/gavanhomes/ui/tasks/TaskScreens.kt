@@ -105,7 +105,7 @@ private val Blue = Color(0xFF1E5FAE)
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
-    api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onEdit: (Int) -> Unit, onOpenTask: (Int) -> Unit, onChanged: () -> Unit, initialTab: Int = 0,
+    api: ApiClient, b: Branding, id: Int, version: Int, onBack: () -> Unit, onEdit: (Int) -> Unit, onOpenTask: (Int) -> Unit, onChanged: () -> Unit, initialTab: Int = 0, startAssign: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -122,6 +122,11 @@ fun TaskDetailScreen(
     var departmentSheet by remember { mutableStateOf(false) }
     var subtask by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
+    var updateSheet by remember { mutableStateOf(false) }
+    var updateText by remember { mutableStateOf("") }
+    var feed by remember { mutableIntStateOf(0) }                       // Updates tab: 0 chat · 1 notes & history
+    var assignSheet by remember { mutableStateOf(startAssign) }
+    var progressAsk by remember { mutableStateOf<Int?>(null) }          // progress going down: the new % waiting for its reason
 
     LaunchedEffect(id, version, attempt) {
         error = null
@@ -147,9 +152,20 @@ fun TaskDetailScreen(
         }
     }
     fun quick(vararg pairs: Pair<String, Any?>) = act("Saved", { api.send("POST", "/task-center/$id/quick", JSONObject().apply { pairs.forEach { (k, v) -> put(k, v ?: JSONObject.NULL) } }) })
+    // "Mark complete": the server also completes the customer's journey step when this was its last open task, and creates the next step's task
+    fun complete() {
+        var msg = "Task completed"
+        act(null, {
+            val sid = t?.objs("statuses")?.firstOrNull { it.optString("name") == "Completed" }?.optInt("id") ?: 0
+            val r = api.send("POST", "/task-center/$id/status", JSONObject().put("status_id", sid))
+            r.optJSONObject("handover")?.let { h ->
+                msg = listOfNotNull(h.optString("step_done").takeIf { it.isNotBlank() }?.let { "$it step done" }, h.optString("next_step").takeIf { it.isNotBlank() }?.let { "next task: $it" }).joinToString(" · ").ifBlank { msg }
+            }
+        }, after = { AppToast.show(msg) })
+    }
 
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        val f = uri?.let { readPicked(context, it) } ?: return@rememberLauncherForActivityResult
+        val f = uri?.let { readPicked(context, it, 10) } ?: return@rememberLauncherForActivityResult
         act("File uploaded", { api.sendForm("/task-center/$id/documents", listOf(FormPart("document", fileName = f.name, mime = f.mime, bytes = f.bytes))) })
     }
 
@@ -173,7 +189,7 @@ fun TaskDetailScreen(
         Box(Modifier.weight(1f).fillMaxWidth()) {
         Column(Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter).fillMaxSize().verticalScroll(pageScroll).imePadding()) {
             HeroBar(
-                b, if (isSub) "Subtask" else "Task", onBack,
+                b, if (isSub) "Subtask" else "Task", onBack, showChat = false,
                 actions = {
                     if (canEdit) { HeroButton("✎") { onEdit(id) }; Spacer(Modifier.size(8.dp)) }
                     if (canDelete) DeleteButton { askDelete = true }
@@ -181,23 +197,23 @@ fun TaskDetailScreen(
             ) {
                 Column {
                     Text(d.optString("name"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    d.str("project")?.let { Text(it, color = Color.White.copy(alpha = .8f), fontSize = 13.sp) }
+                    listOfNotNull(d.str("project"), d.str("where"), d.str("journey_step_name")?.let { "Step ${d.optInt("journey_step")} $it" }).takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(" · "), color = Color.White.copy(alpha = .8f), fontSize = 13.sp) }
                     Spacer(Modifier.height(12.dp))
-                    HeroChips(*listOfNotNull(d.str("status"), d.str("priority")?.let { "$it priority" }, prettyDay(d.str("due_date"))?.let { "Due $it" }, d.str("type_label")).toTypedArray())
+                    HeroChips(*listOfNotNull(if (d.optBoolean("overdue")) "Overdue" + (d.str("late")?.let { " · $it" } ?: "") else d.str("status"), d.str("priority")?.let { "$it priority" }, prettyDay(d.str("due_date"))?.let { "Due $it" }).toTypedArray())
                 }
             }
 
+            // three tabs only: Details · Updates (chat + notes + history) · Files
             com.example.gavanhomes.ui.common.PillTabs(
-                listOf(com.example.gavanhomes.ui.common.PillTab("Details"), com.example.gavanhomes.ui.common.PillTab("Files", files.size), com.example.gavanhomes.ui.common.PillTab("Discussion"),
-                    com.example.gavanhomes.ui.common.PillTab("Activity", d.objs("history").size), com.example.gavanhomes.ui.common.PillTab("Assign")),
-                tab, b.base,
+                listOf(com.example.gavanhomes.ui.common.PillTab("Details"), com.example.gavanhomes.ui.common.PillTab("Updates", d.objs("history").size + d.objs("comments").size), com.example.gavanhomes.ui.common.PillTab("Files", files.size)),
+                tab.coerceIn(0, 2), b.base,
             ) { tab = it }
-            val page = listOf("overview", "files", "discussion", "activity", "assign")[tab]
+            val page = listOf("overview", "updates", "files")[tab.coerceIn(0, 2)]
 
-            // the files — a gallery of the pictures, then the other documents with View / Download — shown on the Details tab and the Files tab
+            // the files — a gallery of the pictures, then the other documents with View / Download — shown once, on the Files tab
             val filesCard: @Composable () -> Unit = {
-Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size} attached") {
-                    if (files.isEmpty()) Text("No files yet.", color = KitMuted, fontSize = 14.sp)
+                Card("Files", if (files.isEmpty()) "Documents, photos and voice notes for this task" else "${files.size} attached") {
+                    if (files.isEmpty()) Text(if (canEdit) "No files yet — upload the first one below." else "No files yet.", color = KitMuted, fontSize = 14.sp)
                     val images = files.filter { isImageName(it.optString("name")) }
                     if (images.isNotEmpty()) com.example.gavanhomes.ui.tasks.ImageGrid(images, if (canDelete) ({ f -> askDeleteFile = f }) else null)
                     files.filterNot { isImageName(it.optString("name")) }.forEach { f ->
@@ -222,41 +238,84 @@ Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size}
                 }
             }
 
-            // the subtasks checklist, shown under the details (a subtask has none of its own)
-            val subtasksCard: @Composable () -> Unit = {
-                Card("Subtasks", if (subs.isEmpty()) "Break the work into steps" else "${subs.count { it.optString("status") == "Completed" }} of ${subs.size} done") {
-                    if (subs.isNotEmpty()) Meter(subs.count { it.optString("status") == "Completed" } / subs.size.toFloat(), KitGood)
+            // the checklist: its items drive the task's % — one bar, nothing typed by hand
+            val checklistCard: @Composable () -> Unit = {
+                val done = subs.count { it.optString("status") == "Completed" }
+                val pct = if (subs.isEmpty()) 0 else Math.round(done * 100f / subs.size)
+                Card("Checklist", if (subs.isEmpty()) "Break the work into steps — the % follows the items done" else "$done of ${subs.size} done ($pct%)") {
+                    if (subs.isNotEmpty()) Meter(done / subs.size.toFloat(), if (done == subs.size) KitGood else b.base)
                     subs.forEach { s ->
-                        val done = s.optString("status") == "Completed"
+                        val ok = s.optString("status") == "Completed"
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                Modifier.size(28.dp).clip(CircleShape).background(if (done) KitGood else com.example.gavanhomes.ui.common.KitLine)
-                                    .clickable(enabled = canEdit) { act(if (done) "Subtask marked pending" else "Subtask completed", { api.send("POST", "/task-center/${s.optInt("id")}/status", JSONObject().put("status_id", statusIdFor(d, if (done) "Pending" else "Completed"))) }) },
+                                Modifier.size(28.dp).clip(CircleShape).background(if (ok) KitGood else com.example.gavanhomes.ui.common.KitLine)
+                                    .clickable(enabled = canEdit) { act(if (ok) "Item marked pending" else "Item done", { api.send("POST", "/task-center/${s.optInt("id")}/status", JSONObject().put("status_id", statusIdFor(d, if (ok) "Pending" else "Completed"))) }) },
                                 contentAlignment = Alignment.Center,
-                            ) { if (done) Text("✓", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp) }
+                            ) { if (ok) Text("✓", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp) }
                             Column(Modifier.weight(1f).padding(start = 12.dp).clickable { onOpenTask(s.optInt("id")) }) {
-                                Text(s.optString("name"), color = KitInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textDecoration = if (done) TextDecoration.LineThrough else null)
-                                Text(listOfNotNull(s.str("status"), s.str("priority"), prettyDay(s.str("due_date"))).joinToString(" · "), color = KitMuted, fontSize = 12.sp)
+                                Text(s.optString("name"), color = KitInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textDecoration = if (ok) TextDecoration.LineThrough else null)
+                                val extra = listOfNotNull(s.str("priority")?.takeIf { it != d.optString("priority") }, prettyDay(s.str("due_date"))).joinToString(" · ")
+                                if (extra.isNotBlank()) Text(extra, color = KitMuted, fontSize = 12.sp)
                             }
                             if (canDelete) Text("✕", color = KitMuted, fontSize = 16.sp, modifier = Modifier.clip(CircleShape).clickable { askDeleteSub = s }.padding(8.dp))
                         }
                     }
                     if (canEdit) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.weight(1f)) { Input("New subtask", subtask, { subtask = it }) }
-                        SendButton("Add", subtask.isNotBlank()) { act("Subtask added", { api.send("POST", "/task-center/$id/subtasks", JSONObject().put("title", subtask.trim())) }) { subtask = "" } }
+                        Box(Modifier.weight(1f)) { Input("Add a checklist item", subtask, { subtask = it }) }
+                        SendButton("Add", subtask.isNotBlank()) { act("Item added", { api.send("POST", "/task-center/$id/subtasks", JSONObject().put("title", subtask.trim())) }) { subtask = "" } }
                     }
                 }
             }
 
             when (page) {
-                // ───── overview ─────
+                // ───── details ─────
                 "overview" -> {
+                    val people = d.objs("assignees")
+                    val overdue = d.optBoolean("overdue")
+                    val done = d.optString("status") == "Completed"
+                    val owner = people.firstOrNull()
+
+                    // the owner, with Call / WhatsApp and Reassign (assigning lives here, not in a tab of its own)
+                    PlainCard {
+                        if (owner == null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Nobody is assigned yet.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                if (canEdit) Text("Assign", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(b.base).clickable { assignSheet = true }.padding(horizontal = 16.dp, vertical = 8.dp))
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                com.example.gavanhomes.ui.common.PersonAvatar(owner.optInt("id"), owner.optString("name"), 44.dp)
+                                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                    Text(owner.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    Text(listOfNotNull("Owner", d.str("department"), if (people.size > 1) "+${people.size - 1} more" else null).joinToString(" · "), color = KitMuted, fontSize = 12.sp)
+                                }
+                                owner.str("phone")?.let { ph ->
+                                    CallChip(ph)
+                                    Text("WA", color = Color(0xFF25A244), fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF25A244).copy(alpha = .12f)).clickable {
+                                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${waNumber(ph)}"))) }.onFailure { AppToast.show("WhatsApp is not available") }
+                                    }.padding(horizontal = 12.dp, vertical = 8.dp))
+                                }
+                            }
+                            if (canEdit) Text("Reassign / add people", color = b.base, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { assignSheet = true }.padding(vertical = 4.dp))
+                        }
+                        // the due banner: red and exact when overdue (worked out from the date + time, never picked)
+                        val dueText = listOfNotNull(prettyDay(d.str("due_date")), d.str("due_time")?.take(5)).joinToString(", ")
+                        if (dueText.isNotBlank()) {
+                            val link = listOfNotNull(d.str("where")?.let { "Customer: $it" }, d.str("journey_step_name")?.let { "Step ${d.optInt("journey_step")} · $it" }).joinToString("  ·  ")
+                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background((if (overdue) KitDanger else KitMuted).copy(alpha = .10f)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Due $dueText" + if (overdue) " · ${d.str("late") ?: "overdue"}" else "", color = if (overdue) KitDanger else KitInk, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                if (link.isNotBlank()) Text(link, color = if (overdue) KitDanger else KitMuted, fontSize = 12.sp)
+                            }
+                        } else d.str("where")?.let { w -> Text("Customer: $w", color = KitMuted, fontSize = 12.sp) }
+                    }
+
                     if (canEdit) Card("Status", "Tap to change") {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             d.objs("statuses").forEach { s ->
                                 val on = s.optInt("id") == d.optInt("status_id")
                                 Pick(s.optString("name"), on, statusTint(s.optString("name"))) { if (!on) act("Status changed", { api.send("POST", "/task-center/$id/status", JSONObject().put("status_id", s.optInt("id"))) }) }
                             }
+                            if (overdue) Text("Overdue — automatic", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(KitDanger.copy(alpha = .1f)).padding(horizontal = 12.dp, vertical = 8.dp))
                         }
                     }
 
@@ -276,24 +335,28 @@ Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size}
                         PickerField("Department", d.str("department")) { if (canEdit) departmentSheet = true }
                     }
 
-                    Card("Progress", "${d.optInt("progress")}% complete") {
+                    // with a checklist the % is the items done; without one, set it here (going down asks why)
+                    if (!isSub) checklistCard()
+                    if (subs.isEmpty()) Card("Progress", "${d.optInt("progress")}% complete — set by hand, as there is no checklist") {
                         var p by remember(d.optInt("progress")) { mutableFloatStateOf(d.optInt("progress").toFloat()) }
                         Slider(
                             value = p, onValueChange = { if (canEdit) p = it }, valueRange = 0f..100f, steps = 19, enabled = canEdit,
-                            onValueChangeFinished = { if (p.toInt() != d.optInt("progress")) quick("progress" to p.toInt()) },
-                            colors = SliderDefaults.colors(thumbColor = b.base, activeTrackColor = b.base),
+                            onValueChangeFinished = { val v = p.toInt(); if (v < d.optInt("progress")) progressAsk = v else if (v != d.optInt("progress")) quick("progress" to v) },
+                            colors = SliderDefaults.colors(thumbColor = b.base, activeTrackColor = b.base, inactiveTrackColor = com.example.gavanhomes.ui.common.KitLine),
                         )
-                        Meter(p / 100f, statusTint(d.str("status")))
                     }
 
                     d.str("description")?.let { Card("Description") { Text(it, color = KitInk, fontSize = 14.sp, lineHeight = 21.sp) } }
 
                     Card("Details") {
                         Fact("Type", d.str("type_label"))
+                        Fact("Category", d.str("task_category")?.replaceFirstChar { it.uppercase() })
+                        Fact("Journey step", d.str("journey_step_name")?.let { "${d.optInt("journey_step")} · $it" })
                         if (d.str("lead_phone") != null) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Fact("Customer / lead", d.str("lead_name") ?: d.str("lead_label"))
                             PhoneActions(d.optString("lead_phone"))
                         } else Fact("Customer / lead", d.str("lead_label"))
+                        Fact(d.str("unit_noun") ?: "Unit", d.str("unit_label"))
                         Fact("Reminder", d.str("reminder_label")?.let { r -> if (d.optString("reminder") == "custom") "$r · ${d.optString("reminder_custom_at")}" else r })
                         Fact("Repeats", d.str("recurrence")?.let { r -> when (r) { "weekly" -> "Every week"; "monthly" -> "Every month"; else -> "Until ${prettyDay(d.str("recurrence_custom_date"))}" } })
                         Fact("Created", listOfNotNull(prettyDay(d.str("created_at")), d.str("created_by")?.let { "by $it" }).joinToString(" "))
@@ -301,53 +364,49 @@ Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size}
                         d.str("overdue_reason")?.let { Fact("Overdue reason", it) }
                     }
 
-                    val people = d.objs("assignees")
-                    Card("Assigned to", "${people.size} ${if (people.size == 1) "person" else "people"}") {
-                        if (people.isEmpty()) Text("Nobody yet.", color = KitMuted, fontSize = 14.sp)
-                        people.forEach { p ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                com.example.gavanhomes.ui.common.PersonAvatar(p.optInt("id"), p.optString("name"), 38.dp)
-                                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                    Text(p.optString("name"), color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                    p.str("phone")?.let { Text(it, color = KitMuted, fontSize = 12.sp) }
-                                }
-                                p.str("phone")?.let { ph -> CallChip(ph) }
-                            }
-                        }
+                    // "Mark complete": when it is the last open task of a customer's journey step, the step completes and the next step's task is created
+                    if (canEdit) Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("＋ Update / file", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable { updateSheet = true }.padding(vertical = 14.dp))
+                        if (!done && !isSub) Text(if (busy) "Please wait…" else "Mark complete", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(KitGood).clickable { complete() }.padding(vertical = 14.dp))
                     }
-                    // notes added from a task's ⋮ menu (Add notes) or the website
-                    val notes = d.objs("comments")
-                    if (notes.isNotEmpty()) Card("Notes", "${notes.size}") {
-                        notes.forEach { c ->
-                            Row {
-                                Initials(c.optString("by"), size = 34.dp)
-                                Column(Modifier.padding(start = 10.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(c.optString("by"), fontWeight = FontWeight.Bold, color = KitInk, fontSize = 13.sp)
-                                        Text(c.optString("at"), color = KitMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
+                    if (canEdit && !done && !isSub && d.optInt("journey_step") > 0) Text("Completing the last task of this step completes the step and creates the next step's task.", color = KitMuted, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+                }
+
+                // ───── updates: the discussion, the notes and the history in one place ─────
+                "updates" -> {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Pick("Chat", feed == 0, b.base) { feed = 0 }
+                        Pick("Notes & history", feed == 1, b.base) { feed = 1 }
+                    }
+                    if (feed == 0) TaskDiscussion(api, b, id, onChanged = { attempt++; onChanged() })              // a new message adds to the activity feed
+                    else {
+                        val notes = d.objs("comments")
+                        if (notes.isNotEmpty()) Card("Notes", "${notes.size}") {
+                            notes.forEach { c ->
+                                Row {
+                                    Initials(c.optString("by"), size = 34.dp)
+                                    Column(Modifier.padding(start = 10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(c.optString("by"), fontWeight = FontWeight.Bold, color = KitInk, fontSize = 13.sp)
+                                            Text(c.optString("at"), color = KitMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
+                                        }
+                                        Text(c.optString("text"), color = KitInk, fontSize = 14.sp, lineHeight = 20.sp)
                                     }
-                                    Text(c.optString("text"), color = KitInk, fontSize = 14.sp, lineHeight = 20.sp)
                                 }
                             }
                         }
+                        val history = d.objs("history")
+                        Card("History", if (history.isEmpty()) "Nothing has happened yet" else "Who did what, and when") {
+                            if (history.isEmpty()) Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
+                            HistoryTimeline(history)
+                        }
                     }
-                    if (!isSub) subtasksCard()
-                    filesCard()
                 }
 
                 // ───── files ─────
-                "files" -> filesCard()
-
-                "discussion" -> TaskDiscussion(api, b, id, onChanged = { attempt++; onChanged() })              // a new message adds to the activity feed
-                "assign" -> TaskAssignTab(api, b, id, d.optString("name"), canEdit, onChanged = { attempt++; onChanged() })   // so the details, people and activity show the change
-                // ───── activity ─────
-                else -> {
-                    val history = d.objs("history")
-                    Card("Activity", if (history.isEmpty()) "Nothing has happened yet" else "Who did what, and when") {
-                        if (history.isEmpty()) Text("No activity yet.", color = KitMuted, fontSize = 14.sp)
-                        HistoryTimeline(history)
-                    }
-                }
+                else -> filesCard()
             }
             Spacer(Modifier.height(28.dp))
         }
@@ -367,6 +426,21 @@ Card("Files", if (files.isEmpty()) "Documents for this task" else "${files.size}
                 }
             }
         }
+
+        if (assignSheet) ModalBottomSheet(onDismissRequest = { assignSheet = false }, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = KitPage) {
+            Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState())) {
+                TaskAssignTab(api, b, id, d.optString("name"), canEdit, onChanged = { attempt++; onChanged() })
+            }
+        }
+        if (updateSheet) ModalBottomSheet(onDismissRequest = { updateSheet = false }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
+            Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Add an update", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Input("What happened? (checked by you before saving)", updateText, { updateText = it }, singleLine = false)
+                SendButton("Add note", updateText.isNotBlank()) { val t = updateText.trim(); updateSheet = false; updateText = ""; act("Update added", { api.send("POST", "/task-center/$id/comments", JSONObject().put("text", t)) }) }
+                Text("Attach a file, photo or voice note", color = b.base, fontWeight = FontWeight.ExtraBold, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(b.base.copy(alpha = .12f)).clickable { updateSheet = false; pickFile.launch("*/*") }.padding(14.dp))
+            }
+        }
+        progressAsk?.let { v -> NameDialog("Progress is going down", "", "Why? (a short note)", "Save", busy, onDismiss = { progressAsk = null }, onSave = { note -> progressAsk = null; quick("progress" to v, "note" to note) }) }
 
         if (askDelete) SwalConfirm(
             title = "Delete this task?", text = "It will be removed from the project.", confirmText = "Yes, delete it",
@@ -477,6 +551,13 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     var category by remember { mutableStateOf("") }                       // "" · bids · leads (the website's task category)
     var attachment by remember { mutableStateOf<com.example.gavanhomes.ui.projects.form.PickedFile?>(null) }   // a file to attach when the task is created
     var unitSheet by remember { mutableStateOf(false) }
+    var bookingId by remember { mutableIntStateOf(0) }                    // the customer's booking the task is for, and the journey step (1 Lead … 11 Possession)
+    var bookingLabel by remember { mutableStateOf("") }
+    var journeyStep by remember { mutableIntStateOf(0) }
+    var bookingSheet by remember { mutableStateOf(false) }
+    var stepSheet by remember { mutableStateOf(false) }
+    var more by remember { mutableStateOf(editing) }                      // a new task is a quick one; the rest is under "More options"
+    var whenChip by remember { mutableStateOf("") }
     var subs by remember { mutableStateOf<List<SubRow>>(emptyList()) }                           // the subtasks checklist of the form
     var subPeople by remember { mutableStateOf<Int?>(null) }                                     // the subtask whose people are being picked
     var bidItems by remember { mutableStateOf<List<BidRow>>(emptyList()) }                       // the items of a task from Bids (the website's "Bid Items")
@@ -514,7 +595,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         val parts = listOf(typeLabel(), leadLabel.substringBefore(" — ").trim()).filter { it.isNotBlank() }
         name = if (parts.isEmpty()) "" else parts.joinToString(" – ") + " Follow-up"
     }
-    fun snapshot(): List<Any> =listOf(name, description, type, priority, due, dueTime, reminder, remDate, remTime, recurrence, recDate, leadId, statusId, departmentId, progress.toInt(), overdueReason, people, otherPeople, unitId, category, attachment?.name.orEmpty(), bidItems.map { listOf(it.kind, it.id, it.qty, it.unit) }, subs.map { listOf(it.id, it.title, it.priority, it.due, it.people) })
+    fun snapshot(): List<Any> =listOf(name, description, type, priority, due, dueTime, reminder, remDate, remTime, recurrence, recDate, leadId, statusId, departmentId, progress.toInt(), overdueReason, people, otherPeople, unitId, category, bookingId, journeyStep, attachment?.name.orEmpty(), bidItems.map { listOf(it.kind, it.id, it.qty, it.unit) }, subs.map { listOf(it.id, it.title, it.priority, it.due, it.people) })
 
     LaunchedEffect(attempt) {
         loadError = null
@@ -526,7 +607,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                 due = d.str("due_date").orEmpty(); dueTime = d.str("due_time")?.take(5).orEmpty(); statusId = d.optInt("status_id"); departmentId = d.optInt("department_id")
                 reminder = d.str("reminder").orEmpty(); d.str("reminder_custom_at")?.let { remDate = it.take(10); remTime = it.drop(11).take(5) }
                 recurrence = d.str("recurrence").orEmpty(); recDate = d.str("recurrence_custom_date").orEmpty()
-                leadId = d.optInt("lead_id"); leadLabel = d.str("lead_label").orEmpty(); unitId = d.optInt("unit_id"); unitLabel = d.str("unit_label").orEmpty(); category = d.str("task_category").orEmpty(); progress = d.optInt("progress").toFloat(); overdueReason = d.str("overdue_reason").orEmpty()
+                leadId = d.optInt("lead_id"); leadLabel = d.str("lead_label").orEmpty(); unitId = d.optInt("unit_id"); unitLabel = d.str("unit_label").orEmpty(); category = d.str("task_category").orEmpty(); bookingId = d.optInt("booking_id"); bookingLabel = d.str("where").orEmpty(); journeyStep = d.optInt("journey_step"); progress = d.optInt("progress").toFloat(); overdueReason = d.str("overdue_reason").orEmpty()
                 people = d.optJSONArray("assignee_ids")?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet()
                 d.optJSONArray("subtask_rows")?.let { a ->
                     subs = (0 until a.length()).map { i -> a.getJSONObject(i).let { x -> SubRow(x.optInt("id"), x.optString("title"), x.str("priority") ?: "Medium", x.str("due_date").orEmpty(), x.optJSONArray("assignee_ids")?.let { p -> (0 until p.length()).map { k -> p.getInt(k) }.toSet() } ?: emptySet()) } }
@@ -549,18 +630,18 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
     fun save() {
         val problems = mutableMapOf<String, String>()
         if (name.isBlank()) problems["name"] = "Enter a task name"
-        if (description.isBlank()) problems["description"] = "Enter a description"
+        if (editing && description.isBlank()) problems["description"] = "Enter a description"
         if (reminder == "custom" && remDate.isBlank()) problems["reminder_custom_date"] = "Pick the reminder date"
         if (recurrence == "custom" && recDate.isBlank()) problems["recurrence_custom_date"] = "Pick the end date"
         if (category == "bids" && bidItems.any { it.id == 0 || it.qty.toDoubleOrNull() == null }) problems["bid_items"] = "Pick an item and a quantity for every bid item"
         if (problems.isNotEmpty()) { errors = problems; banner = problems.values.first(); return }
         val nul = JSONObject.NULL
-        val body = JSONObject().put("name", name.trim()).put("description", description.trim()).put("priority", priority)
+        val body = JSONObject().put("name", name.trim()).put("description", description.trim().ifBlank { name.trim() }).put("priority", priority)
             .put("due_date", due.ifBlank { nul }).put("due_time", dueTime.ifBlank { nul }).put("type", type.ifBlank { nul })
             .put("assignee_groups", JSONObject().put("user", JSONArray(people.sorted())).also { g -> listOf("contractor", "supplier", "professional").filter { it in visited || it in otherPeople }.forEach { t -> g.put(t, JSONArray((otherPeople[t] ?: emptySet()).sorted())) } }).put("department_id", if (departmentId > 0) departmentId else nul)
             .put("lead_id", if (leadId > 0) leadId else nul).put("reminder", reminder.ifBlank { nul })
             .put("reminder_custom_date", if (reminder == "custom") remDate.ifBlank { nul } else nul).put("reminder_custom_time", if (reminder == "custom") remTime.ifBlank { nul } else nul)
-            .put("unit_id", if (unitId > 0) unitId else nul).put("task_category", category.ifBlank { nul }).put("recurrence", recurrence.ifBlank { nul }).put("recurrence_custom_date", if (recurrence == "custom") recDate.ifBlank { nul } else nul)
+            .put("booking_id", if (bookingId > 0) bookingId else nul).put("journey_step", if (journeyStep > 0) journeyStep else nul).put("unit_id", if (unitId > 0) unitId else nul).put("task_category", category.ifBlank { nul }).put("recurrence", recurrence.ifBlank { nul }).put("recurrence_custom_date", if (recurrence == "custom") recDate.ifBlank { nul } else nul)
         if (editing || subs.isNotEmpty()) body.put("subtasks", JSONArray(subs.filter { it.title.isNotBlank() }.map { r -> JSONObject().apply { if (r.id > 0) put("id", r.id); put("title", r.title.trim()); put("priority", r.priority); put("due_date", r.due.ifBlank { nul }); put("assignee_id", JSONArray(r.people.sorted())) } }))
         if (category == "bids" || bidItems.isNotEmpty() || hadBidItems) body.put("bid_items", JSONArray(bidItems.filter { it.id > 0 }.map { r -> JSONObject().put("kind", r.kind).put("id", r.id).put("quantity", r.qty.toDoubleOrNull() ?: 0.0).put("unit", r.unit.ifBlank { nul }) }))
         if (editing) { if (statusId > 0) body.put("status_id", statusId); body.put("progress", progress.toInt()); body.put("overdue_reason", overdueReason.ifBlank { nul }) }
@@ -583,7 +664,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
         }
     }
 
-    val pickAttachment = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { readPicked(context, it) }?.let { attachment = it } }
+    val pickAttachment = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { readPicked(context, it, 10) }?.let { attachment = it } }
 
     fun pickDate(current: String, set: (String) -> Unit) {
         val d = runCatching { LocalDate.parse(current.take(10)) }.getOrDefault(LocalDate.now())
@@ -606,18 +687,56 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                     Column(Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(vertical = 8.dp)) {
                         banner?.let { Text("• $it", color = KitDanger, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(KitDanger.copy(alpha = .1f)).padding(12.dp)) }
 
+                        // a new task is a quick one: what, the customer / plot (the journey step follows), who, when, priority — the rest is under More options
+                        if (!editing) Card("Quick task", "What needs doing, for whom, and by when") {
+                            fun stepName(n: Int) = o.objs("journey_steps").firstOrNull { it.optInt("n") == n }?.optString("name").orEmpty()
+                            Input("What needs doing", name, { name = it; nameEdited = true }, errors["name"])
+                            PickerField("Customer / " + (o.optString("unit_noun").ifBlank { "unit" }).lowercase() + " (optional)", bookingLabel.ifBlank { null }) { bookingSheet = true }
+                            if (bookingId > 0) Text("Remove customer", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { bookingId = 0; bookingLabel = ""; journeyStep = 0 })
+                            PickerField("Journey step" + if (bookingId > 0) " (from the customer)" else "", journeyStep.takeIf { it > 0 }?.let { n -> "$n · ${stepName(n)}" }) { stepSheet = true }
+                            Label("Assign to")
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val team = o.objs("people")
+                                (team.filter { it.optInt("id") in people } + team.filter { it.optInt("id") !in people }).take(4).forEach { p ->
+                                    val pid = p.optInt("id"); val on = pid in people
+                                    Pick(p.optString("name").substringBefore(' '), on, b.base) { people = if (on) people - pid else people + pid }
+                                }
+                                Pick(if (people.size > 4) "+ more (${people.size} chosen)" else "+ more", false, KitMuted) { peopleSheet = true }
+                            }
+                            Label("When")
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val today = LocalDate.now()
+                                listOf("today" to "Today", "tomorrow" to "Tomorrow", "week" to "This week").forEach { (k, l) ->
+                                    Pick(l, whenChip == k, b.base) {
+                                        whenChip = k
+                                        due = when (k) { "today" -> today; "tomorrow" -> today.plusDays(1); else -> today.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)) }.toString()
+                                    }
+                                }
+                                Pick(if (whenChip == "date" && due.isNotBlank()) "Date: ${prettyDay(due)}" else "Pick date", whenChip == "date", b.base) { pickDate(due) { due = it; whenChip = "date" } }
+                            }
+                            Label("Priority")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Low" to "Low", "Medium" to "Normal", "High" to "High", "Urgent" to "Urgent").forEach { (p, l) -> Pick(l, priority == p, priorityTint(p)) { priority = p } } }
+                            val items = journeyStep.takeIf { it > 0 }?.let { n -> o.objs("journey_steps").firstOrNull { it.optInt("n") == n }?.optJSONArray("checklist")?.length() } ?: 0
+                            if (items > 0) Text("Checklist template loaded: ${stepName(journeyStep)} ($items items)", color = KitGood, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(if (more) "−  Fewer options" else "＋  More options", color = b.base, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { more = !more }.padding(vertical = 6.dp))
+                            if (!more) Text("Description, voice note, files, reminder, repeat, department and subtasks", color = KitMuted, fontSize = 11.sp)
+                        }
+
+                        if (more) {
                         // like the website: who it is about and what kind of task come first — they fill in the task name
                         Card("Who is it about?", "Pick a customer / lead and a type — the task name fills itself in") {
                             PickerField("Customer / lead", leadLabel.ifBlank { null }) { leadSheet = true }
                             if (leadId > 0) Text("Remove link", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { leadId = 0; leadLabel = ""; refreshName() })
                             PickerField("Type", typeLabel().ifBlank { null }, errors["type"]) { typeSheet = true }
-                            PickerField("Unit (flat / shop)", unitLabel.ifBlank { null }, errors["unit_id"]) { unitSheet = true }
-                            if (unitId > 0) Text("Remove unit", color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { unitId = 0; unitLabel = "" })
+                            if (editing) {
+                                PickerField("Customer / " + (o.optString("unit_noun").ifBlank { "unit" }).lowercase(), bookingLabel.ifBlank { null }) { bookingSheet = true }
+                                PickerField("Journey step", journeyStep.takeIf { it > 0 }?.let { n -> "$n · " + o.objs("journey_steps").firstOrNull { it.optInt("n") == n }?.optString("name").orEmpty() }) { stepSheet = true }
+                            }
+                            PickerField(o.optString("unit_noun").ifBlank { "Unit" }, unitLabel.ifBlank { null }, errors["unit_id"]) { unitSheet = true }
+                            if (unitId > 0) Text("Remove " + o.optString("unit_noun").ifBlank { "unit" }.lowercase(), color = KitMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { unitId = 0; unitLabel = "" })
                             Label("Task category")
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Pick("None", category.isEmpty(), KitMuted) { category = "" }
-                                Pick("Bids", category == "bids", Blue) { category = "bids" }
-                                Pick("Leads", category == "leads", Blue) { category = "leads" }
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                o.objs("categories").forEach { c -> Pick(c.optString("label"), category == c.optString("key"), if (c.optString("key").isEmpty()) KitMuted else Blue) { category = c.optString("key") } }
                             }
                         }
 
@@ -643,7 +762,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                         }
 
                         Card("What needs doing", "Name it and say what it involves") {
-                            Input("Task name", name, { name = it; nameEdited = true }, errors["name"])
+                            if (editing) Input("Task name", name, { name = it; nameEdited = true }, errors["name"])
                             if (!nameEdited && name.isNotBlank()) Text("Suggested from the type and customer — edit it if you like", color = KitMuted, fontSize = 11.sp)
                             Input("Description", description, { description = it }, errors["description"], singleLine = false)
                             if (!editing) {
@@ -714,6 +833,7 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
                             Label("Progress · ${progress.toInt()}%")
                             Slider(value = progress, onValueChange = { progress = it }, valueRange = 0f..100f, steps = 19, colors = SliderDefaults.colors(thumbColor = b.base, activeTrackColor = b.base))
                             Input("Reason it is overdue (optional)", overdueReason, { overdueReason = it }, singleLine = false)
+                        }
                         }
                         Spacer(Modifier.height(12.dp))
                     }
@@ -879,6 +999,8 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
             if (row != null) SubPeopleSheet(options?.objs("people").orEmpty(), row.people, onChange = { v -> subs = subs.toMutableList().also { it[i] = row.copy(people = v) } }, onClose = { subPeople = null })
         }
         if (unitSheet) UnitSheet(api, uuid, unitId, onPick = { uid, label -> unitId = uid; unitLabel = label; unitSheet = false }, onClose = { unitSheet = false })
+        if (bookingSheet) BookingSheet(api, uuid, bookingId, options?.optString("unit_noun").orEmpty().ifBlank { "Unit" }, onPick = { bid, label, step -> bookingId = bid; bookingLabel = label; if (step > 0) journeyStep = step; bookingSheet = false; if (!nameEdited && name.isBlank()) { name = (options?.objs("journey_steps")?.firstOrNull { it.optInt("n") == step }?.optString("name")?.plus(" – ") ?: "") + label.substringBefore(" — "); } }, onClose = { bookingSheet = false })
+        if (stepSheet) StepSheet(options?.objs("journey_steps").orEmpty(), journeyStep, onPick = { journeyStep = it; stepSheet = false }, onClose = { stepSheet = false })
         if (leadSheet) LeadSheet(api, uuid, leadId, onPick = { lid, label -> leadId = lid; leadLabel = label; leadSheet = false; refreshName() }, onClose = { leadSheet = false })
     }
 }
@@ -886,6 +1008,58 @@ fun TaskFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, onBack: 
 @Composable
 internal fun Label(text: String) {
     Text(text.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = KitMuted, letterSpacing = 0.6.sp, modifier = Modifier.padding(top = 4.dp))
+}
+
+/** Search the project's customers (bookings) and pick one — the task is then linked to them and to the journey step they are on. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookingSheet(api: ApiClient, uuid: String, current: Int, noun: String, onPick: (Int, String, Int) -> Unit, onClose: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    var rows by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(query) {
+        delay(300); loading = true
+        rows = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/task-center/bookings?search=${URLEncoder.encode(query.trim(), "UTF-8")}").objs("data") } }.getOrDefault(emptyList())
+        loading = false
+    }
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Customer / ${noun.lowercase()}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+            Input("Search by name, mobile or number", query, { query = it })
+            Column(Modifier.height(380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                else if (rows.isEmpty()) Text("No customer with a booking matches.", color = KitMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+                rows.forEach { r ->
+                    val on = r.optInt("id") == current
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) Blue.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft)
+                            .clickable { onPick(r.optInt("id"), r.optString("label"), r.optInt("step")) }.padding(14.dp),
+                    ) {
+                        Text(r.optString("label"), color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold)
+                        r.str("step_name")?.let { Text("On step ${r.optInt("step")} · $it", color = KitMuted, fontSize = 12.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The 11 steps of the customer journey, to pick one. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StepSheet(steps: List<JSONObject>, current: Int, onPick: (Int) -> Unit, onClose: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = com.example.gavanhomes.ui.common.KitCard) {
+        Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Customer journey step", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+            (listOf<JSONObject?>(null) + steps).forEach { s ->
+                val n = s?.optInt("n") ?: 0; val on = n == current
+                Text(
+                    if (s == null) "None" else "$n · ${s.optString("name")}", color = KitInk, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) Blue.copy(alpha = .12f) else com.example.gavanhomes.ui.common.KitSoft).clickable { onPick(n) }.padding(14.dp),
+                )
+            }
+        }
+    }
 }
 
 /** Search the project's leads and pick one. */

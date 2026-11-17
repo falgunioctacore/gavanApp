@@ -150,7 +150,7 @@ fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
     ProvideFab(if (canCreate) listOf(FabAction("target", "New target")) else emptyList()) { onNew() }
 
     when (view) {
-        0 -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "targets", version); TargetDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 } }
+        0 -> { TargetDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 } }
         1 -> TargetList(api, b, uuid, version, o, pickers, sel, { sel = it }, query, { query = it }, sort, { sort = it }, onOpen, canCreate, onNew, onChanged = { attempt++ }, onEdit = onEdit, onOpenAt = onOpenAt)
         2 -> TargetBoard(api, b, uuid, version, o.optJSONObject("can")?.optBoolean("edit") == true, onChanged = { attempt++ }, onOpen = onOpen)
         3 -> TargetCalendar(api, b, uuid, version, onOpen)
@@ -160,96 +160,6 @@ fun ProjectTargets(api: ApiClient, b: Branding, uuid: String, version: Int, onOp
 }
 
 // ───────────────────────────── dashboard ─────────────────────────────
-
-@Composable
-private fun TargetDashboard(o: JSONObject, canCreate: Boolean, onNew: () -> Unit, onOpen: (Int) -> Unit, onQuick: (String) -> Unit) {
-
-    // status numbers
-    val tiles = listOf(Triple("Total", o.optInt("total"), KitInk)) + o.objs("statuses").map { Triple(it.optString("name"), it.optInt("count"), statusTint(it.optString("name"))) }
-    Column(Modifier.padding(horizontal = 16.dp).padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        tiles.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { (label, n, c) ->
-                    Column(
-                        Modifier.weight(1f).softShadow(5.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(n.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = c)
-                        Text(label, fontSize = 11.sp, color = KitMuted, maxLines = 1)
-                    }
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-
-    // overall completion
-    val rate = o.optInt("completion_rate")
-    Card("Completion", "${o.optInt("pending_high")} high-priority targets still open") {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$rate%", fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, color = KitGood)
-            Text("of all targets completed", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 10.dp))
-        }
-        Meter(rate / 100f, KitGood)
-    }
-
-    com.example.gavanhomes.ui.targets.TargetProgressCards(o.objs("progress_cards"), onOpen)
-
-    // priorities
-    Card("By priority", "Targets per priority and how many are done") {
-        o.objs("priorities").chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { p ->
-                    val c = priorityTint(p.optString("priority"))
-                    Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(c.copy(alpha = .09f)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(p.optString("priority"), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = c)
-                        Text(p.optInt("total").toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = KitInk)
-                        Meter(p.optInt("rate") / 100f, c)
-                        Text("${p.optInt("completed")} done · ${p.optInt("overdue")} overdue", fontSize = 11.sp, color = KitMuted)
-                    }
-                }
-            }
-        }
-    }
-
-    // monthly / quarterly / yearly
-    val types = o.objs("types")
-    if (types.any { it.optInt("count") > 0 }) Card("By type", "Monthly, quarterly and yearly targets") {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            types.forEach { t ->
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Blue.copy(alpha = .09f)).padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(t.optInt("count").toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Blue)
-                    Text(t.optString("type"), fontSize = 12.sp, color = KitMuted)
-                }
-            }
-        }
-    }
-
-    // quick filters
-    val q = o.optJSONObject("quick")
-    Card("Quick look", "Tap one to see those targets") {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickFilters.chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { f ->
-                        Row(
-                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { onQuick(f.key) }.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(f.label, color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                            Text((q?.optInt(f.key) ?: 0).toString(), color = if (f.key == "overdue") KitDanger else KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    val today = o.objs("due_today")
-    if (today.isNotEmpty()) Card("Due today", "${today.size} target${if (today.size == 1) "" else "s"} to finish") {
-        today.forEach { TaskCard(it, flat = true) { onOpen(it.optInt("id")) } }
-    }
-}
 
 // ───────────────────────────── list ─────────────────────────────
 

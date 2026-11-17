@@ -159,7 +159,7 @@ internal fun UploadTile(accent: Color, onClick: () -> Unit) {
         Box(Modifier.size(42.dp).clip(CircleShape).background(accent.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("⬆", color = accent, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold) }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text("Upload a file", color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
-            Text("PDF, Office, image, CSV, TXT or ZIP · up to 5 MB", color = Color(0xFF8A8F9C), fontSize = 11.sp)
+            Text("PDF, Office, image, voice note, CSV, TXT or ZIP · up to 10 MB", color = Color(0xFF8A8F9C), fontSize = 11.sp)
         }
     }
 }
