@@ -260,7 +260,9 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
     var to by remember { mutableStateOf("") }
     val custom = from.isNotBlank() || to.isNotBlank()
     val dates = if (custom) (if (from.isNotBlank()) "&date_from=$from" else "") + (if (to.isNotBlank()) "&date_to=$to" else "") else range(period)
-    val query = "&tab=$tab" + dates + (if (settled.isBlank()) "" else "&search=${enc(settled.trim())}")
+    var extraFilters by remember(tab) { mutableStateOf<List<FilterGroup>>(emptyList()) }          // Party / Item / Side … dropdowns the report offers
+    val picked = sel.filterKeys { it.startsWith("pf") }.entries.joinToString("") { (k, v) -> v.firstOrNull()?.let { "&$k=${enc(it)}" } ?: "" }
+    val query = "&tab=$tab" + dates + picked + (if (settled.isBlank()) "" else "&search=${enc(settled.trim())}")
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var exporting by remember { mutableStateOf(false) }
@@ -303,7 +305,7 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
             }
             FilterBar(
                 search, { search = it }, "Search this report…",
-                groups = listOf(FilterGroup("date", "Period", Periods.map { FilterOption(it.first, it.second) })), selected = sel,
+                groups = listOf(FilterGroup("date", "Period", Periods.map { FilterOption(it.first, it.second) })) + extraFilters, selected = sel,
                 onApply = { m -> val next = m.mapValues { (_, v) -> v.take(1).toSet() }.filterValues { it.isNotEmpty() }; if (next != sel) { sel = next; meta = null } },
                 countWith = { m -> if (m == sel) meta?.optInt("total") ?: -1 else -1 },
             )
@@ -339,7 +341,7 @@ fun ReportScreen(api: ApiClient, b: Branding, uuid: String, tab: String, title: 
             }
             if (m == null) Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) }
             Text("Data" + if (search.isNotBlank() || custom || period != null) " · filtered — the download has exactly these rows" else "", color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp).padding(top = 10.dp))
-            Paged(api, b, "/projects/$uuid/report-center/report", query, 0, if (m?.optString("unavailable").isNullOrBlank()) "Nothing in this report for the period." else "", "row", action = { Text(if (exporting) "Preparing…" else "⤓  Download CSV", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(b.base).clickable { export() }.padding(horizontal = 14.dp, vertical = 8.dp)) }, onMeta = { meta = it }, nearEnd = scroll.maxValue - scroll.value < 900) { r ->
+            Paged(api, b, "/projects/$uuid/report-center/report", query, 0, if (m?.optString("unavailable").isNullOrBlank()) "Nothing in this report for the period." else "", "row", action = { Text(if (exporting) "Preparing…" else "⤓  Download CSV", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(b.base).clickable { export() }.padding(horizontal = 14.dp, vertical = 8.dp)) }, onMeta = { meta = it; it.optJSONArray("filters")?.let { a -> if (extraFilters.isEmpty()) extraFilters = (0 until a.length()).map { i -> a.getJSONObject(i).let { o -> FilterGroup(o.optString("key"), o.optString("label"), (0 until o.getJSONArray("options").length()).map { j -> o.getJSONArray("options").getString(j).let { v -> FilterOption(v, v) } }) } } } }, nearEnd = scroll.maxValue - scroll.value < 900) { r ->
                 val cols = r.keys().asSequence().toList()
                 RowCard(null) {
                     cols.firstOrNull()?.let { Text(r.optString(it), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }

@@ -126,7 +126,7 @@ fun ProjectModule(api: ApiClient, b: Branding, uuid: String, module: String) {
     // next page: shown as a button so a long list never loads more than the user asks for
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+        com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
     }
 }
 

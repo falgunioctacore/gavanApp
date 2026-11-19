@@ -24,6 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -229,3 +233,19 @@ internal fun DeleteButton(onClick: () -> Unit) {
         }
     }
 }
+
+/**
+ * The end of a paged list: once it scrolls to within ~half a screen of the bottom of the window it asks for the next page (once per page) — no "Load more" button.
+ * Works inside a plain scrolling Column as well as a LazyColumn, since it measures where it sits on screen instead of reading a scroll state.
+ */
+@androidx.compose.runtime.Composable
+fun LoadMoreOnScroll(page: Any, onLoad: () -> Unit) {
+    var fired by androidx.compose.runtime.remember(page) { androidx.compose.runtime.mutableStateOf(false) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val windowPx = with(density) { androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxWidth().height(56.dp).onGloballyPositioned { c -> if (!fired && c.positionInWindow().y < windowPx + windowPx / 2) { fired = true; onLoad() } },
+        contentAlignment = Alignment.Center,
+    ) { Text("Loading more…", color = KitMuted, fontSize = 13.sp) }
+}
+

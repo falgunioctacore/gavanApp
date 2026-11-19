@@ -425,7 +425,7 @@ private fun LeadActivity(api: ApiClient, b: Branding, id: Int, version: Int, can
         }
         if (rows.isNotEmpty() && page < lastPage && !loading) {
             // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+            com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
         }
     }
 }

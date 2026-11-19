@@ -282,6 +282,7 @@ fun AuditScreen(api: ApiClient, b: Branding, section: Int, onSection: (Int) -> U
                 }
 
                 if (rows.isNotEmpty() && page < lastPage) item {
+                    androidx.compose.runtime.LaunchedEffect(page) { if (!loading) load(page + 1) }
                     Text(
                         if (loading) "Loading…" else "Load more  (${rows.size} of $total)", color = KitInk, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.padding(16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitCard).clickable(enabled = !loading) { scope.launch { load(page + 1) } }.padding(vertical = 15.dp),

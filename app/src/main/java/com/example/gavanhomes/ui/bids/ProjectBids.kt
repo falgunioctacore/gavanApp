@@ -260,7 +260,7 @@ private fun BidList(
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+        com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
     }
     if (askDelete) SwalConfirm(
         title = "Delete ${selected.size} bid${if (selected.size == 1) "" else "s"}?", text = "Bids that suppliers have already answered are kept.", confirmText = "Yes, delete",

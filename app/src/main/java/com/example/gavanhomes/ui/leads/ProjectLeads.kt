@@ -306,7 +306,7 @@ private fun LeadList(
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+        com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
     }
 
     when (sheet) {
@@ -489,7 +489,7 @@ private fun FollowupList(api: ApiClient, b: Branding, uuid: String, version: Int
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+        com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
     }
 
     if (pickLead) LeadPickSheet(api, uuid, onClose = { pickLead = false }) { lead -> pickLead = false; scheduleFor = lead }

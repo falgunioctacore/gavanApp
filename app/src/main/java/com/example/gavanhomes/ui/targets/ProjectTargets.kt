@@ -343,7 +343,7 @@ private fun TargetList(
     }
     if (rows.isNotEmpty() && page < lastPage && !loading) {
         // started from the screen's own scope: the button leaves the screen while the page loads, which would cancel a coroutine started inside it
-        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { OutlinedButton(onClick = { scope.launch { load(page + 1) } }) { Text("Load more") } }
+        com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { scope.launch { load(page + 1) } }
     }
 
     // ── the ⋮ menu of a target ──
@@ -572,9 +572,7 @@ private fun TargetHistory(api: ApiClient, b: Branding, uuid: String, version: In
         if (rows.isNotEmpty() && page < lastPage) {
             var more by remember(page) { mutableStateOf(false) }
             LaunchedEffect(more) { if (more) load(page + 1) }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (loading) com.example.gavanhomes.ui.common.EstateLoader(b.base) else OutlinedButton(onClick = { more = true }) { Text("Load more") }
-            }
+            if (loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { com.example.gavanhomes.ui.common.EstateLoader(b.base) } else com.example.gavanhomes.ui.common.LoadMoreOnScroll(page) { more = true }
         }
     }
 }

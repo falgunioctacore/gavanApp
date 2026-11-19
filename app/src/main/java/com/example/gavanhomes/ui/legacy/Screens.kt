@@ -395,6 +395,7 @@ fun ResourceList(api: ApiClient, spec: ListSpec, onBack: (() -> Unit)? = null) {
                     }
                 }
                 if (page < lastPage) item {
+                    androidx.compose.runtime.LaunchedEffect(page) { if (!busy) load(false) }
                     OutlinedButton(onClick = { load(false) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                         Text(if (busy) "Loading…" else "Load more (${items.size} of $total)")
                     }
