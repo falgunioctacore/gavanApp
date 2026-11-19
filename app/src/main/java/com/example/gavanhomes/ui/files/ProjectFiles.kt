@@ -8,8 +8,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -100,6 +105,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 internal fun fileSize(bytes: Long): String = when {
     bytes >= 1L shl 30 -> "%.1f GB".format(bytes / (1L shl 30).toDouble())
@@ -128,7 +134,7 @@ private fun Badge(text: String, c: Color) {
 private class Page(val key: String, val label: String, val location: String? = null)
 private val Pages = listOf(
     Page("dashboard", "Dashboard"), Page("all", "All files", "all"), Page("mine", "My files", "my_files"), Page("shared", "Shared with me", "shared_with_me"),
-    Page("recent", "Recent files", "recent"), Page("requests", "Access requests"), Page("audit", "Audit trail"), Page("trash", "Trash"),
+    Page("recent", "Recent files", "recent"), Page("starred", "Starred", "starred"), Page("requests", "Access requests"), Page("audit", "Audit trail"), Page("trash", "Trash"),
 )
 private val Types = listOf("pdf" to "PDF", "image" to "Images", "word" to "Word", "sheet" to "Excel / sheets", "video" to "Video", "zip" to "Archives", "text" to "Text")
 
@@ -166,6 +172,16 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
     var newFolder by remember { mutableStateOf(false) }
     var quota by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
+    var gridView by remember { mutableStateOf(false) }
+    var sortBy by remember { mutableStateOf("date") }                          // date · name · size
+    var sortDesc by remember { mutableStateOf(true) }
+    val chosen = remember { mutableStateMapOf<String, JSONObject>() }          // files ticked for a bulk action
+    var previewing by remember { mutableStateOf<JSONObject?>(null) }
+    var versioning by remember { mutableStateOf<JSONObject?>(null) }
+    var editingInfo by remember { mutableStateOf<JSONObject?>(null) }
+    var movingMany by remember { mutableStateOf(false) }
+    var deletingMany by remember { mutableStateOf(false) }
+    var photo by remember { mutableStateOf<android.net.Uri?>(null) }
     val folderId = path.lastOrNull()?.first
     val v = version + local
 
@@ -176,7 +192,39 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
     val current = Pages[page]
     BackHandler(enabled = current.key == "all" && path.isNotEmpty()) { path.removeAt(path.lastIndex) }
 
-    val pickUpload = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { readPicked(context, it) }?.let { picked = it } }
+    // several files at once go straight into the open folder (named after the file); one file opens the upload sheet to name and describe it
+    fun uploadMany(files: List<PickedFile>) {
+        scope.launch {
+            var ok = 0
+            files.forEachIndexed { i, f ->
+                AppToast.show("Uploading ${i + 1} of ${files.size}…")
+                try {
+                    withContext(Dispatchers.IO) {
+                        api.sendForm("/projects/$uuid/file-center/upload", listOfNotNull(FormPart("file", fileName = f.name, mime = f.mime, bytes = f.bytes), FormPart("name", f.name.substringBeforeLast('.')), folderId?.let { FormPart("folder_id", it) }))
+                    }
+                    ok++
+                } catch (e: Exception) { AppToast.show("${f.name}: ${e.message ?: "could not upload"}") }
+            }
+            AppToast.show("$ok of ${files.size} files uploaded"); local++
+        }
+    }
+    val pickUpload = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        val files = uris.mapNotNull { readPicked(context, it, 10) }
+        if (uris.size > files.size) AppToast.show("${uris.size - files.size} file(s) skipped — 10 MB is the limit")
+        if (files.size == 1) picked = files[0] else if (files.size > 1) uploadMany(files)
+    }
+    // the camera: a photo of a document or the site goes into the open folder like any other file
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val uri = photo; photo = null
+        if (ok && uri != null) readPicked(context, uri, 10)?.let { p ->
+            picked = PickedFile("Photo " + java.text.SimpleDateFormat("yyyy-MM-dd HH.mm", java.util.Locale.getDefault()).format(java.util.Date()) + ".jpg", "image/jpeg", p.bytes)
+        }
+    }
+    fun openCamera() {
+        val file = File(File(context.cacheDir, "camera").also { it.mkdirs() }, "file_" + System.currentTimeMillis() + ".jpg")
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        photo = uri; takePhoto.launch(uri)
+    }
     val pickVersion = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val f = replacing ?: return@rememberLauncherForActivityResult
         val file = uri?.let { readPicked(context, it) } ?: run { replacing = null; return@rememberLauncherForActivityResult }
@@ -190,12 +238,50 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
     }
     val can = overview?.optJSONObject("can") ?: JSONObject()
     val inFiles = current.location != null
-    ProvideFab(if (can.optBoolean("create") && !(current.key == "all" && static)) listOf(FabAction("upload", "Upload file", b.base, "⇪"), FabAction("folder", "New folder", InvAmber, "▤")) else emptyList()) {
-        if (it == "upload") pickUpload.launch("*/*") else newFolder = true
+    ProvideFab(if (can.optBoolean("create") && !(current.key == "all" && static)) listOf(FabAction("upload", "Upload files", b.base, "⇪"), FabAction("camera", "Take photo / scan", KitGood, "◉"), FabAction("folder", "New folder", InvAmber, "▤")) else emptyList()) {
+        when (it) { "upload" -> pickUpload.launch("*/*"); "camera" -> openCamera(); else -> newFolder = true }
     }
     ModulePages("Documents", Pages.map { it.label }, page) { page = it; if (Pages[it].key != "all") path.clear() }
 
+    /** A file's bytes (counted as a download), saved to Downloads and/or handed to the share sheet. */
+    fun fetch(f: JSONObject, save: Boolean, share: Boolean) {
+        val id = f.optString("id"); val name = f.optString("name"); val ext = f.optString("ext")
+        busy = id
+        scope.launch {
+            try {
+                val (served, bytes) = withContext(Dispatchers.IO) { api.download("/projects/$uuid/file-center/files/$id/download") }
+                val file = nameWithExt(served, name, ext); val mime = mimeOf(file, ext)
+                if (save) { withContext(Dispatchers.IO) { Downloads.save(context, file, mime, bytes) }; AppToast.show("Saved to Downloads/GavanHomes") }
+                if (share) shareOut(context, listOf(Triple(file, mime, bytes)))
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not get the file") }
+            busy = null
+        }
+    }
+    /** The ticked files, one after the other: [each] gets a file's name, mime and bytes. */
+    fun bulkFetch(done: (List<Triple<String, String, ByteArray>>) -> Unit) {
+        val files = chosen.values.toList()
+        scope.launch {
+            val got = mutableListOf<Triple<String, String, ByteArray>>()
+            files.forEachIndexed { i, f ->
+                AppToast.show("Getting ${i + 1} of ${files.size}…")
+                runCatching {
+                    val (served, bytes) = withContext(Dispatchers.IO) { api.download("/projects/$uuid/file-center/files/${f.optString("id")}/download") }
+                    val file = nameWithExt(served, f.optString("name"), f.optString("ext")); got += Triple(file, mimeOf(file, f.optString("ext")), bytes)
+                }.onFailure { AppToast.show("${f.optString("name")}: ${it.message ?: "could not get it"}") }
+            }
+            if (got.isNotEmpty()) done(got)
+        }
+    }
+    fun toggleStar(r: JSONObject, change: (JSONObject) -> Unit) {
+        scope.launch {
+            try {
+                val res = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/files/${r.optString("id")}/star", JSONObject()) }
+                change(JSONObject(r.toString()).put("starred", res.optBoolean("starred")))
+            } catch (e: Exception) { AppToast.show(e.message ?: "Could not star it") }
+        }
+    }
     fun open(f: JSONObject) {
+        if (isPreviewable(f.optString("ext")) && !(f.optBoolean("locked") && !f.optBoolean("approved"))) { previewing = f; return }
         val id = f.optString("id"); val name = f.optString("name"); val ext = f.optString("ext")
         busy = id
         scope.launch {
@@ -243,19 +329,45 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
                 }
             }
             if (current.key == "all" && static && !filtered) Text("🔒 A locked folder — ask for access to open a file.", color = InvAmber, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            // sort + view: newest / name / size (tap again for the other direction), and a list ⇄ grid switch
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf("date" to "Newest", "name" to "Name", "size" to "Size").forEach { (k, label) ->
+                    val on = sortBy == k
+                    Text(label + if (on) (if (sortDesc) "  ↓" else "  ↑") else "", color = if (on) Color.White else KitInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) b.base else com.example.gavanhomes.ui.common.KitSoft).clickable { if (on) sortDesc = !sortDesc else { sortBy = k; sortDesc = k == "date" || k == "size" } }.padding(horizontal = 12.dp, vertical = 7.dp))
+                }
+                Text(if (gridView) "☰  List" else "▦  Grid", color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(com.example.gavanhomes.ui.common.KitSoft).clickable { gridView = !gridView }.padding(horizontal = 12.dp, vertical = 7.dp))
+            }
+            if (chosen.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clip(RoundedCornerShape(16.dp)).background(b.base).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("${chosen.size} selected", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                if (can.optBoolean("edit")) Text("Move", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clickable { movingMany = true })
+                Text("Save", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clickable { bulkFetch { got -> scope.launch { withContext(Dispatchers.IO) { got.forEach { (n, m, by) -> Downloads.save(context, n, m, by) } }; AppToast.show("${got.size} saved to Downloads/GavanHomes"); chosen.clear() } } })
+                Text("Share", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clickable { bulkFetch { got -> shareOut(context, got); chosen.clear() } })
+                if (can.optBoolean("delete")) Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clickable { deletingMany = true })
+                Text("✕", color = Color.White, fontSize = 16.sp, modifier = Modifier.clickable { chosen.clear() })
+            }
             val query = buildString {
+                append("&sort=").append(sortBy).append("&dir=").append(if (sortDesc) "desc" else "asc")
                 if (current.location != "all") append("&location=").append(current.location)
                 if (current.key == "all" && !filtered) folderId?.let { append("&folder_id=").append(it) }
                 if (search.isNotBlank()) append("&search=").append(enc(search.trim()))
                 sel.forEach { (k, s) -> s.firstOrNull()?.let { append("&$k=").append(enc(it)) } }
             }
-            Paged(api, b, "/projects/$uuid/file-center/table", query, v,
-                when (current.key) { "mine" -> "You haven't uploaded anything here yet."; "shared" -> "Nothing has been shared with you."; "recent" -> "Nothing uploaded in the last 7 days."; else -> if (filtered) "Nothing matches." else "This folder is empty." },
-                "item", onMeta = { m -> total = m.optInt("total"); static = m.optBoolean("static") }) { r ->
+            FilesPaged(api, b, "/projects/$uuid/file-center/table", query, v,
+                when (current.key) { "mine" -> "You haven't uploaded anything here yet."; "shared" -> "Nothing has been shared with you."; "recent" -> "Nothing uploaded in the last 7 days."; "starred" -> "Nothing starred yet — tap ☆ on a file."; else -> if (filtered) "Nothing matches." else "This folder is empty." },
+                "item", columns = if (gridView) 2 else 1, onMeta = { m -> total = m.optInt("total"); static = m.optBoolean("static") }) { r, change ->
                 if (r.optBoolean("is_folder")) FolderRow(r, can.optBoolean("edit") || can.optBoolean("delete"), onMenu = { folderOptions = r }) {
                     if (filtered || current.key != "all") { search = ""; sel = emptyMap(); page = 1; path.clear() }
                     path.add(r.optString("id") to r.optString("name"))
-                } else FileRow(r, busy == r.optString("id")) { options = r }
+                } else {
+                    val id = r.optString("id")
+                    val canTick = !(r.optBoolean("locked") && !r.optBoolean("approved"))
+                    fun tick() { if (canTick) { if (chosen.containsKey(id)) chosen.remove(id) else chosen[id] = r } }
+                    val tap: () -> Unit = { if (chosen.isNotEmpty()) tick() else options = r }
+                    if (gridView) FileTile(api, uuid, r, busy == id, chosen.containsKey(id), onClick = tap, onLong = { tick() }, onStar = { toggleStar(r, change) })
+                    else FileRow(api, uuid, r, busy == id, chosen.containsKey(id), chosen.isNotEmpty(), onClick = tap, onLong = { tick() }, onStar = { toggleStar(r, change) })
+                }
             }
         }
         current.key == "requests" -> Requests(api, b, uuid, v) { local++ }
@@ -297,10 +409,17 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
                 Text(f.optString("name"), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
                 Text(listOfNotNull(fileSize(f.optLong("size")), f.str("sub_label"), f.str("uploaded_by")?.takeIf { it != "—" }).joinToString(" · "), color = KitMuted, fontSize = 13.sp)
                 if (shut) ActionButton("Request access", InvAmber) { options = null; asking = f }
-                else ActionButton("Open", b.base) { options = null; open(f) }
+                else ActionButton(if (isPreviewable(f.optString("ext"))) "Preview" else "Open", b.base) { options = null; open(f) }
+                TagChips(f.optString("tags"))
+                f.optString("description").takeIf { it.isNotBlank() && it != "null" }?.let { Text(it, color = KitInk, fontSize = 13.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SmallAction(if (f.optBoolean("starred")) "★ Starred" else "☆ Star", InvAmber) { options = null; toggleStar(f) { local++ } }
+                    if (!shut) SmallAction("Share via…", KitGood) { options = null; fetch(f, save = false, share = true) }
+                    if (!shut) SmallAction("Save to phone", InvBlue) { options = null; fetch(f, save = true, share = false) }
+                    SmallAction("Versions${f.optInt("version").takeIf { it > 1 }?.let { " ($it)" } ?: ""}", InvPurple) { options = null; versioning = f }
                     SmallAction("Details & history", KitInk) { options = null; details = f.optInt("id") }
                     if (can.optBoolean("edit") && !locked) {
+                        SmallAction("Description & tags", InvBlue) { options = null; editingInfo = f }
                         SmallAction("Rename", InvBlue) { options = null; renaming = "file" to f }
                         SmallAction("Move", InvPurple) { options = null; moving = f }
                         SmallAction("Share", KitGood) { options = null; sharing = f }
@@ -331,7 +450,20 @@ fun ProjectFiles(api: ApiClient, b: Branding, uuid: String, version: Int) {
             AppToast.show("Renamed"); renaming = null; local++
         }
     }
-    moving?.let { f -> MoveSheet(api, b, uuid, f, onClose = { moving = null }) { moving = null; local++ } }
+    moving?.let { f -> MoveSheet(api, b, uuid, listOf(f), onClose = { moving = null }) { moving = null; local++ } }
+    if (movingMany) MoveSheet(api, b, uuid, chosen.values.toList(), onClose = { movingMany = false }) { movingMany = false; chosen.clear(); local++ }
+    previewing?.let { f -> FilePreview(api, b, uuid, f, onClose = { previewing = null }, onDownload = { fetch(f, save = true, share = false) }, onShare = { fetch(f, save = false, share = true) }) }
+    versioning?.let { f -> VersionsSheet(api, b, uuid, f, can.optBoolean("edit") && !f.optBoolean("locked"), onClose = { versioning = null }) { versioning = null; local++ } }
+    editingInfo?.let { f -> InfoSheet(api, b, uuid, f, onClose = { editingInfo = null }) { editingInfo = null; local++ } }
+    if (deletingMany) SwalConfirm(
+        title = "Delete ${chosen.size} files?", text = "They go to the trash, where they can be restored.", confirmText = "Yes, delete",
+        onConfirm = {
+            deletingMany = false
+            val ids = chosen.keys.toList(); chosen.clear()
+            act("${ids.size} moved to the trash") { ids.forEach { api.delete("/projects/$uuid/file-center/files/$it") } }
+        },
+        onCancel = { deletingMany = false },
+    )
     sharing?.let { f -> ShareSheet(api, b, uuid, f, onClose = { sharing = null }) { sharing = null; local++ } }
     asking?.let { f ->
         TextSheet("Request access", "Why do you need “${f.optString("name")}”?", "", "Send request", b, multiline = true, onClose = { asking = null }) { reason ->
@@ -400,6 +532,11 @@ private fun Dashboard(o: JSONObject, b: Branding, can: JSONObject, onPage: (Stri
             }
         }
     }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(Triple("recent", "Recent files", InvBlue), Triple("starred", "★  Starred", InvAmber), Triple("all", "All files", KitGood)).forEach { (k, label, c) ->
+            Text(label, color = c, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(c.copy(alpha = .1f)).clickable { onPage(k, null) }.padding(vertical = 12.dp))
+        }
+    }
     val req = o.optJSONObject("requests") ?: JSONObject()
     if (req.optInt("total") > 0) Card("Access requests", if (can.optBoolean("review")) "Waiting for a decision" else "Your requests for locked files") {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -456,26 +593,58 @@ private fun FolderRow(r: JSONObject, menu: Boolean, onMenu: () -> Unit, onOpen: 
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun FileRow(r: JSONObject, busy: Boolean, onClick: () -> Unit) {
+private fun FileRow(api: ApiClient, uuid: String, r: JSONObject, busy: Boolean, selected: Boolean, selecting: Boolean, onClick: () -> Unit, onLong: () -> Unit, onStar: () -> Unit) {
     val shut = r.optBoolean("locked") && !r.optBoolean("approved")
-    RowCard(onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Badge(r.optString("ext").uppercase().ifBlank { "FILE" }.take(4), extColor(r.optString("ext")))
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(listOfNotNull(fileSize(r.optLong("size")), r.str("sub_label"), r.str("uploaded_by")?.takeIf { it != "—" }).joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val ext = r.optString("ext")
+    val badge: @Composable () -> Unit = { Badge(ext.uppercase().ifBlank { "FILE" }.take(4), extColor(ext)) }
+    Box(Modifier.combinedClickable(onClick = onClick, onLongClick = onLong)) {
+        RowCard(null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selecting) Text(if (selected) "☑" else "☐", color = if (selected) InvBlue else KitMuted, fontSize = 22.sp, modifier = Modifier.padding(end = 8.dp))
+                if (isImageExt(ext) && !shut) Thumb(api, uuid, r.optString("id"), Modifier.size(44.dp), badge) else badge()
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(listOfNotNull(fileSize(r.optLong("size")), r.str("sub_label"), r.str("uploaded_by")?.takeIf { it != "—" }).joinToString(" · "), color = KitMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                when { busy -> CircularProgressIndicator(color = InvBlue, strokeWidth = 2.dp, modifier = Modifier.size(20.dp)); shut -> Text("🔒", fontSize = 16.sp) }
+                Text(if (r.optBoolean("starred")) "★" else "☆", color = if (r.optBoolean("starred")) InvAmber else KitMuted, fontSize = 22.sp, modifier = Modifier.clip(CircleShape).clickable { onStar() }.padding(horizontal = 8.dp))
             }
-            when { busy -> CircularProgressIndicator(color = InvBlue, strokeWidth = 2.dp, modifier = Modifier.size(20.dp)); shut -> Text("🔒", fontSize = 16.sp) }
+            r.str("description")?.let { Text(it, color = KitMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            TagChips(r.optString("tags"))
+            FlowRow(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                r.str("department")?.let { Chip(it, InvBlue) }
+                r.str("category")?.let { Chip(it, InvPurple) }
+                Chip(r.optString("access_label") + (r.str("access_sub")?.let { " · $it" } ?: ""), if (r.optBoolean("is_shared")) KitGood else KitMuted)
+                Chip("⇩ ${r.optInt("downloads")}  ◉ ${r.optInt("views")}", KitMuted)
+                if (r.optInt("version") > 1) Chip("v${r.optInt("version")}", InvAmber)
+                r.str("modified_date")?.let { Chip(it, KitMuted) }
+            }
         }
-        FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            r.str("department")?.let { Chip(it, InvBlue) }
-            r.str("category")?.let { Chip(it, InvPurple) }
-            Chip(r.optString("access_label") + (r.str("access_sub")?.let { " · $it" } ?: ""), if (r.optBoolean("is_shared")) KitGood else KitMuted)
-            Chip("⇩ ${r.optInt("downloads")}  ◉ ${r.optInt("views")}", KitMuted)
-            r.str("modified_date")?.let { Chip(it, KitMuted) }
+    }
+}
+
+/** The grid card: a big thumbnail (or the type badge), the name and size, ☆ and a tick when selected. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FileTile(api: ApiClient, uuid: String, r: JSONObject, busy: Boolean, selected: Boolean, onClick: () -> Unit, onLong: () -> Unit, onStar: () -> Unit) {
+    val shut = r.optBoolean("locked") && !r.optBoolean("approved")
+    val ext = r.optString("ext")
+    Column(
+        Modifier.padding(4.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(com.example.gavanhomes.ui.common.KitCard).combinedClickable(onClick = onClick, onLongClick = onLong).padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().height(104.dp).clip(RoundedCornerShape(12.dp)).background(extColor(ext).copy(alpha = .10f)), contentAlignment = Alignment.Center) {
+            if (isImageExt(ext) && !shut) Thumb(api, uuid, r.optString("id"), Modifier.fillMaxSize()) { Text(ext.uppercase(), color = extColor(ext), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp) }
+            else Text(ext.uppercase().ifBlank { "FILE" }.take(4), color = extColor(ext), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+            if (busy) CircularProgressIndicator(color = InvBlue, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+            Text(if (r.optBoolean("starred")) "★" else "☆", color = if (r.optBoolean("starred")) InvAmber else Color.White, fontSize = 22.sp, modifier = Modifier.align(Alignment.TopEnd).clip(CircleShape).clickable { onStar() }.padding(6.dp))
+            if (selected) Text("✓", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, modifier = Modifier.align(Alignment.TopStart).padding(6.dp).clip(CircleShape).background(InvBlue).padding(horizontal = 7.dp, vertical = 2.dp))
+            if (shut) Text("🔒", fontSize = 18.sp, modifier = Modifier.align(Alignment.BottomStart).padding(6.dp))
         }
+        Text(r.optString("name"), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(listOfNotNull(fileSize(r.optLong("size")), r.str("modified_date")).joinToString(" · "), color = KitMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -498,6 +667,8 @@ private fun FileDetails(api: ApiClient, b: Branding, uuid: String, id: Int, onCl
                 }
             }
             x.str("description")?.let { Text(it, color = KitInk, fontSize = 14.sp) }
+            TagChips(x.optString("tags"))
+            Fact("Version", "${x.optInt("version")}" + if (x.optInt("versions") > 0) " · ${x.optInt("versions")} earlier kept" else "")
             Fact("Uploaded by", x.str("by")); Fact("Uploaded", whenLabel(x.str("created"))); Fact("Last changed", whenLabel(x.str("updated")))
             Fact("Department", x.str("department")); Fact("Category", x.str("category")); Fact("Type", x.str("type"))
             Fact("Downloads", x.optInt("downloads").toString()); Fact("Views", x.optInt("views").toString())
@@ -572,7 +743,7 @@ private fun UploadSheet(api: ApiClient, b: Branding, uuid: String, p: PickedFile
 
 /** Move a file: every folder of the project by its path, or the root. */
 @Composable
-private fun MoveSheet(api: ApiClient, b: Branding, uuid: String, f: JSONObject, onClose: () -> Unit, onDone: () -> Unit) {
+private fun MoveSheet(api: ApiClient, b: Branding, uuid: String, files: List<JSONObject>, onClose: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var list by remember { mutableStateOf<List<JSONObject>?>(null) }
@@ -581,11 +752,15 @@ private fun MoveSheet(api: ApiClient, b: Branding, uuid: String, f: JSONObject, 
         catch (e: Exception) { AppToast.show(e.message ?: "Could not load folders"); onClose() }
     }
     val l = list ?: return
-    ChoiceSheet("Move “${f.optString("name")}” to", l.filter { !it.optBoolean("static") }.map { Choice(it.optString("id"), it.optString("path")) }, null, b, allowNone = true, noneLabel = "All files (root)", onClose = onClose) { id ->
+    ChoiceSheet(if (files.size == 1) "Move “${files[0].optString("name")}” to" else "Move ${files.size} files to", l.filter { !it.optBoolean("static") }.map { Choice(it.optString("id"), it.optString("path")) }, null, b, allowNone = true, noneLabel = "All files (root)", onClose = onClose) { id ->
         scope.launch {
             try {
-                val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/files/${f.optString("id")}/move", JSONObject().put("folder_id", id.ifBlank { null } ?: JSONObject.NULL)) }
-                AppToast.show(r.str("message") ?: "Moved"); onDone()
+                var message: String? = null
+                files.forEach { f ->
+                    val r = withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/file-center/files/${f.optString("id")}/move", JSONObject().put("folder_id", id.ifBlank { null } ?: JSONObject.NULL)) }
+                    message = r.str("message")
+                }
+                AppToast.show(if (files.size == 1) message ?: "Moved" else "${files.size} files moved"); onDone()
             } catch (e: Exception) { AppToast.show(e.message ?: "Could not move"); onClose() }
         }
     }
