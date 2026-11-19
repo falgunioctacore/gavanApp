@@ -19,3 +19,7 @@ local.properties
 *.jks
 *.keystore
 /GavanHomes-*.apk
+
+# built APKs for handing out (live builds)
+/dist/
+*.apk
