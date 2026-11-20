@@ -148,7 +148,7 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
 
     // the pages follow the customer journey, in order — then the service pages (visits, issues) that can come at any time
     val pages = listOfNotNull(
-        Page("dashboard", "Dashboard"), Page("customers", badge("customers", "Customers")),
+        Page("dashboard", "Dashboard"), Page("requests", "Customer requests").takeIf { can.optBoolean("issues") || can.optBoolean("visits") }, Page("customers", badge("customers", "Customers")),
         Page("bookings", badge("bookings", "Bookings")).takeIf { can.optBoolean("bookings") }, Page("plans", badge("payment_plans", "Payment plans")).takeIf { can.optBoolean("bookings") },
         Page("payments", badge("collections", "Collections")).takeIf { can.optBoolean("bookings") }, Page("agreements", badge("agreements_legal", "Agreements & legal")).takeIf { can.optBoolean("bookings") },
         Page("loans", badge("loans", "Loans")).takeIf { can.optBoolean("loans") }, Page("dastavej", badge("dastavej", "Dastavej")).takeIf { can.optBoolean("bookings") },
@@ -171,6 +171,7 @@ fun ProjectCustomers(api: ApiClient, b: Branding, uuid: String, version: Int, on
         "dastavej" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(9), chips = false) { onOpen("journey", it) }
         "handover" -> JourneyCustomerList(api, b, uuid, version, steps = setOf(10, 11), chips = false) { onOpen("journey", it) }
         "visits" -> VisitList(api, b, uuid, version) { onOpen("visit", it) }
+        "requests" -> CustomerRequestsInbox(api, b, uuid, version) { kind, id -> onOpen(kind, id) }
         "issues" -> IssueList(api, b, uuid, version, options) { onOpen("issue", it) }
         else -> LoanList(api, b, uuid, version) { onOpen("loan", it) }
     }

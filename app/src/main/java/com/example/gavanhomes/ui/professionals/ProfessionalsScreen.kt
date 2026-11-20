@@ -265,7 +265,7 @@ fun ProfessionalsScreen(
                 }
 
                 when (section) {
-                    0 -> { reqDash?.let { requestsDashboard(it, b, onOpenReview, onOpenPro, onSection) }; dashboard(dash!!, b, onOpenPro, onSection) }
+                    0 -> { reqDash?.let { requestsDashboard(api, it, b, onOpenReview, onOpenPro, onSection) }; dashboard(dash!!, b, onOpenPro, onSection) }
                     1 -> {
                         val all = pros.orEmpty()
                         val passes = { p: Pro, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || p.status in s } && m["type"].orEmpty().let { t -> t.isEmpty() || p.type in t } }

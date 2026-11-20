@@ -91,7 +91,7 @@ private fun JSONObject.rows(key: String) = obj(optJSONArray(key))
 // ───────────────────────────── dashboard cards ─────────────────────────────
 
 /** Open · Overdue · To review · Avg reply, the review queue, and each professional's open / late / on-time %. */
-internal fun LazyListScope.requestsDashboard(r: JSONObject, b: Branding, onOpenRequest: (Int) -> Unit, onOpenPro: (String) -> Unit, onSection: (Int) -> Unit) {
+internal fun LazyListScope.requestsDashboard(api: ApiClient, r: JSONObject, b: Branding, onOpenRequest: (Int) -> Unit, onOpenPro: (String) -> Unit, onSection: (Int) -> Unit) {
     item {
         Spacer(Modifier.height(14.dp))
         ProKpiGrid(listOf(
@@ -113,6 +113,7 @@ internal fun LazyListScope.requestsDashboard(r: JSONObject, b: Branding, onOpenR
             }
         }
     }
+    item { BillsCard(api, b) }
     val pros = r.rows("professionals")
     item {
         ProCard("Professionals", "Open · late · on-time % (submitted by the due date)") {
@@ -444,6 +445,75 @@ fun ProRequestDetailScreen(api: ApiClient, b: Branding, id: Int, onBack: () -> U
                             busy = false
                         }
                     }.padding(top = 15.dp))
+            }
+        }
+    }
+}
+
+// ───────────────────────────── fees: bills waiting for Accounts ─────────────────────────────
+
+/** Bills the professionals raised: approve (Billed → Approved), pay with a UTR (→ Paid) or reject with a reason. TDS is shown separately. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun BillsCard(api: ApiClient, b: Branding) {
+    val scope = rememberCoroutineScope()
+    var d by remember { mutableStateOf<JSONObject?>(null) }
+    var attempt by remember { mutableIntStateOf(0) }
+    var paying by remember { mutableStateOf<JSONObject?>(null) }
+    var rejecting by remember { mutableStateOf<JSONObject?>(null) }
+    LaunchedEffect(attempt) { d = runCatching { withContext(Dispatchers.IO) { api.get("/professional-bills?status=billed,approved") } }.getOrNull() }
+    val x = d ?: return
+    val rows = x.rows("data")
+    val can = x.optJSONObject("can")?.optBoolean("act") == true
+    val t = x.optJSONObject("totals")
+    ProCard("Fees - bills to handle", "${t?.optInt("to_approve") ?: 0} to approve · ${t?.optInt("to_pay") ?: 0} to pay") {
+        if (rows.isEmpty()) Text("No bill is waiting.", color = KitMuted, fontSize = 14.sp)
+        rows.forEach { r ->
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(KitSoft).padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text((r.str("no") ?: "Bill") + " · " + (r.str("professional") ?: ""), fontWeight = FontWeight.Bold, color = KitInk, fontSize = 14.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val c = if (r.optString("status") == "approved") RqPurple else RqOrange
+                    Pill(if (r.optString("status") == "approved") "Approved" else "Billed", c.copy(alpha = .14f), c)
+                }
+                Text(r.str("request") ?: "", color = KitMuted, fontSize = 12.sp, maxLines = 1)
+                Text("₹${"%,.0f".format(r.optDouble("amount"))} + GST ₹${"%,.0f".format(r.optDouble("gst"))} − TDS ₹${"%,.0f".format(r.optDouble("tds"))} = ₹${"%,.0f".format(r.optDouble("payable"))}", color = KitInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                if (can) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    if (r.optString("status") == "billed") Text("Approve", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(KitGood).clickable {
+                        scope.launch { try { withContext(Dispatchers.IO) { api.send("POST", "/professional-bills/${r.optInt("id")}/approve", JSONObject()) }; AppToast.show("Bill approved"); attempt++ } catch (e: Exception) { AppToast.show(e.message ?: "Could not approve") } }
+                    }.padding(horizontal = 14.dp, vertical = 7.dp))
+                    else Text("Pay (UTR)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(b.base).clickable { paying = r }.padding(horizontal = 14.dp, vertical = 7.dp))
+                    Text("Reject", color = KitDanger, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(KitDanger.copy(alpha = .1f)).clickable { rejecting = r }.padding(horizontal = 14.dp, vertical = 7.dp))
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+    }
+    paying?.let { r ->
+        var utr by remember(r) { mutableStateOf("") }
+        var problem by remember(r) { mutableStateOf<String?>(null) }
+        ModalBottomSheet(onDismissRequest = { paying = null }, containerColor = KitCard) {
+            Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Pay bill ${r.optString("no")}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Text("₹${"%,.0f".format(r.optDouble("payable"))} to ${r.optString("professional")} (after TDS)", color = KitMuted, fontSize = 13.sp)
+                Input("UTR / reference *", utr, { utr = it; problem = null }, problem)
+                Text("Record payment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(b.base).clickable {
+                    if (utr.isBlank()) { problem = "Enter the UTR."; return@clickable }
+                    scope.launch { try { withContext(Dispatchers.IO) { api.send("POST", "/professional-bills/${r.optInt("id")}/pay", JSONObject().put("utr", utr.trim())) }; AppToast.show("Paid — the professional is told"); paying = null; attempt++ } catch (e: Exception) { problem = e.message ?: "Could not save" } }
+                }.padding(vertical = 15.dp))
+            }
+        }
+    }
+    rejecting?.let { r ->
+        var reason by remember(r) { mutableStateOf("") }
+        var problem by remember(r) { mutableStateOf<String?>(null) }
+        ModalBottomSheet(onDismissRequest = { rejecting = null }, containerColor = KitCard) {
+            Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Reject bill ${r.optString("no")}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Input("Reason *", reason, { reason = it; problem = null }, problem, singleLine = false)
+                Text("Reject", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitDanger).clickable {
+                    if (reason.isBlank()) { problem = "A reason is required."; return@clickable }
+                    scope.launch { try { withContext(Dispatchers.IO) { api.send("POST", "/professional-bills/${r.optInt("id")}/reject", JSONObject().put("reason", reason.trim())) }; AppToast.show("Bill rejected"); rejecting = null; attempt++ } catch (e: Exception) { problem = e.message ?: "Could not save" } }
+                }.padding(vertical = 15.dp))
             }
         }
     }

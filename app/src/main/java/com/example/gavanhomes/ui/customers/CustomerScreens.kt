@@ -203,6 +203,7 @@ fun CustomerDetailScreen(api: ApiClient, b: Branding, uuid: String, id: Int, ver
                 }
             }
             x.str("phone")?.let { Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) { com.example.gavanhomes.ui.tasks.PhoneActions(it) } }
+            Customer360(api, b, uuid, id)
             Card("Contact") {
                 Fact("Mobile", x.str("phone")); Fact("WhatsApp", x.str("whatsapp")); Fact("Email", x.str("email"))
                 Fact("Address", listOfNotNull(x.str("address_line1"), x.str("address_line2"), x.str("city"), x.str("state"), x.str("pincode")).joinToString(", ").ifBlank { null })
