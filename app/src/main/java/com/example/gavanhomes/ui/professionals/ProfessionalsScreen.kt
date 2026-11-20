@@ -141,13 +141,14 @@ private class Pro(val json: JSONObject) {
 @Composable
 fun ProfessionalsScreen(
     api: ApiClient, b: Branding, section: Int, onSection: (Int) -> Unit, onBack: () -> Unit,
-    onOpenPro: (String) -> Unit, onAddPro: () -> Unit, onEditPro: (String) -> Unit, onOpenReview: (Int) -> Unit,
+    onOpenPro: (String) -> Unit, onAddPro: () -> Unit, onEditPro: (String) -> Unit, onOpenReview: (Int) -> Unit, onNewRequest: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawer = rememberDrawerState(DrawerValue.Closed)
 
     var dash by remember { mutableStateOf<JSONObject?>(null) }
+    var reqDash by remember { mutableStateOf<JSONObject?>(null) }                 // the Professional app's requests: open · overdue · to review · avg reply, the queue, per-professional %
     var pros by remember { mutableStateOf<List<Pro>?>(null) }
     var types by remember { mutableStateOf<List<JSONObject>?>(null) }
     var reviews by remember { mutableStateOf<JSONObject?>(null) }
@@ -176,7 +177,7 @@ fun ProfessionalsScreen(
         error = null
         try {
             when (section) {
-                0 -> dash = withContext(Dispatchers.IO) { api.detail("/professionals/dashboard") }
+                0 -> { dash = withContext(Dispatchers.IO) { api.detail("/professionals/dashboard") }; reqDash = runCatching { withContext(Dispatchers.IO) { api.detail("/professional-requests/dashboard") } }.getOrNull() }
                 1 -> pros = withContext(Dispatchers.IO) { api.get("/professionals") }.optJSONArray("data")?.let { a -> (0 until a.length()).map { Pro(a.getJSONObject(it)) } } ?: emptyList()
                 2 -> types = withContext(Dispatchers.IO) { api.get("/professional-types") }.optJSONArray("data")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList()
                 3 -> reviews = withContext(Dispatchers.IO) { api.get("/professional-reviews") }
@@ -264,7 +265,7 @@ fun ProfessionalsScreen(
                 }
 
                 when (section) {
-                    0 -> dashboard(dash!!, b, onOpenPro, onSection)
+                    0 -> { reqDash?.let { requestsDashboard(it, b, onOpenReview, onOpenPro, onSection) }; dashboard(dash!!, b, onOpenPro, onSection) }
                     1 -> {
                         val all = pros.orEmpty()
                         val passes = { p: Pro, m: Map<String, Set<String>> -> m["status"].orEmpty().let { s -> s.isEmpty() || p.status in s } && m["type"].orEmpty().let { t -> t.isEmpty() || p.type in t } }
@@ -320,9 +321,9 @@ fun ProfessionalsScreen(
                     else -> performance(perf!!, b, onOpenPro)
                 }
             }
-            val fab = when (section) { 1 -> listOf(FabAction("pro", "New professional")); 2 -> listOf(FabAction("type", "New type")); else -> emptyList() }
+            val fab = when (section) { 0, 3 -> listOf(FabAction("request", "New request")); 1 -> listOf(FabAction("pro", "New professional"), FabAction("request", "New request")); 2 -> listOf(FabAction("type", "New type")); else -> emptyList() }
             ScrollTopButton(listState, lift = if (fab.isNotEmpty()) FabLift else 0.dp)
-            QuickFab(b, fab) { if (it == "pro") onAddPro() else { typeSheet = JSONObject(); typeOpen = true } }
+            QuickFab(b, fab) { when (it) { "request" -> onNewRequest(); "pro" -> onAddPro(); else -> { typeSheet = JSONObject(); typeOpen = true } } }
             }
         }
     }

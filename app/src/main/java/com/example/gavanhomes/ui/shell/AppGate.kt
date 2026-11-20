@@ -434,6 +434,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             onAddPro = { proUuid = null; screen = "professionalForm" },
                             onEditPro = { uuid -> proUuid = uuid; screen = "professionalForm" },
                             onOpenReview = { id -> reviewId = id; screen = "reviewDetail" },
+                            onNewRequest = { screen = "proRequestNew" },
                         )
                     }
                     "hr" -> androidx.compose.runtime.key(hrVersion) {
@@ -498,9 +499,13 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             api, branding, uuid = proUuid, onBack = { screen = "professionals" },
                             onSaved = { proVersion++; proSection = 1; screen = "professionals" },
                         )
-                        "reviewDetail" -> ReviewDetailScreen(
+                        "reviewDetail" -> com.example.gavanhomes.ui.professionals.ProRequestDetailScreen(
                             api, branding, id = reviewId ?: 0, onBack = { screen = "professionals" },
                             onDone = { proVersion++; screen = "professionals" },
+                        )
+                        "proRequestNew" -> com.example.gavanhomes.ui.professionals.NewProRequestScreen(
+                            api, branding, onBack = { screen = "professionals" },
+                            onSent = { proVersion++; proSection = 0; screen = "professionals" },
                         )
                         "hrRecord" -> HrRecordScreen(
                             api, branding, slug = hrSlug, id = hrId ?: 0, onBack = { screen = "hr" },
