@@ -36,6 +36,7 @@ fun modulesFor(user: User): List<Module> {
         add(Module("dashboard", "Dashboards", "⌂", "/admin/dashboard", native = true))
         if (user.can("view projects")) add(Module("projects", "Projects", "▦", "/admin/projects", native = true))
         if (superAdmin || user.can("view users")) add(Module("users", "Users", "◎", "/admin/roles", native = true))
+        if (superAdmin || user.can("view contractors")) add(Module("contractors", "Contractors", "▤", "/admin/contractors", native = true))
         if (superAdmin) add(Module("professionals", "Professionals", "✦", "/admin/professionals/dashboard", native = true))
         if (superAdmin || user.can("view cp")) add(Module("cp", "Channel partners", "◈", "/admin/cp", native = true))
         if (admin || user.can("view hr")) add(Module("hr", "HR & Admin", "✚", "/admin/hr", native = true))

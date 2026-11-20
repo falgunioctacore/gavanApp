@@ -181,7 +181,7 @@ internal fun SearchBox(value: String, onChange: (String) -> Unit, placeholder: S
             focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = KitInk, unfocusedTextColor = KitInk, cursorColor = KitInk,
         ),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).softShadow(3.dp, RoundedCornerShape(16.dp)),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp).softShadow(3.dp, RoundedCornerShape(16.dp)),
     )
 }
 

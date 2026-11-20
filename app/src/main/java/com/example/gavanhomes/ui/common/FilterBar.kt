@@ -81,7 +81,7 @@ fun FilterBar(
     val applied = groups.flatMap { g -> (selected[g.key] ?: emptySet()).mapNotNull { v -> g.options.firstOrNull { it.value == v }?.let { g to it } } }
     val badge = applied.size
 
-    Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         androidx.compose.material3.TextField(
             value = query, onValueChange = onQuery, singleLine = true, placeholder = { Text(placeholder, color = KitMuted) },
             leadingIcon = { Text("⌕", color = KitMuted, fontSize = 20.sp) },

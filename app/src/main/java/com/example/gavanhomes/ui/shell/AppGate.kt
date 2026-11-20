@@ -427,6 +427,12 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         com.example.gavanhomes.ui.common.HeroBar(branding, "Channel partners", ::backToTeam)
                         com.example.gavanhomes.ui.cp.ChannelPartnerScreen(api, branding, null)
                     }
+                    "contractors" -> androidx.compose.foundation.layout.Column(
+                        androidx.compose.ui.Modifier.fillMaxSize().background(com.example.gavanhomes.ui.common.KitPage).verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    ) {
+                        com.example.gavanhomes.ui.common.HeroBar(branding, "Contractors", ::backToTeam)
+                        com.example.gavanhomes.ui.professionals.ContractorHubSection(api, branding)
+                    }
                     "professionals" -> androidx.compose.runtime.key(proVersion) {
                         ProfessionalsScreen(
                             api, branding, section = proSection, onSection = { proSection = it }, onBack = ::backToTeam,
