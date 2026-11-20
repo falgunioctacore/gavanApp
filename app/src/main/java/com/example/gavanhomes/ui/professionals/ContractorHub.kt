@@ -201,3 +201,96 @@ private fun Tile(value: String, label: String, modifier: Modifier, c: Color = Ki
 private fun Btn(label: String, c: Color, onClick: () -> Unit) {
     Text(label, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(c).clickable { onClick() }.padding(horizontal = 14.dp, vertical = 7.dp))
 }
+
+/**
+ * Suppliers, from the admin app (Supplier App spec v2): spend by supplier, invoices to check with the 3-way match (approve / return), the questions and issues
+ * suppliers send, and the default terms per material category. Data: the supplier-hub routes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SupplierHubSection(api: ApiClient, b: Branding) {
+    val scope = rememberCoroutineScope()
+    var tab by remember { mutableIntStateOf(0) }
+    var dash by remember { mutableStateOf<JSONObject?>(null) }
+    var invs by remember { mutableStateOf<JSONObject?>(null) }
+    var reqs by remember { mutableStateOf<JSONObject?>(null) }
+    var terms by remember { mutableStateOf<JSONObject?>(null) }
+    var attempt by remember { mutableIntStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var ask by remember { mutableStateOf<Triple<String, JSONObject, String>?>(null) }
+    var text by remember { mutableStateOf("") }
+    LaunchedEffect(attempt) {
+        error = null
+        try { withContext(Dispatchers.IO) { dash = api.get("/supplier-hub/dashboard"); invs = api.get("/supplier-hub/invoices?status=pending,approved"); reqs = api.get("/supplier-hub/requests"); terms = api.get("/supplier-hub/terms") } }
+        catch (e: Exception) { if (dash == null) error = e.message ?: "Could not load" }
+    }
+    fun call(path: String, body: JSONObject) = scope.launch {
+        try { val r = withContext(Dispatchers.IO) { api.send("POST", path, body) }; AppToast.show(r.optString("message", "Done")); ask = null; text = ""; attempt++ } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
+    }
+    val t = dash?.optJSONObject("totals")
+    val labels = listOf("Spend", "Invoices (${invs?.optJSONArray("data")?.length() ?: 0})", "Requests", "Terms")
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            labels.forEachIndexed { i, l -> Text(l, color = if (tab == i) Color.White else b.base, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (tab == i) b.base else b.base.copy(alpha = .1f)).clickable { tab = i }.padding(horizontal = 12.dp, vertical = 8.dp)) }
+        }
+        if (dash == null) { Text(error ?: "Loading…", color = KitMuted, modifier = Modifier.padding(20.dp)); return@Column }
+        when (tab) {
+            0 -> {
+                ProCard("Purchase spend", "${t?.optInt("suppliers") ?: 0} suppliers") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Tile(inr(t?.optDouble("po_value") ?: 0.0), "PO value", Modifier.weight(1f)); Tile("${t?.optInt("checking") ?: 0}", "Invoices to check", Modifier.weight(1f), Amber) }
+                    if ((t?.optInt("mismatch") ?: 0) > 0) Text("${t?.optInt("mismatch")} invoice(s) flagged by the 3-way match.", color = KitDanger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                rows(dash?.optJSONArray("data")).forEach { s -> ProCard(s.optString("name")) { Text("PO ${inr(s.optDouble("po_value"))} · invoiced ${inr(s.optDouble("invoiced"))} · checking ${s.optInt("checking")}" + if (s.optInt("mismatch") > 0) " · mismatch ${s.optInt("mismatch")}" else "", color = KitMuted, fontSize = 12.sp) } }
+            }
+            1 -> {
+                val can = invs?.optJSONObject("can")?.optBoolean("act") == true
+                val list = rows(invs?.optJSONArray("data"))
+                if (list.isEmpty()) ProCard("No invoice is waiting") { Text("Supplier invoices appear here for the 3-way match.", color = KitMuted, fontSize = 13.sp) }
+                list.forEach { r ->
+                    ProCard((r.str("invoice_no") ?: "Invoice") + " · " + (r.str("supplier") ?: ""), r.str("po")) {
+                        Text("${inr(r.optDouble("amount"))} · ${r.optString("status")}" + (r.str("due_date")?.let { " · due $it" } ?: ""), color = KitInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                        Text(if (r.optString("match") == "mismatch") "3-way match flagged: ${r.optString("match_note")}" else "3-way match OK (PO rate × GRN qty = invoice)", color = if (r.optString("match") == "mismatch") KitDanger else KitGood, fontSize = 12.sp)
+                        if (!r.optBoolean("has_eway")) Text("E-way bill copy missing", color = Amber, fontSize = 12.sp)
+                        if (can && r.optString("status") == "pending") Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Btn("Approve", KitGood) { call("/supplier-hub/invoices/${r.optInt("id")}/decide", JSONObject().put("decision", "approve").put("override", r.optString("match") == "mismatch")) }
+                            Btn("Return", KitDanger) { text = ""; ask = Triple("return", r, "Why return this invoice?") }
+                        }
+                    }
+                }
+            }
+            2 -> {
+                val can = reqs?.optJSONObject("can")?.optBoolean("act") == true
+                val list = rows(reqs?.optJSONArray("data"))
+                if (list.isEmpty()) ProCard("No questions or issues") { Text("Supplier questions about requests to quote and issues show here.", color = KitMuted, fontSize = 13.sp) }
+                list.forEach { r ->
+                    ProCard(r.optString("title"), r.optString("supplier") + " · " + r.optString("kind")) {
+                        r.str("note")?.let { Text(it, color = KitInk, fontSize = 13.sp) }
+                        if (r.optString("status") == "open") { if (can) Btn("Reply", b.base) { text = ""; ask = Triple("reply", r, "Your answer") } } else Text("Answered: ${r.optString("reply")}", color = KitGood, fontSize = 12.sp)
+                    }
+                }
+            }
+            else -> {
+                val d = terms?.optJSONObject("data")
+                val def = d?.optJSONObject("defaults")
+                ProCard("Default terms", "Printed on every request to quote and PO") {
+                    def?.let { x -> listOf("payment_term" to "Payment", "advance" to "Advance", "clock_start" to "Clock starts", "retention" to "Retention", "late_penalty" to "Late penalty").forEach { (k, l) -> Text("$l: ${x.optString(k)}", color = KitInk, fontSize = 13.sp) } }
+                    Text("Reply ${def?.optInt("reply_hours")} h · replacement ${def?.optInt("replacement_days")} days · collect ${def?.optInt("collect_days")} days · dispute ${def?.optInt("dispute_days")} working days", color = KitMuted, fontSize = 12.sp)
+                }
+                d?.optJSONObject("categories")?.let { c -> c.keys().forEach { k -> ProCard("Terms — $k") { val x = c.getJSONObject(k); x.keys().forEach { kk -> Text("${kk.replace('_', ' ')}: ${x.optString(kk)}", color = KitInk, fontSize = 13.sp) } } } }
+            }
+        }
+    }
+    ask?.let { (action, row, title) ->
+        ModalBottomSheet(onDismissRequest = { ask = null }, containerColor = KitCard) {
+            Column(Modifier.imePadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = KitInk)
+                Input("Reason / answer *", text, { text = it }, singleLine = false)
+                Text("Send", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(b.base).clickable {
+                    if (text.isBlank()) { AppToast.show("Write something first."); return@clickable }
+                    if (action == "return") call("/supplier-hub/invoices/${row.optInt("id")}/decide", JSONObject().put("decision", "return").put("reason", text.trim()))
+                    else call("/supplier-hub/requests/${row.optInt("id")}/reply", JSONObject().put("reply", text.trim()).put("share", row.optString("kind") == "question"))
+                }.padding(vertical = 15.dp))
+            }
+        }
+    }
+}
