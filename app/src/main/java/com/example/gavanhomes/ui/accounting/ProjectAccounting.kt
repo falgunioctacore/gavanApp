@@ -72,8 +72,8 @@ private class Page(val key: String, val label: String)
 
 /**
  * The project's Accounting module for the phone: the Dashboard (money in and out, balance, expenses, what suppliers are owed, where
- * money went), Payment In / Out, Expenses and Supplier invoices. The + button records a payment in or out, or an expense. (Ledgers,
- * day book, sales, banks, cheques and loans stay on the website.) Data: /projects/{uuid}/accounting-center/…
+ * money went, CSV downloads), Payment In / Out, Expenses, Supplier invoices, Bookings, Cancel & refund, Ledgers, Loan accounts, Day book,
+ * Cash in hand, Bank accounts and Cheques — the website's Accounting panes. The + button records a payment in or out, or an expense. Data: /projects/{uuid}/accounting-center/…
  * [onOpen] opens payment · expense · invoice; [onNew] starts payment_in · payment_out · expense.
  */
 @Composable
@@ -102,18 +102,23 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
     )) { onNew(it) }
     val pages = listOf(
         Page("dashboard", "Dashboard"), Page("payments", "Payment in / out"), Page("expenses", "Expenses"), Page("invoices", "Supplier invoices"),
+        Page("sales", "Bookings"), Page("cancel", "Cancel & refund"), Page("ledgers", "Ledgers"), Page("loans", "Loan accounts"),
         Page("daybook", "Day book"), Page("cash", "Cash in hand"), Page("banks", "Bank accounts"), Page("cheques", "Cheques"),
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
     ModulePages("Accounts", pages.map { it.label }, index) { view = pages[it].key }
     when (pages[index].key) {
-        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "accounting", version); Dashboard(o, onOpen) { view = it } }
+        "dashboard" -> { com.example.gavanhomes.ui.common.ModuleTrend(api, uuid, "accounting", version); Dashboard(o, onOpen) { view = it }; ExportCard(api, uuid) }
         "payments" -> PaymentList(api, b, uuid, version, options) { onOpen("payment", it) }
         "expenses" -> ExpenseList(api, b, uuid, version, options) { onOpen("expense", it) }
         "invoices" -> InvoiceList(api, b, uuid, version) { onOpen("invoice", it) }
         "daybook" -> DayBookPage(api, b, uuid, version)
         "cash" -> CashPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
         "banks" -> BankAccountsPage(api, b, uuid, version, can.optBoolean("create"))
+        "sales" -> SalesPage(api, b, uuid, version)
+        "cancel" -> CancelRefundPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
+        "ledgers" -> LedgersPage(api, b, uuid, version)
+        "loans" -> LoansPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
         else -> ChequesPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
     }
 }
