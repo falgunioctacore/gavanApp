@@ -103,7 +103,7 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
     val pages = listOf(
         Page("dashboard", "Dashboard"), Page("payments", "Payment in / out"), Page("expenses", "Expenses"), Page("invoices", "Supplier invoices"),
         Page("sales", "Bookings"), Page("cancel", "Cancel & refund"), Page("ledgers", "Ledgers"), Page("loans", "Loan accounts"),
-        Page("daybook", "Day book"), Page("cash", "Cash in hand"), Page("banks", "Bank accounts"), Page("cheques", "Cheques"),
+        Page("salesmoney", "Sales money"), Page("debit", "Debit notes"), Page("bankrec", "Bank reconciliation"), Page("daybook", "Day book"), Page("cash", "Cash in hand"), Page("banks", "Bank accounts"), Page("cheques", "Cheques"),
     )
     val index = pages.indexOfFirst { it.key == view }.coerceAtLeast(0)
     ModulePages("Accounts", pages.map { it.label }, index) { view = pages[it].key }
@@ -118,6 +118,9 @@ fun ProjectAccounting(api: ApiClient, b: Branding, uuid: String, version: Int, o
         "sales" -> SalesPage(api, b, uuid, version)
         "cancel" -> CancelRefundPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
         "ledgers" -> LedgersPage(api, b, uuid, version)
+        "salesmoney" -> SalesMoneyPage(api, b, uuid, version)
+        "debit" -> DebitNotesPage(api, b, uuid, version, can.optBoolean("create"))
+        "bankrec" -> BankReconPage(api, b, uuid, version, can.optBoolean("edit") || can.optBoolean("create"))
         "loans" -> LoansPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
         else -> ChequesPage(api, b, uuid, version, can.optBoolean("create"), can.optBoolean("delete"))
     }

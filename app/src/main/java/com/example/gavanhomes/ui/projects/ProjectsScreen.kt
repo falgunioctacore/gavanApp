@@ -85,6 +85,8 @@ import com.example.gavanhomes.ui.common.FilterOption
 import com.example.gavanhomes.ui.common.SearchBox
 import com.example.gavanhomes.ui.common.listAllMeta
 import org.json.JSONObject
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -116,6 +118,7 @@ private class P(val json: JSONObject) {
     val code = json.str("code")
     val status = json.str("status")
     val active = json.optBoolean("active")
+    val isTest = json.optBoolean("is_test")
     val types = json.optJSONArray("type")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
     val start = date(json.str("start_date"))
     val end = date(json.str("end_date"))
@@ -144,7 +147,7 @@ private val SortNames = listOf("Newest", "Name A–Z", "Ending soon")
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetails: (String) -> Unit, onOpenForm: (String?) -> Unit) {
+fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetails: (String) -> Unit, onOpenForm: (String?) -> Unit, isDirector: Boolean = false) {
     val context = LocalContext.current
     var projects by remember { mutableStateOf<List<P>?>(null) }
     var canCreate by remember { mutableStateOf(false) }
@@ -156,6 +159,8 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
     var compact by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<P?>(null) }
+    var confirmTest by remember { mutableStateOf<P?>(null) }              // the project whose test mark is being changed
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }                      // pull-down refresh in progress
     LaunchedEffect(projects) { refreshing = false }                         // fresh data arrived
     LaunchedEffect(refreshing) { if (refreshing) { kotlinx.coroutines.delay(10_000); refreshing = false } }   // never spin forever
@@ -238,6 +243,20 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
         }
     }
 
+    // ── test project mark, with a confirmation ──
+    confirmTest?.let { p ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmTest = null },
+            title = { Text(if (p.isTest) "Mark as a normal project?" else "Mark as a test project?", fontWeight = FontWeight.ExtraBold) },
+            text = { Text(if (p.isTest) "${p.name} will show in the site switcher and count in all dashboard figures." else "${p.name} will be hidden from the site switcher and left out of all dashboard figures.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                confirmTest = null
+                scope.launch { try { val r = withContext(kotlinx.coroutines.Dispatchers.IO) { api.send("POST", "/projects/${p.uuid}/toggle-test", JSONObject()) }; com.example.gavanhomes.ui.common.AppToast.show(r.optString("message", "Saved")); reload++ } catch (e: Exception) { com.example.gavanhomes.ui.common.AppToast.show(e.message ?: "Could not change") } }
+            }) { Text("Yes") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmTest = null }) { Text("Cancel") } },
+        )
+    }
+
     // ── ⋯ actions ──
     sheet?.let { p ->
         ModalBottomSheet(onDismissRequest = { sheet = null }, containerColor = com.example.gavanhomes.ui.common.KitCard) {
@@ -246,6 +265,7 @@ fun ProjectsScreen(api: ApiClient, b: Branding, onBack: () -> Unit, onOpenDetail
                 Text(p.code ?: "No code", color = KitMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
                 SheetAction("◉", "Open details") { sheet = null; p.uuid?.let(onOpenDetails) }
                 if (p.editPath != null && p.uuid != null) SheetAction("✎", "Edit project") { sheet = null; onOpenForm(p.uuid) }
+                if (isDirector && p.uuid != null) SheetAction("⚑", if (p.isTest) "Mark as normal project" else "Mark as test project") { sheet = null; confirmTest = p }
                 p.phone?.let { n -> SheetAction("✆", "Call $n") { sheet = null; context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n"))) } }
                 p.email?.let { m -> SheetAction("✉", m) { sheet = null; context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$m"))) } }
             }
@@ -342,6 +362,7 @@ private fun ProjectCard(p: P, b: Branding, onClick: () -> Unit, onMore: () -> Un
                 Text(listOfNotNull(p.code, p.types.takeIf { it.isNotEmpty() }?.joinToString(", ")).joinToString("  ·  ").ifEmpty { "No code" },
                     fontSize = 11.sp, color = KitMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            if (p.isTest) { Tag("TEST PROJECT", Amber); Spacer(Modifier.size(4.dp)) }
             if (p.status != null) Tag(p.status, statusColor(p.status))
             if (!p.active) { Spacer(Modifier.size(4.dp)); Tag("Inactive", KitMuted) }
             Box(Modifier.size(34.dp).clip(CircleShape).clickable { onMore() }, contentAlignment = Alignment.Center) { Text("⋯", color = KitMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold) }

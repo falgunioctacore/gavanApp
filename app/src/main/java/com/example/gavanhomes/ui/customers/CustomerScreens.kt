@@ -170,6 +170,7 @@ fun BookingDetailScreen(api: ApiClient, b: Branding, id: Int, version: Int, onBa
                 if (pays.isEmpty()) Text("No payments yet.", color = KitMuted, fontSize = 13.sp)
                 pays.forEach { p -> MiniRow(rupees(p.optDouble("amount", 0.0)), listOfNotNull(prettyDay(p.str("date")), p.str("method"), p.str("cycle")).joinToString(" · "), null, pretty(p.str("status")) to paymentTint(p.str("status"))) {} }
             }
+            com.example.gavanhomes.ui.management.BookingChangesCard(api, b, id, x.str("status"), can.optBoolean("edit_booking"), onChanged)
             x.str("remarks")?.let { Card("Remarks") { Text(it, color = KitInk, fontSize = 14.sp) } }
             Text("New bookings and payment entries are made on the website.", color = KitMuted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(16.dp))
             Spacer(Modifier.height(16.dp))

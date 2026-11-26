@@ -411,6 +411,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                             api, branding, onBack = ::goHome,
                             onOpenDetails = { uuid -> detailUuid = uuid; screen = "projectDetail" },
                             onOpenForm = { uuid -> formUuid = uuid; screen = "projectForm" },
+                            isDirector = user.roles.any { it.equals("superAdmin", true) },
                         )
                     }
                     "users" -> androidx.compose.runtime.key(usersVersion) {
@@ -458,6 +459,7 @@ private fun Home(api: ApiClient, ready: Gate.Ready, branding: Branding, store: S
                         )
                     }
                     "audit" -> AuditScreen(api, branding, section = auditSection, onSection = { auditSection = it }, onBack = { screen = "me" })
+                    "management" -> com.example.gavanhomes.ui.management.ManagementScreen(api, branding, isDirector = user.roles.any { it.equals("superAdmin", true) }, onBack = ::backToTeam)
                     "hod" -> HodScreen(api, branding, section = hodSection, onSection = { hodSection = it }, onBack = ::goHome)
                     "account" -> AccountScreen(api, user, branding, onUser = { user = it; store.userJson = it.toJson().toString() }, onBack = { screen = "me" }, onLogout = logout,
                         onAppSettings = if (user.roles.any { it.equals("superAdmin", true) }) ({ screen = "appSettings" }) else null)

@@ -54,7 +54,7 @@ private val Page: Color get() = com.example.gavanhomes.ui.common.KitPage
 /** The app's five places, in a property business's terms. */
 internal class Place(val key: String, val label: String, val icon: String)
 
-internal val TeamKeys = listOf("users", "hr", "professionals", "cp", "contractors", "suppliers")
+internal val TeamKeys = listOf("users", "hr", "professionals", "cp", "contractors", "suppliers", "management")
 internal val MeKeys = listOf("account", "audit", "appSettings", "me", "chats", "chat")
 
 /** The places this person has something in: Home · Sales · Projects · Team · Me. */
@@ -188,6 +188,7 @@ internal fun TeamHub(modules: List<Module>, b: Branding, onOpen: (String) -> Uni
         HubItem("cp", "Channel partners", "Registration, approval, annual league levels and commission", "cp", Color(0xFFC47A1A)).takeIf { "cp" in keys },
         HubItem("suppliers", "Suppliers", "Spend, invoices to check, supplier questions and terms", "cp", Color(0xFFC47A1A)).takeIf { "suppliers" in keys },
         HubItem("contractors", "Contractors", "Labour today, task photos to verify, RA bills and requests", "professionals", Color(0xFF0E8A50)).takeIf { "contractors" in keys },
+        HubItem("management", "Management", "MD overview, approval matrix and companies", "hod", Color(0xFF475569)).takeIf { "management" in keys },
         HubItem("professionals", "Professionals", "Architects, agents, consultants and their reviews", "professionals", Color(0xFF8B5CF6)).takeIf { "professionals" in keys },
     )
     HubScreen(b, "Team", "The people who build and sell your projects", items, onOpen = onOpen)

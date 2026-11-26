@@ -42,6 +42,7 @@ fun modulesFor(user: User): List<Module> {
         if (superAdmin || user.can("view cp")) add(Module("cp", "Channel partners", "◈", "/admin/cp", native = true))
         if (admin || user.can("view hr")) add(Module("hr", "HR & Admin", "✚", "/admin/hr", native = true))
         if (admin || user.can("view hod dashboard")) add(Module("hod", "HOD Sales", "↗", "/admin/hod", native = true))
+        if (admin) add(Module("management", "Management", "◆", "/admin/management", native = true))
         if (superAdmin) add(Module("audit", "Audit Logs", "◈", "/admin/audit-logs", native = true))
         add(Module("account", "Account", "◉", "/admin/pages/account-settings-account", native = true))
     }
