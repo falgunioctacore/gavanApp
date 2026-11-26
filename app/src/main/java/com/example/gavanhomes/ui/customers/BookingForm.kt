@@ -427,7 +427,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
                 }
                 Card("Office use") {
                     T("office_booking_id", "Booking ID"); T("office_unit_code", "Unit code"); T("office_status", "Office status")
-                    T("office_sales_exec", "Sales executive"); T("office_sales_mgr", "Sales manager"); T("office_broker", "Broker"); T("office_rera_agent", "RERA agent reg. no."); Am("office_commission", "Commission (₹)") {}
+                    T("office_sales_exec", "Sales executive"); T("office_sales_mgr", "Sales manager"); T("office_broker", "Broker"); T("office_rera_agent", "RERA agent reg. no."); Am("office_commission", "Commission % (0–100)") {}
                     T("office_remarks", "Office remarks")
                     Input("Remarks", f["remarks"].orEmpty(), { f["remarks"] = it }, errors["remarks"], singleLine = false)
                 }
