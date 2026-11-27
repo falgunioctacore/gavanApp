@@ -1,5 +1,6 @@
 package com.example.gavanhomes.ui.accounting
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +86,17 @@ private fun chequeStatus(s: String?): Pair<String, Color> = when (s) {
 private fun TopAction(label: String, c: Color, onClick: () -> Unit) {
     Text(label, color = c, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, textAlign = TextAlign.Center,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.copy(alpha = .12f)).clickable { onClick() }.padding(vertical = 13.dp))
+}
+
+/** One-line choice chips. */
+@Composable
+private fun SourceChips(options: List<Pair<String, String>>, chosen: String, b: Branding, pick: (String) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (key, label) ->
+            Text(label, color = if (chosen == key) Color.White else b.base, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(if (chosen == key) b.base else b.base.copy(alpha = .1f)).clickable { pick(key) }.padding(horizontal = 12.dp, vertical = 8.dp))
+        }
+    }
 }
 
 /** A bottom sheet with a title, fields and one save button; [save] returns the error to show, or null once it went through. */
@@ -251,15 +263,34 @@ fun CashPage(api: ApiClient, b: Branding, uuid: String, version: Int, canCreate:
         var amount by remember(kind) { mutableStateOf("") }
         var day by remember(kind) { mutableStateOf(LocalDate.now().toString()) }
         var note by remember(kind) { mutableStateOf("") }
+        var source by remember(kind) { mutableStateOf("") }                 // where added cash came from
+        var bankId by remember(kind) { mutableStateOf(0) }                  // the account it was drawn from
+        var banks by remember(kind) { mutableStateOf<List<JSONObject>>(emptyList()) }
+        LaunchedEffect(kind) {
+            banks = runCatching { withContext(Dispatchers.IO) { api.get("/projects/$uuid/accounting-center/bank-accounts") }.optJSONArray("data")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } }.getOrNull().orEmpty()
+        }
         FormSheet(if (kind == "add") "Add cash" else "Reduce cash", if (kind == "add") "Add to cash" else "Reduce cash", b, onClose = { sheet = null },
             save = {
-                if ((amount.toDoubleOrNull() ?: 0.0) <= 0) "Enter an amount greater than 0." else tryApi {
-                    withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/cash/adjust", JSONObject().put("type", kind).put("amount", amount.toDouble()).put("adjustment_date", day).put("description", note.trim().ifBlank { JSONObject.NULL })) }
+                if ((amount.toDoubleOrNull() ?: 0.0) <= 0) "Enter an amount greater than 0."
+                else if (kind == "add" && source.isEmpty()) "Say where this cash came from."
+                else if (kind == "add" && source == "bank_withdrawal" && bankId == 0) "Choose the bank account the cash was drawn from."
+                else tryApi {
+                    val body = JSONObject().put("type", kind).put("amount", amount.toDouble()).put("adjustment_date", day).put("description", note.trim().ifBlank { JSONObject.NULL })
+                    if (kind == "add") { body.put("fund_source", source); if (source == "bank_withdrawal") body.put("bank_account_id", bankId) }
+                    withContext(Dispatchers.IO) { api.send("POST", "/projects/$uuid/accounting-center/cash/adjust", body) }
                     AppToast.show("Cash updated"); local++
                 }
             }) {
             Input("Amount (₹)", amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, keyboard = KeyboardType.Decimal)
             DatePick("Date", day, null) { if (it.isNotBlank()) day = it }
+            if (kind == "add") {
+                Text("Where did the cash come from?", color = KitMuted, fontSize = 12.sp)
+                SourceChips(listOf("bank_withdrawal" to "Bank withdrawal", "partner_capital" to "Partner capital", "loan" to "Loan", "sale_proceeds" to "Sale proceeds", "other" to "Other"), source, b) { source = it }
+                if (source == "bank_withdrawal") {
+                    Text(if (banks.isEmpty()) "Add a bank account first (Bank accounts)." else "Drawn from", color = KitMuted, fontSize = 12.sp)
+                    SourceChips(banks.map { it.optInt("id").toString() to it.optString("name") }, bankId.toString(), b) { bankId = it.toInt() }
+                }
+            }
             Input("Note", note, { note = it }, singleLine = false)
         }
     }
