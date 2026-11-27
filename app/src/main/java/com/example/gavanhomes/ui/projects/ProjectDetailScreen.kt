@@ -583,7 +583,7 @@ fun ProjectDetailScreen(api: ApiClient, b: Branding, uuid: String, onBack: () ->
                     }
                     StatusPill(u.str("status"))
                 }
-                UnitLabels.forEach { (k, label) -> Fact(label, if (k == "price") money(u.str(k)) else u.str(k)) }
+                UnitLabels.forEach { (k, label) -> Fact(if (k == "plot_area" && u.str("is_plot") == "1") "Plot area (sq.ft)" else label, if (k == "price") money(u.str(k)) else u.str(k)) }
                 UnitBooking(api, b, uuid, u.optInt("id"), onBook = { unit = null; custStack.add("new-booking" to -u.optInt("id")) }, onOpenBooking = { unit = null; custStack.add("booking" to it) })
                 val docs = UnitDocs.filter { !u.str(it.first).isNullOrBlank() }
                 if (docs.isNotEmpty()) {
@@ -841,7 +841,7 @@ private fun StatusPill(status: String?) {
 private fun UnitRow(u: JSONObject, onClick: () -> Unit) {
     val sub = listOfNotNull(
         u.str("wing")?.let { "Wing $it" }, u.str("floor")?.let { "Floor $it" }, u.str("bhk_type"),
-        u.str("area_sqm")?.let { "$it sqm" }, u.str("plot_area")?.let { "$it sqm plot" },
+        u.str("area_sqm")?.let { "$it sqm" }, u.str("plot_area")?.let { if (u.str("is_plot") == "1") "$it sq ft plot" else "$it sqm plot" },
     ).joinToString(" · ")
     Row(
         Modifier.appear().padding(horizontal = 16.dp, vertical = 5.dp).fillMaxWidth().softShadow(4.dp, RoundedCornerShape(18.dp))
