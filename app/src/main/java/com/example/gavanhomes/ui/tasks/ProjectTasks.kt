@@ -135,7 +135,7 @@ private val QuickFilters = listOf(Quick("today", "Today"), Quick("tomorrow", "To
  */
 @Composable
 fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen: (Int) -> Unit, onNew: () -> Unit, onEdit: (Int) -> Unit = {}, onOpenAt: (Int, String) -> Unit = { id, _ -> onOpen(id) }, showListSignal: Int = 0) {
-    var view by remember { mutableIntStateOf(0) }                    // 0 Dashboard · 1 List · 2 Board
+    var view by remember { mutableIntStateOf(-1) }                   // 0 My day · 1 Dashboard · 2 List · 3 Board · 4 History (-1 until we know where to open)
     var overview by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -143,7 +143,7 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     var sel by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableIntStateOf(2) }                    // the list starts with the newest task first
-    LaunchedEffect(showListSignal) { if (showListSignal > 0) { view = 1; sel = emptyMap(); query = "" } }      // a task was just created: show the list (newest first)
+    LaunchedEffect(showListSignal) { if (showListSignal > 0) { view = 2; sel = emptyMap(); query = "" } }      // a task was just created: show the list (newest first)
 
     var pickers by remember { mutableStateOf<JSONObject?>(null) }       // departments, types, people — for the filter sheet
     LaunchedEffect(version, attempt) {
@@ -153,7 +153,7 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     }
     LaunchedEffect(uuid) { pickers = runCatching { withContext(Dispatchers.IO) { api.detail("/projects/$uuid/task-center/options") } }.getOrNull() }
 
-    com.example.gavanhomes.ui.common.ModulePages("Tasks", listOf("Dashboard", "List", "Board", "History"), view) { view = it }
+    com.example.gavanhomes.ui.common.ModulePages("Tasks", listOf("My day", "Dashboard", "List", "Board", "History"), view.coerceAtLeast(0)) { view = it }
 
     val o = overview
     if (o == null) {
@@ -166,10 +166,15 @@ fun ProjectTasks(api: ApiClient, b: Branding, uuid: String, version: Int, onOpen
     val canCreate = o.optJSONObject("can")?.optBoolean("create") == true
     ProvideFab(if (canCreate) listOf(FabAction("task", "New task")) else emptyList()) { onNew() }
 
-    when (view) {
-        0 -> { TaskDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 1 } }
-        1 -> TaskList(api, b, uuid, version, o, pickers, sel, { sel = it }, query, { query = it }, sort, { sort = it }, onOpen, canCreate, onNew, onChanged = { attempt++ }, onEdit = onEdit, onOpenAt = onOpenAt)
-        2 -> TaskBoard(api, b, uuid, version, o.optJSONObject("can")?.optBoolean("edit") == true, onChanged = { attempt++ }, onOpen = onOpen)
+    // staff open straight on "My day"; admins keep the dashboard
+    val shown = if (view >= 0) view else if (o.optBoolean("my_day_first")) 0 else 1
+    LaunchedEffect(shown) { view = shown }
+
+    when (shown) {
+        0 -> MyDayPage(api, b, uuid, version, onOpen, onChanged = { attempt++ }, onAllMine = { sel = quickSelection("mine"); query = ""; view = 2 })
+        1 -> { TaskDashboard(o, canCreate, onNew, onOpen) { q -> sel = quickSelection(q); query = ""; view = 2 } }
+        2 -> TaskList(api, b, uuid, version, o, pickers, sel, { sel = it }, query, { query = it }, sort, { sort = it }, onOpen, canCreate, onNew, onChanged = { attempt++ }, onEdit = onEdit, onOpenAt = onOpenAt)
+        3 -> TaskBoard(api, b, uuid, version, o.optJSONObject("can")?.optBoolean("edit") == true, onChanged = { attempt++ }, onOpen = onOpen)
         else -> TaskHistory(api, b, uuid, version, onOpen)
     }
 }
