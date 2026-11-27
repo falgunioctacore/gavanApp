@@ -243,7 +243,8 @@ fun BookingChangesCard(api: ApiClient, b: Branding, id: Int, status: String?, ca
         try { val r = withContext(Dispatchers.IO) { api.send("POST", path, j) }; AppToast.show(r.optString("message", "Saved")); sheet = null; attempt++; onChanged() } catch (e: Exception) { AppToast.show(e.message ?: "Could not save") }
     }
     val s = d ?: return
-    ProCard("Changes & letters", "Move the unit, change the name, print letters") {
+    ProCard("Changes & letters", "Move the unit, change the name, print the forms") {
+        Text(if (busy) "Preparing…" else "⤓  Plot booking form (PDF)", color = b.base, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { letter("Booking form", "/customer-center/bookings/$id/booking-form", "booking-form") })
         if (canEdit && status !in listOf("cancelled", "void", "draft")) Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Change unit", color = b.base, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { f.clear(); sheet = "transfer" })
             Text("Change name", color = b.base, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { f.clear(); sheet = "rename" })

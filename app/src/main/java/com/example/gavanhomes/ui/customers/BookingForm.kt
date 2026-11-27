@@ -195,7 +195,13 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
     val auto = opts.optJSONObject("auto_percent") ?: JSONObject()
 
     fun bsp() = num(f["cost_bsp"])
-    fun total() = CostLines.sumOf { num(f[it.first]) }
+    // plot booking: no cash; stamp duty, registration and legal charges stay outside the total; the discount comes off it (the server applies the same rules)
+    fun plotBooking() = opts.optBoolean("plot_project") || units.any { it.optInt("id").toString() == f["inv_id"] && it.optBoolean("is_plot") }
+    fun total(): Double {
+        if (!plotBooking()) return CostLines.sumOf { num(f[it.first]) }
+        val sum = CostLines.filter { it.first !in listOf("cost_stamp_duty", "cost_registration", "cost_legal_docs") }.sumOf { num(f[it.first]) }
+        return (sum - num(f["plot_form[discount_amount]"])).coerceAtLeast(0.0)
+    }
     fun base() = if (bsp() > 0) bsp() else total()
     val isPlot = id == null && (opts.optJSONArray("plot_schedule")?.length() ?: 0) > 0
     /** The project's plot milestones turned into dated rows: % of the total (or fixed ₹), due on a date / N days / N months after the booking date / as monthly EMIs. */
@@ -281,6 +287,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
         listOf("applicant_aadhaar", "co_aadhaar").forEach { k -> f[k]?.takeIf { it.isNotBlank() && it.length != 12 }?.let { e[k] = "Must be 12 digits." } }
         if (isPlot && plotRows.isNotEmpty() && !draft && kotlin.math.abs(plotRows.sumOf { num(it.amount) } - total()) > 1) e["schedule_total"] = "The payment schedule must add up to the total (" + rupees(total()) + ")."
         if (isPlot && plotRows.any { it.name.isBlank() || num(it.amount) <= 0 }) e["schedule_total"] = "Every schedule milestone needs a name and an amount."
+        if (plotBooking() && f["payment_mode"].orEmpty().contains("cash", ignoreCase = true)) e["payment_mode"] = "A plot booking amount cannot be taken in cash. Use cheque, demand draft, bank transfer or UPI."
         if (e.isNotEmpty()) { errors = e; banner = e.values.first(); return }
         recalc()
         errors = emptyMap(); banner = null
@@ -300,6 +307,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
                 @Composable fun Dg(k: String, l: String, max: Int) { Input(l, f[k].orEmpty(), { f[k] = it.filter(Char::isDigit).take(max) }, errors[k], keyboard = KeyboardType.Number) }
                 @Composable fun Am(k: String, l: String, after: () -> Unit = {}) { Input(l, f[k].orEmpty(), { f[k] = it.filter { c -> c.isDigit() || c == '.' }; after() }, errors[k], keyboard = KeyboardType.Decimal) }
                 @Composable fun Dt(k: String, l: String) { DatePick(l, f[k].orEmpty(), errors[k]) { f[k] = it } }
+                @Composable fun Tick(k: String, l: String) { val on = f[k] == "1"; Text((if (on) "☑  " else "☐  ") + l, color = KitInk, fontSize = 14.sp, modifier = Modifier.fillMaxWidth().clickable { f[k] = if (on) "0" else "1" }.padding(vertical = 6.dp)) }
 
                 Card("Unit & booking") {
                     PickerField("Unit", unitLabel, errors["inv_id"]) { sheet = "unit" }
@@ -342,6 +350,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
                         Input(l + if (auto1) "  (auto)" else "", f[k].orEmpty(), { f[k] = it.filter { c -> c.isDigit() || c == '.' }; recalc() }, errors[k], keyboard = KeyboardType.Decimal)
                     }
                     Fact("Total consideration", rupees(total()))
+                    if (plotBooking()) Text("Plot booking: stamp duty, registration and legal charges are paid by the buyer directly and are not in this total. The discount is taken off it.", color = KitMuted, fontSize = 12.sp)
                     if (inWords(total()).isNotBlank()) Text(inWords(total()), color = KitMuted, fontSize = 12.sp)
                 }
                 Card("Booking payment") {
@@ -425,6 +434,20 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
                     T("witness1_name", "Witness 1 name"); T("witness1_address", "Witness 1 address")
                     T("witness2_name", "Witness 2 name"); T("witness2_address", "Witness 2 address")
                 }
+                Card("Plot booking form") {
+                    T("plot_form[father_name]", "Father's / husband's name"); T("plot_form[whatsapp]", "WhatsApp number")
+                    T("plot_form[co_father_name]", "Co-applicant father's / husband's name"); T("plot_form[co_whatsapp]", "Co-applicant WhatsApp"); T("plot_form[co_address]", "Co-applicant address"); T("plot_form[co_city]", "Co-applicant city, state, PIN")
+                    T("plot_form[lead_source]", "Lead ID / source"); T("plot_form[cp_name]", "Channel partner name"); T("plot_form[cp_reg_no]", "CP registration no.")
+                    Text("If the buyer is a firm / company / LLP", color = KitMuted, fontSize = 12.sp)
+                    T("plot_form[firm_name]", "Firm name"); T("plot_form[firm_constitution]", "Constitution (Proprietor / LLP / Pvt Ltd…)"); T("plot_form[firm_gstin]", "Firm GSTIN"); T("plot_form[firm_pan_cin]", "Firm PAN / CIN / LLPIN")
+                    T("plot_form[firm_address]", "Registered address"); T("plot_form[firm_signatory]", "Authorised signatory & designation"); T("plot_form[firm_use]", "Intended use of plot"); T("plot_form[firm_resolution]", "Board resolution attached (yes / no)")
+                    Text("Plot, price and payment", color = KitMuted, fontSize = 12.sp)
+                    T("plot_form[phase_block]", "Phase / block / sector"); T("plot_form[permitted_use]", "Permitted use / zone"); T("plot_form[survey_no]", "Survey / block no. of land")
+                    T("plot_form[other_charges_label]", "Other charges (specify)"); Am("plot_form[discount_amount]", "Discount (₹)") { recalc() }; T("plot_form[discount_ref]", "Discount approval ref. no.")
+                    T("plot_form[received_account]", "Developer account received in (name & last 4)"); T("plot_form[receipt_no]", "Official receipt no."); T("plot_form[loan_officer]", "Loan branch & officer contact")
+                    Text("More documents submitted", color = KitMuted, fontSize = 12.sp)
+                    Tick("plot_form[doc_firm_gst]", "Firm GST certificate"); Tick("plot_form[doc_firm_deed]", "Incorporation / partnership deed"); Tick("plot_form[doc_board_resolution]", "Board resolution / authority letter"); Tick("plot_form[doc_cp_copy]", "CP registration copy"); Tick("plot_form[doc_loan_sanction]", "Loan sanction letter")
+                }
                 Card("Office use") {
                     T("office_booking_id", "Booking ID"); T("office_unit_code", "Unit code"); T("office_status", "Office status")
                     T("office_sales_exec", "Sales executive"); T("office_sales_mgr", "Sales manager"); T("office_broker", "Broker"); T("office_rera_agent", "RERA agent reg. no."); Am("office_commission", "Commission % (0–100)") {}
@@ -464,7 +487,7 @@ fun BookingFormScreen(api: ApiClient, b: Branding, uuid: String, id: Int?, lead:
             }
         }
     }
-    if (sheet == "mode") ChoiceSheet("Payment mode", opts.optJSONArray("payment_modes")?.let { a -> (0 until a.length()).map { Choice(a.getString(it), a.getString(it)) } }.orEmpty(), f["payment_mode"], b, allowNone = true, onClose = { sheet = null }) { f["payment_mode"] = it; sheet = null }
+    if (sheet == "mode") ChoiceSheet("Payment mode", opts.optJSONArray("payment_modes")?.let { a -> (0 until a.length()).map { Choice(a.getString(it), a.getString(it)) } }.orEmpty().filter { !(plotBooking() && it.value.contains("cash", ignoreCase = true)) }, f["payment_mode"], b, allowNone = true, onClose = { sheet = null }) { f["payment_mode"] = it; sheet = null }
 }
 
 private fun bookingSubmit(scope: kotlinx.coroutines.CoroutineScope, api: ApiClient, update: String?, create: String, body: JSONObject, files: List<com.example.gavanhomes.data.FormPart>?, ok: String,
